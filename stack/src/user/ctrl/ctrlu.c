@@ -475,6 +475,14 @@ tOplkError ctrlu_processStack(void)
         goto Exit;
 
     ret = timeru_process();
+    if(ret != kErrorOk)
+        goto Exit;
+
+#if defined(CONFIG_INCLUDE_SDO_UDP)
+    ret = sdoudp_process();
+    if(ret != kErrorOk)
+        goto Exit;
+#endif
 
 Exit:
     return ret;

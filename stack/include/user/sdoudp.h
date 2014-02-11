@@ -69,6 +69,7 @@ tOplkError sdoudp_config(ULONG ipAddr_p, UINT port_p);
 tOplkError sdoudp_initCon(tSdoConHdl* pSdoConHandle_p, UINT targetNodeId_p);
 tOplkError sdoudp_sendData(tSdoConHdl SdoConHandle_p, tPlkFrame* pSrcData_p, DWORD dwDataSize_p);
 tOplkError sdoudp_delConnection(tSdoConHdl SdoConHandle_p);
+tOplkError sdoudp_process(void);
 
 #endif
 

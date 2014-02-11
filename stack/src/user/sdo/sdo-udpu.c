@@ -499,6 +499,22 @@ tOplkError sdoudp_delConnection(tSdoConHdl sdoConHandle_p)
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Process IP stack
+
+This functions processes the background task of the IP stack.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_sdo_udp
+*/
+//------------------------------------------------------------------------------
+tOplkError sdoudp_process(void)
+{
+    return kErrorOk;
+}
+
 //============================================================================//
 //            P R I V A T E   F U N C T I O N S                               //
 //============================================================================//
