@@ -186,6 +186,60 @@ void target_msleep(unsigned int milliSecond_p)
     usleep(TGTCONIO_MS_IN_US(milliSecond_p));
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Set IP address of specified Ethernet interface
+
+The function sets the IP address, subnetMask and MTU of an Ethernet
+interface.
+
+\param  ifName_p                Name of ethernet interface.
+\param  ipAddress_p             IP address to set for interface.
+\param  subnetMask_p            Subnet mask to set for interface.
+\param  mtu_p                   MTU to set for interface.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_target
+*/
+//------------------------------------------------------------------------------
+tOplkError target_setIpAdrs(char* ifName_p, UINT32 ipAddress_p, UINT32 subnetMask_p, UINT16 mtu_p)
+{
+    tOplkError ret = kErrorOk;
+
+    UNUSED_PARAMETER(ifName_p);
+
+#ifdef CONFIG_INCLUDE_VETH
+    ret = veth_setIpAdrs(ipAddress_p, subnetMask_p, mtu_p);
+#endif
+
+    return ret;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Set default gateway for Ethernet interface
+
+The function sets the default gateway of an Ethernet interface.
+
+\param  defaultGateway_p            Default gateway to set.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_target
+*/
+//------------------------------------------------------------------------------
+tOplkError target_setDefaultGateway(UINT32 defaultGateway_p)
+{
+    tOplkError ret = kErrorOk;
+
+#ifdef CONFIG_INCLUDE_VETH
+    ret = veth_setDefaultGateway(defaultGateway_p);
+#endif
+
+    return ret;
+}
+
 //============================================================================//
 //            P R I V A T E   F U N C T I O N S                               //
 //============================================================================//
