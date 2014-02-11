@@ -341,6 +341,14 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
     }
 #endif
 
+#if defined(CONFIG_INCLUDE_VETH)
+    ret = veth_addInstance(ctrlInstance_l.initParam.aMacAddress);
+    if (ret != kErrorOk)
+    {
+        goto Exit;
+    }
+#endif
+
 #if defined(CONFIG_INCLUDE_SDOS) || defined(CONFIG_INCLUDE_SDOC)
     // init sdo command layer
     TRACE("Initialize SdoCom module...\n");
