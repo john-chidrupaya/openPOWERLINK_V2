@@ -162,15 +162,19 @@ void shutdownApp(void)
 
 The function implements the synchronous data handler.
 
+\param pSocTimeStamp_p      Timestamp of the current POWERLINK cycle
+
 \return The function returns a tOplkError error code.
 
 \ingroup module_demo_mn_console
 */
 //------------------------------------------------------------------------------
-tOplkError processSync(void)
+tOplkError processSync(tSocTimeStamp* pSocTimeStamp_p)
 {
     tOplkError          ret = kErrorOk;
     int                 i;
+
+    UNUSED_PARAMETER(pSocTimeStamp_p);
 
     if (oplk_waitSyncEvent(100000) != kErrorOk)
         return ret;

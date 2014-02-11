@@ -85,7 +85,7 @@ tOplkError pdoucal_getRxPdo(BYTE** ppPdo_p, UINT channelId_p, WORD pdoSize_p);
 tOplkError pdoucal_initSync(tSyncCb pfnSyncCb_p);
 void       pdoucal_exitSync(void);
 tOplkError pdoucal_waitSyncEvent(ULONG timeout_p);
-tOplkError pdoucal_callSyncCb(void);
+tOplkError pdoucal_callSyncCb(tSocTimeStamp* pSocTimeStamp_p);
 
 #ifdef __cplusplus
 }

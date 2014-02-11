@@ -839,7 +839,7 @@ static tOplkError processSync(tNmtState nmtState_p)
 
     if (dllkInstance_g.pfnCbSync != NULL)
     {
-        ret = dllkInstance_g.pfnCbSync();
+        ret = dllkInstance_g.pfnCbSync(&dllkInstance_g.socTimeStamp);
         if (ret == kErrorReject)
             fReadyFlag = FALSE;
         else if (ret == kErrorOk)

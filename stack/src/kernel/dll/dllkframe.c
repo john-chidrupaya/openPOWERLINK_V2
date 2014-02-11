@@ -96,6 +96,7 @@ static BOOL       presFrameFormatIsInvalid(tFrameInfo* pFrameInfo_p, tDllkNodeIn
 static tOplkError processReceivedNonPlk(tFrameInfo* pFrameInfo_p,
                                         tNmtState nmtState_p,
                                         tEdrvReleaseRxBuffer* pReleaseRxBuffer_p);
+static void forwardSoCTimestamp(tEdrvRxBuffer* pRxBuffer_p);
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
 static tOplkError checkAndSetSyncEvent(BOOL fPrcSlotFinished_p, UINT nodeId_p);
@@ -1915,6 +1916,9 @@ static tOplkError processReceivedSoc(tEdrvRxBuffer* pRxBuffer_p, tNmtState nmtSt
             dllkInstance_g.cycleCount = (dllkInstance_g.cycleCount + 1) %
                             dllkInstance_g.dllConfigParam.multipleCycleCnt;
         }
+
+        // Save timestamps of SoC frame
+        forwardSoCTimestamp(pRxBuffer_p);
     }
 
     // reprogram timer
@@ -2501,6 +2505,7 @@ static tOplkError processReceivedAsnd(tFrameInfo* pFrameInfo_p, tEdrvRxBuffer* p
         }
 #endif
 
+        BENCHMARK_MOD_01_SET(2);
         if (dllkInstance_g.aAsndFilter[asndServiceId] == kDllAsndFilterAny)
         {   // ASnd service ID is registered
             // forward frame via async receive FIFO to userspace
@@ -2530,6 +2535,7 @@ static tOplkError processReceivedAsnd(tFrameInfo* pFrameInfo_p, tEdrvRxBuffer* p
                     goto Exit;
             }
         }
+        BENCHMARK_MOD_01_RESET(2);
     }
 
 Exit:
@@ -2605,6 +2611,38 @@ static tOplkError forwardRpdo(tFrameInfo* pFrameInfo_p)
         ret = dllkInstance_g.pfnCbProcessRpdo(pFrameInfo_p);
     }
     return ret;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Forward the SoC Time stamp to the user layer
+
+\param  pRxBuffer_p        Pointer to the receive buffer
+
+*/
+//------------------------------------------------------------------------------
+static void forwardSoCTimestamp(tEdrvRxBuffer* pRxBuffer_p)
+{
+    tPlkFrame*      pFrame = (tPlkFrame*) pRxBuffer_p->pBuffer;
+
+    if (dllkInstance_g.socTimeStamp.fSocRelTimeValid == FALSE)
+    {
+        // from the first change in the SoC time stamp it is considered valid
+        if (dllkInstance_g.socTimeStamp.relTime != ami_getUint64Le(
+                        &(pFrame->data.soc.relativeTimeLe)))
+        {
+            dllkInstance_g.socTimeStamp.fSocRelTimeValid = TRUE;
+        }
+    }
+
+    // save Soc Relative Time
+    dllkInstance_g.socTimeStamp.relTime = ami_getUint64Le(
+            &(pFrame->data.soc.relativeTimeLe));
+    dllkInstance_g.socTimeStamp.netTime.sec = ami_getUint32Le(
+            &(pFrame->data.soc.netTimeLe.sec));
+    dllkInstance_g.socTimeStamp.netTime.nsec = ami_getUint32Le(
+            &(pFrame->data.soc.netTimeLe.nsec));
+
 }
 
 ///\}

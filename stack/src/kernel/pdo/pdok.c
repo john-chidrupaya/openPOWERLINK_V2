@@ -505,14 +505,16 @@ tOplkError pdok_setupPdoBuffers(size_t rxPdoMemSize_p, size_t txPdoMemSize_p)
 
 The function sends a sync event.
 
+\param pSocTimeStamp_p      TimeStamp of the current POWERLINK cycle
+
 \return The function returns a tOplkError error code.
 
 \ingroup module_pdok
 */
 //------------------------------------------------------------------------------
-tOplkError pdok_sendSyncEvent(void)
+tOplkError pdok_sendSyncEvent(tSocTimeStamp* pSocTimeStamp_p)
 {
-    pdokcal_sendSyncEvent();
+    pdokcal_sendSyncEvent(pSocTimeStamp_p);
     return kErrorOk;
 }
 

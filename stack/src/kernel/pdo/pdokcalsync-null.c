@@ -62,7 +62,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // global function prototypes
 //------------------------------------------------------------------------------
-extern tOplkError pdoucal_callSyncCb(void);
+extern tOplkError pdoucal_callSyncCb(tSocTimeStamp* pSocTimeStamp_p);
 
 //============================================================================//
 //            P R I V A T E   D E F I N I T I O N S                           //
@@ -124,14 +124,16 @@ void pdokcal_exitSync(void)
 
 The function sends a sync event.
 
+\param pSocTimeStamp_p      Timestamp of the current POWERLINK cycle
+
 \return The function returns a tOplkError error code.
 
 \ingroup module_pdokcal
 */
 //------------------------------------------------------------------------------
-tOplkError pdokcal_sendSyncEvent(void)
+tOplkError pdokcal_sendSyncEvent(tSocTimeStamp* pSocTimeStamp_p)
 {
-    return pdoucal_callSyncCb();
+    return pdoucal_callSyncCb(pSocTimeStamp_p);
 }
 
 //------------------------------------------------------------------------------

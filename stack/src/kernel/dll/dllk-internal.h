@@ -237,6 +237,8 @@ typedef struct
     UINT32                  prcPResTimeFirst;
     UINT32                  prcPResFallBackTimeout;
 #endif
+
+    tSocTimeStamp           socTimeStamp;         ///< Timestamps of last SoC frame
 } tDllkInstance;
 
 //------------------------------------------------------------------------------

@@ -156,6 +156,16 @@ typedef struct
 } tNetTime;
 
 /**
+ * \brief Time stamp of the SoC
+ */
+typedef struct
+{
+    tNetTime       netTime;             ///< The nettime of the last SoC
+    UINT64         relTime;             ///< The relative time of the last SoC
+    BOOL           fSocRelTimeValid;    ///< True when the time stamp is valid
+} tSocTimeStamp;
+
+/**
 \brief Hardware parameter structure
 
 The following structure specifies the hardware parameters of an openPOWERLINK

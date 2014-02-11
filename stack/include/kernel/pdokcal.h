@@ -83,7 +83,7 @@ tOplkError pdokcal_initSync(void);
 void       pdokcal_exitSync(void);
 tOplkError pdokcal_controlSync(BOOL fEnable_p);
 tOplkError pdokcal_waitSyncEvent(void);
-tOplkError pdokcal_sendSyncEvent(void);
+tOplkError pdokcal_sendSyncEvent(tSocTimeStamp* pSocTimeStamp_p);
 
 #ifdef __cplusplus
 }

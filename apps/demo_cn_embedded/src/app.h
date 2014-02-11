@@ -61,7 +61,7 @@ extern "C" {
 
 tOplkError initApp(void);
 void shutdownApp(void);
-tOplkError processSync(void);
+tOplkError processSync(tSocTimeStamp* pSocTimeStamp_p);
 
 #ifdef __cplusplus
 }

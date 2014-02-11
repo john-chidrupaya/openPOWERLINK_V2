@@ -139,16 +139,18 @@ tOplkError pdoucal_waitSyncEvent(ULONG timeout_p)
 /**
 \brief  Call sync callback function
 
+\param  pSocTimeStamp_p     The Soc timestamp of the current POWERLINK cycle
+
 The function calls the registered sync callback function
 
 \return The function returns a tOplkError error code.
 */
 //------------------------------------------------------------------------------
-tOplkError pdoucal_callSyncCb(void)
+tOplkError pdoucal_callSyncCb(tSocTimeStamp* pSocTimeStamp_p)
 {
     if (pfnSyncCb_l != NULL)
     {
-        return pfnSyncCb_l();
+        return pfnSyncCb_l(pSocTimeStamp_p);
     }
     return kErrorOk;
 }

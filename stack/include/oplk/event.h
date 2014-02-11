@@ -243,9 +243,11 @@ typedef struct
 /**
 \brief  Callback function to get informed about sync event
 
+\param pSocTimeStamp_p    Pointer to the current SoC timestamp
+
 \return The function returns a tOplkError error code.
 */
-typedef tOplkError (*tSyncCb)(void);
+typedef tOplkError (*tSyncCb)(tSocTimeStamp* pSocTimeStamp_p);
 
 /**
 \brief Callback for event post
