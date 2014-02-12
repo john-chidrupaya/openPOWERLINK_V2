@@ -93,6 +93,9 @@ static tOplkError forwardRpdo(tFrameInfo* pFrameInfo_p);
 static void       postInvalidFormatError(UINT nodeId_p, tNmtState nmtState_p);
 static BOOL       presFrameFormatIsInvalid(tFrameInfo* pFrameInfo_p, tDllkNodeInfo* pIntNodeInfo_p,
                                            tNmtState nodeNmtState_p);
+static tOplkError processReceivedNonPlk(tFrameInfo* pFrameInfo_p,
+                                        tNmtState nmtState_p,
+                                        tEdrvReleaseRxBuffer* pReleaseRxBuffer_p);
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
 static tOplkError checkAndSetSyncEvent(BOOL fPrcSlotFinished_p, UINT nodeId_p);
@@ -203,11 +206,7 @@ tEdrvReleaseRxBuffer dllk_processFrameReceived(tEdrvRxBuffer* pRxBuffer_p)
 
     if (ami_getUint16Be(&pFrame->etherType) != C_DLL_ETHERTYPE_EPL)
     {   // non-POWERLINK frame
-        //TRACE("cbFrameReceived: pfnCbAsync=0x%p SrcMAC=0x%llx\n", dllkInstance_g.pfnCbAsync, ami_getUint48Be(pFrame->aSrcMac));
-        if (dllkInstance_g.pfnCbAsync != NULL)
-        {   // handler for async frames is registered
-            dllkInstance_g.pfnCbAsync(&frameInfo);
-        }
+        ret = processReceivedNonPlk(&frameInfo, nmtState, &releaseRxBuffer);
         goto Exit;
     }
 
@@ -2505,7 +2504,7 @@ static tOplkError processReceivedAsnd(tFrameInfo* pFrameInfo_p, tEdrvRxBuffer* p
         if (dllkInstance_g.aAsndFilter[asndServiceId] == kDllAsndFilterAny)
         {   // ASnd service ID is registered
             // forward frame via async receive FIFO to userspace
-            ret = dllkcal_asyncFrameReceived(pFrameInfo_p);
+            ret = dllkcal_asyncFrameReceived(pFrameInfo_p, kMsgTypeAsnd);
             if(ret == kErrorReject)
             {
                 *pReleaseRxBuffer_p = kEdrvReleaseRxBufferLater;
@@ -2521,7 +2520,7 @@ static tOplkError processReceivedAsnd(tFrameInfo* pFrameInfo_p, tEdrvRxBuffer* p
             if ((nodeId == dllkInstance_g.dllConfigParam.nodeId) || (nodeId == C_ADR_BROADCAST))
             {   // ASnd frame is intended for us
                 // forward frame via async receive FIFO to userspace
-                ret = dllkcal_asyncFrameReceived(pFrameInfo_p);
+                ret = dllkcal_asyncFrameReceived(pFrameInfo_p, kMsgTypeAsnd);
                 if(ret == kErrorReject)
                 {
                     *pReleaseRxBuffer_p = kEdrvReleaseRxBufferLater;
@@ -2534,6 +2533,53 @@ static tOplkError processReceivedAsnd(tFrameInfo* pFrameInfo_p, tEdrvRxBuffer* p
     }
 
 Exit:
+    return ret;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Process received non POWERLINK frame
+
+The function processes a received non POWERLINK frame.
+
+\param  pFrameInfo_p        Pointer to frame information.
+\param  nmtState_p          NMT state of the local node.
+\param  pReleaseRxBuffer_p  Pointer to buffer release flag. The function must
+                            set this flag to determine if the RxBuffer could be
+                            released immediately.
+
+\return The function returns a tOplkError error code.
+*/
+//------------------------------------------------------------------------------
+static tOplkError processReceivedNonPlk(tFrameInfo* pFrameInfo_p,
+                                        tNmtState nmtState_p,
+                                        tEdrvReleaseRxBuffer* pReleaseRxBuffer_p)
+{
+    tOplkError ret = kErrorOk;
+
+    UNUSED_PARAMETER(nmtState_p);
+
+    if (dllkInstance_g.pfnCbAsync != NULL)
+    {
+        // handler for asynchronous non POWERLINK frames is registered
+        // -> Handler for non POWERLINK frames is in kernel space
+        dllkInstance_g.pfnCbAsync(&*pFrameInfo_p);
+    }
+#if defined(CONFIG_INCLUDE_VETH)
+    else
+    {
+        // handler is not registered -> forward frames to user space!
+        ret = dllkcal_asyncFrameReceived(pFrameInfo_p, kMsgTypeNonPowerlink);
+        if (ret == kErrorReject)
+        {
+            *pReleaseRxBuffer_p = kEdrvReleaseRxBufferLater;
+            ret = kErrorOk;
+        }
+    }
+#else
+    UNUSED_PARAMETER(pReleaseRxBuffer_p);
+#endif
+
     return ret;
 }
 

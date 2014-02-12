@@ -522,19 +522,24 @@ The function passes a received ASnd frame to the receive FIFO. It will be called
 only for frames with registered AsndServiceIds.
 
 \param  pFrameInfo_p            Pointer to frame info of received frame
+\param  frameType_p             Type of the received frame
 
 \return The function returns a tOplkError error code.
 
 \ingroup module_dllkcal
 */
 //------------------------------------------------------------------------------
-tOplkError dllkcal_asyncFrameReceived(tFrameInfo* pFrameInfo_p)
+tOplkError dllkcal_asyncFrameReceived(tFrameInfo* pFrameInfo_p, tMsgType frameType_p)
 {
     tOplkError  ret = kErrorOk;
     tEvent      event;
 
     event.eventSink = kEventSinkDlluCal;
+    if(frameType_p == kMsgTypeAsnd)
     event.eventType = kEventTypeAsndRx;
+    else
+        event.eventType = kEventTypeNonPlkRx;
+
 #if CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC == FALSE
     event.pEventArg = pFrameInfo_p->pFrame;
     event.eventArgSize = pFrameInfo_p->frameSize;

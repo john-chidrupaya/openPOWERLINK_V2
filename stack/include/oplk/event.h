@@ -99,6 +99,7 @@ typedef enum
     kEventTypePdokControlSync       = 0x26,     ///< enable/disable the pdokcal sync trigger (arg is pointer to BOOL)
     kEventTypeReleaseRxFrame        = 0x27,     ///< Free receive buffer (arg is pointer to the buffer to release)
     kEventTypeAsndNotRx             = 0x28,     ///< Didn't receive ASnd frame for DLL user module (arg is pointer to tDllAsndNotRx)
+    kEventTypeNonPlkRx              = 0x29,     ///< Received non POWERLINK frame for DLL user module (arg is pointer to tEplFrame)
 } tEventType;
 
 /**

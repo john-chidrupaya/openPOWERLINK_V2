@@ -78,6 +78,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 typedef struct
 {
     tDlluCbAsnd              apfnDlluCbAsnd[DLL_MAX_ASND_SERVICE_ID];
+    tDlluCbNonPlk            pfnDlluCbNonPlk;
     tDllCalQueueInstance     dllCalQueueTxNmt;          ///< Dll Cal Queue instance for NMT priority
     tDllCalQueueInstance     dllCalQueueTxGenAsnd;       ///< Dll Cal Queue instance for Generic priority Asnd frames
 #if defined(CONFIG_INCLUDE_VETH)
@@ -107,6 +108,7 @@ static tOplkError SetAsndServiceIdFilter(tDllAsndServiceId ServiceId_p,
                                          tDllAsndFilter Filter_p);
 static tOplkError HandleRxAsndFrame(tFrameInfo* pFrameInfo_p);
 static tOplkError HandleNotRxAsndFrame(tDllAsndNotRx* pAsndNotRx_p);
+static tOplkError handleRxNonPlkFrame(tFrameInfo *pFrameInfo_p);
 static tOplkError sendFrameGenericPriority(tFrameInfo * pFrameInfo_p,
                                           tDllAsyncReqPriority priority_p,
                                           tDllAsyncReqBuffer buffer_p);
@@ -262,6 +264,18 @@ tOplkError dllucal_process(tEvent* pEvent_p)
             ret = HandleNotRxAsndFrame(pAsndNotRx);
             break;
 
+        case kEventTypeNonPlkRx:
+#if CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC == FALSE
+            frameInfo.pFrame = (tOplkFrame*) pEvent_p->pEventArg;
+            frameInfo.frameSize = pEvent_p->eventArgSize;
+            pFrameInfo = &frameInfo;
+#else
+            pFrameInfo = (tFrameInfo*) pEvent_p->pEventArg;
+#endif
+
+            ret = handleRxNonPlkFrame(pFrameInfo);
+            break;
+
         default:
             ret = kErrorInvalidEvent;
             break;
@@ -363,6 +377,78 @@ tOplkError dllucal_regAsndService(tDllAsndServiceId serviceId_p,
     {
         ret = kErrorDllInvalidAsndServiceId;
     }
+    return ret;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Register non POWERLINK receive handler
+
+This function registers a handler for received non POWERLINK frames
+
+\param  pfnDlluCbNonPlk_p         Pointer to callback function.
+
+\return kErrorOk
+
+\ingroup module_dllucal
+*/
+//------------------------------------------------------------------------------
+tOplkError dllucal_regNonPlkHandler(tDlluCbNonPlk pfnDlluCbNonPlk_p)
+{
+    // memorize function pointer
+    instance_l.pfnDlluCbNonPlk = pfnDlluCbNonPlk_p;
+
+    return kErrorOk;
+}
+
+
+//------------------------------------------------------------------------------
+/**
+\brief  Deregister non POWERLINK receive handler
+
+This function resets the handler for received non POWERLINK frames
+
+\return kErrorOk
+
+\ingroup module_dllucal
+*/
+//------------------------------------------------------------------------------
+tOplkError dllucal_deregNonPlkHandler(void)
+{
+    instance_l.pfnDlluCbNonPlk = NULL;
+
+    return kErrorOk;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Free the handled non POWERLINK frame
+
+\param pFrame_p     Pointer to the payload to free
+\param length_p     Length of the packet to free
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_dllucal
+*/
+//------------------------------------------------------------------------------
+tOplkError dllucal_freeNonPlkFrame(tPlkFrame* pFrame_p, UINT16 length_p)
+{
+    tOplkError      ret;
+    tEvent          event;
+    tFrameInfo      frameInfo;
+
+    frameInfo.pFrame = pFrame_p;
+    frameInfo.frameSize = length_p;
+
+    // call free function for this received frame
+    event.eventSink    = kEventSinkDllkCal;
+    event.eventType    = kEventTypeReleaseRxFrame;
+    event.eventArgSize = sizeof(tFrameInfo);
+    event.pEventArg    = &frameInfo;
+
+    ret = eventu_postEvent(&event);
+
     return ret;
 }
 
@@ -711,6 +797,28 @@ static tOplkError HandleNotRxAsndFrame(tDllAsndNotRx* pAsndNotRx_p)
 
 //------------------------------------------------------------------------------
 /**
+\brief  Forward non POWERLINK frame to desired user space module
+
+\param  pFrameInfo_p             Pointer to the frame information structure
+
+\return The function returns a tOplkError error code.
+*/
+//------------------------------------------------------------------------------
+static tOplkError handleRxNonPlkFrame(tFrameInfo *pFrameInfo_p)
+{
+    tOplkError      ret = kErrorOk;
+
+    // Call handler for non POWERLINK frames
+    if(instance_l.pfnDlluCbNonPlk != NULL)
+    {
+        ret = instance_l.pfnDlluCbNonPlk(pFrameInfo_p);
+    }
+
+    return ret;
+}
+
+//------------------------------------------------------------------------------
+/**
 \brief  Send an asynchronous frame with generic priority
 
 \param  pFrameInfo_p             Pointer to the payload of the asynchronous frame
@@ -746,6 +854,7 @@ static tOplkError sendFrameGenericPriority(tFrameInfo * pFrameInfo_p,
 #endif
         default:
             ret = kErrorDllInvalidParam;
+            break;
     }
 
     return ret;
