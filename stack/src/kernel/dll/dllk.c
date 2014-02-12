@@ -1194,6 +1194,15 @@ tOplkError dllk_setupLocalNode(tNmtState nmtState_p)
                                  dllkInstance_g.dllConfigParam.nodeId,
                                  &dllkInstance_g.pTxBuffer[DLLK_TXFRAME_NONPLK]);
 
+#if defined(CONFIG_INCLUDE_VETH)
+    dllk_setupVethUnicast(&dllkInstance_g.aFilter[DLLK_FILTER_VETH_UNICAST],
+                          &dllkInstance_g.aLocalMac[0],
+                          TRUE);
+
+    dllk_setupVethBroadcast(&dllkInstance_g.aFilter[DLLK_FILTER_VETH_BROADCAST],
+                            TRUE);
+#endif
+
     // register multicast MACs in ethernet driver
     ami_setUint48Be(&aMulticastMac[0], C_DLL_MULTICAST_SOC);
     ret = edrv_setRxMulticastMacAddr(aMulticastMac);
@@ -1351,7 +1360,7 @@ tOplkError dllk_setupLocalNodeCn(void)
         dllk_setupPresFilter(&dllkInstance_g.aFilter[DLLK_FILTER_PRES], FALSE);
 
 #else
-    for (handle = DLLK_FILTER_PRES; handle < DLLK_FILTER_COUNT; handle++)
+    for (handle = DLLK_FILTER_PRES; handle < DLLK_FILTER_PRES + CONFIG_DLL_PRES_FILTER_COUNT; handle++)
     {
         dllk_setupPresFilter(&dllkInstance_g.aFilter[handle], FALSE);
         ami_setUint8Be(&dllkInstance_g.aFilter[handle].aFilterMask[16], 0xFF);

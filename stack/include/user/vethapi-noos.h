@@ -1,17 +1,14 @@
 /**
 ********************************************************************************
-\file   dllkfilter.h
+\file   vethapi-noos.h
 
-\brief  Definitions of the filters for the dllk module
-
-This file defines which filter is for which frame in the dllk module. This filters
-can only be used for MACs which have a frame filter.
+\brief  Implementation of virtual Ethernet driver for noos nodes
 
 *******************************************************************************/
 
 /*------------------------------------------------------------------------------
-Copyright (c) 2013, SYSTEC electronic GmbH
-Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
+Copyright (c) 2012, SYSTEC electronic GmbH
+Copyright (c) 2012, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -37,60 +34,47 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------*/
 
-#ifndef _INC_dllkfilter_H_
-#define _INC_dllkfilter_H_
+#ifndef _INC_vethapi_noos_H_
+#define _INC_vethapi_noos_H_
+
+//------------------------------------------------------------------------------
+// includes
+//------------------------------------------------------------------------------
+
+#include <oplk/oplkinc.h>
 
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
-#define DLLK_FILTER_PREQ                0
-#define DLLK_FILTER_SOA_IDREQ           1
-#define DLLK_FILTER_SOA_STATREQ         2
-#define DLLK_FILTER_SOA_NMTREQ          3
-#if CONFIG_DLL_PRES_CHAINING_CN != FALSE
-  #define DLLK_FILTER_SOA_SYNCREQ       4
-  #define DLLK_FILTER_SOA_NONPLK        5
-#else
-  #define DLLK_FILTER_SOA_NONPLK        4
-#endif
 
-#define DLLK_FILTER_SOA                 (DLLK_FILTER_SOA_NONPLK + 1)
-#define DLLK_FILTER_SOC                 (DLLK_FILTER_SOA + 1)
-#define DLLK_FILTER_ASND                (DLLK_FILTER_SOC + 1)
-#define DLLK_FILTER_PRES                (DLLK_FILTER_ASND + 1)
-
-#if defined(CONFIG_INCLUDE_VETH)
-  #if CONFIG_DLL_PRES_FILTER_COUNT < 0
-    #define DLLK_FILTER_VETH_UNICAST      (DLLK_FILTER_PRES + 1)
-  #else
-    #define DLLK_FILTER_VETH_UNICAST      (DLLK_FILTER_PRES + CONFIG_DLL_PRES_FILTER_COUNT)
-  #endif
-
-  #define DLLK_FILTER_VETH_BROADCAST    (DLLK_FILTER_VETH_UNICAST + 1)
-
-  #define DLLK_FILTER_COUNT                (DLLK_FILTER_VETH_BROADCAST + 1)
-#else
-  #if CONFIG_DLL_PRES_FILTER_COUNT < 0
-  #define DLLK_FILTER_COUNT             (DLLK_FILTER_PRES + 1)
-  #else
-  #define DLLK_FILTER_COUNT             (DLLK_FILTER_PRES + CONFIG_DLL_PRES_FILTER_COUNT)
-  #endif
-#endif
 
 //------------------------------------------------------------------------------
 // typedef
 //------------------------------------------------------------------------------
 
+typedef void (* tVethCbDefGate) ( UINT32 defGateway_p );
+typedef void (* tVethCbNetAddr) ( UINT32 ipAddr_p, UINT32 subNetMask_p, UINT16 mtu_p );
+typedef tOplkError (* tVethCbFrameRcv) ( UINT8* pFrame_p, UINT32 frameSize_p );
+
 //------------------------------------------------------------------------------
 // function prototypes
 //------------------------------------------------------------------------------
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+tOplkError veth_apiTransmit(UINT8* pFrame_p, UINT16 frameSize);
+tOplkError veth_apiReleaseRxFrame(UINT8* pFrame_p, UINT16 length_p);
+void veth_apiRegReceiveHandlerCb(tVethCbFrameRcv pfnFrameReceivedCb_p);
+void veth_apiRegDefaultGatewayCb(tVethCbDefGate pfnDefGatewayCb_p);
+void veth_apiRegNetAddressCb(tVethCbNetAddr pfnNetAddrCb_p);
+UINT8* veth_apiGetEthMac(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // #ifndef _INC_dllkfilter_H_
+#endif /* _INC_vethapi_noos_H_ */
+
 

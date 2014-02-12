@@ -300,6 +300,11 @@ void       dllk_setupSoaSyncReqFilter(tEdrvFilter* pFilter_p, UINT nodeId_p, tEd
 void       dllk_setupSoaUnspecReqFilter(tEdrvFilter* pFilter_p, UINT nodeId_p, tEdrvTxBuffer* pBuffer_p);
 void       dllk_setupPresFilter(tEdrvFilter* pFilter_p, BOOL fEnable_p);
 void       dllk_setupPreqFilter(tEdrvFilter* pFilter_p, UINT nodeId_p, tEdrvTxBuffer* pBuffer_p, UINT8* pMacAdrs_p);
+#if defined(CONFIG_INCLUDE_VETH)
+void       dllk_setupVethUnicast(tEdrvFilter* pFilter_p, UINT8* pMacAdrs_p, BOOL fEnable_p);
+void       dllk_setupVethBroadcast(tEdrvFilter* pFilter_p, BOOL fEnable_p);
+#endif
+
 #if NMT_MAX_NODE_ID > 0
 tOplkError dllk_addNodeFilter(tDllkNodeInfo* pIntNodeInfo_p, tDllNodeOpType NodeOpType_p, BOOL fUpdateEdrv_p);
 tOplkError dllk_deleteNodeFilter(tDllkNodeInfo* pIntNodeInfo_p, tDllNodeOpType nodeOpType_p, BOOL fUpdateEdrv_p);

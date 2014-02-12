@@ -362,6 +362,51 @@ void dllk_setupPreqFilter(tEdrvFilter* pFilter_p, UINT nodeId_p, tEdrvTxBuffer* 
     pFilter_p->fEnable = FALSE;
 }
 
+#if defined(CONFIG_INCLUDE_VETH)
+//------------------------------------------------------------------------------
+/**
+\brief  Setup virtual ethernet unicast filter
+
+The function sets up an virtual ethernet unicast filter in the Edrv filter
+structure.
+
+\param  pFilter_p       Pointer to Edrv filter structure.
+\param  pMacAdrs_p      Pointer to mac address of node.
+\param  fEnable_p       Flag determines if filter is enabled or disabled.
+
+*/
+//------------------------------------------------------------------------------
+void dllk_setupVethUnicast(tEdrvFilter* pFilter_p, UINT8* pMacAdrs_p, BOOL fEnable_p)
+{
+    OPLK_MEMCPY(&pFilter_p->aFilterValue[0], pMacAdrs_p, 6);
+    ami_setUint48Be   (&pFilter_p->aFilterMask[0],     C_DLL_MACADDR_MASK);
+
+    pFilter_p->pTxBuffer = NULL;
+    pFilter_p->fEnable = fEnable_p;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Setup virtual ethernet broadcast filter
+
+The function sets up an virtual ethernet broadcast filter in the Edrv filter
+structure.
+
+\param  pFilter_p       Pointer to Edrv filter structure.
+\param  fEnable_p       Flag determines if filter is enabled or disabled.
+
+*/
+//------------------------------------------------------------------------------
+void dllk_setupVethBroadcast(tEdrvFilter* pFilter_p, BOOL fEnable_p)
+{
+    ami_setUint48Be   (&pFilter_p->aFilterValue[0],    C_DLL_MACADDR_MASK);
+    ami_setUint48Be   (&pFilter_p->aFilterMask[0],     C_DLL_MACADDR_MASK);
+
+    pFilter_p->pTxBuffer = NULL;
+    pFilter_p->fEnable = fEnable_p;
+}
+#endif
+
 #if NMT_MAX_NODE_ID > 0
 //------------------------------------------------------------------------------
 /**

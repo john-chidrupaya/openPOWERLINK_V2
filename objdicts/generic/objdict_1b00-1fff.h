@@ -74,6 +74,13 @@ area from 0x1B00 - 0x1FFF.
             OBD_SUBINDEX_RAM_VAR(0x1E40, 0x04, kObdTypeUInt16, kObdAccR, tObdUnsigned16, ReasmMaxSize_U16, 50000)
             OBD_SUBINDEX_RAM_VAR(0x1E40, 0x05, kObdTypeUInt32, kObdAccSRW, tObdUnsigned32, DefaultGateway_IPAD, 0xC0A864FE)
         OBD_END_INDEX(0x1E40)
+
+        // Object 1E4Ah: NWL_IpGroup_REC
+        OBD_BEGIN_INDEX_RAM(0x1E4A, 0x03, NULL)
+            OBD_SUBINDEX_RAM_VAR(0x1E4A, 0x00, kObdTypeUInt8, kObdAccConst, tObdUnsigned8, NumberOfEntries, 0x02)
+            OBD_SUBINDEX_RAM_VAR(0x1E4A, 0x01, kObdTypeBool, kObdAccR, tObdBoolean, Forwarding_BOOL, 0x00)
+            OBD_SUBINDEX_RAM_VAR(0x1E4A, 0x02, kObdTypeUInt16, kObdAccRW, tObdUnsigned16, DefaultTTL_U16, 64)
+        OBD_END_INDEX(0x1E4A)
 #endif
 
 #if defined(CONFIG_INCLUDE_CFM)

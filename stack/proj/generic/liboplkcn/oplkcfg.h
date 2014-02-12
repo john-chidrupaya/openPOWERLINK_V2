@@ -62,6 +62,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define CONFIG_INCLUDE_SDO_ASND
 #define CONFIG_INCLUDE_LEDU
 #define CONFIG_INCLUDE_MASND
+#define CONFIG_INCLUDE_VETH
 
 #define CONFIG_DLLCAL_QUEUE                         DIRECT_QUEUE
 
@@ -84,6 +85,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Number of deferred Rx buffers
 #define CONFIG_EDRV_ASND_DEFFERRED_RX_BUFFERS       6
+
+// Number of deferred Rx buffers for generic Ethernet frames
+#define EDRV_VETH_DEFFERRED_RX_BUFFERS              5
 
 // openMAC supports auto-response delay
 #define CONFIG_EDRV_AUTO_RESPONSE_DELAY             TRUE
