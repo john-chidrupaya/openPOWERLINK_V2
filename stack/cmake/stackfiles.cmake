@@ -184,6 +184,7 @@ SET(PDO_UCAL_LINUXMMAPIOCTL_SOURCES
 # User virtual ethernet sources for NoOs targets
 SET(VETH_USER_NOOS_SOURCES
     ${USER_SOURCE_DIR}/veth/veth-noos.c
+    ${USER_SOURCE_DIR}/veth/vethtest-noos.c
    )
 
 ################################################################################
