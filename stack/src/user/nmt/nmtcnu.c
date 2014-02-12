@@ -208,7 +208,7 @@ tOplkError nmtcnu_sendNmtRequest(UINT nodeId_p, tNmtCommand nmtCommand_p)
     nmtRequestFrameInfo.frameSize = C_DLL_MINSIZE_NMTREQ; // sizeof(nmtRequestFrame);
 
     // send NMT request
-    ret = dllucal_sendAsyncFrame(&nmtRequestFrameInfo, kDllAsyncReqPrioNmt);
+    ret = dllucal_sendAsyncFrame(&nmtRequestFrameInfo, kDllAsyncReqPrioNmt, kDllAsyncReqBufferInvalid);
 
     return ret;
 }

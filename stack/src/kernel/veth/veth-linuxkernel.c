@@ -275,7 +275,7 @@ static int veth_xmit(struct sk_buff* pSkb_p, struct net_device* pNetDevice_p)
     frameInfo.frameSize = pSkb_p->len;
 
     //call send fkt on DLL
-    ret = dllkcal_sendAsyncFrame(&frameInfo, kDllAsyncReqPrioGeneric);
+    ret = dllkcal_sendAsyncFrame(&frameInfo, kDllAsyncReqPrioGeneric, kDllAsyncReqBufferEth);
     if (ret != kErrorOk)
     {
         DEBUG_LVL_VETH_TRACE("veth_xmit: dllkcal_sendAsyncFrame returned 0x%02X\n", ret);

@@ -72,7 +72,9 @@ tOplkError dllucal_regAsndService(tDllAsndServiceId ServiceId_p,
                                   tDlluCbAsnd pfnDlluCbAsnd_p,
                                   tDllAsndFilter Filter_p);
 
-tOplkError dllucal_sendAsyncFrame(tFrameInfo* pFrameInfo, tDllAsyncReqPriority Priority_p);
+tOplkError dllucal_sendAsyncFrame(tFrameInfo* pFrameInfo_p,
+                                  tDllAsyncReqPriority priority_p,
+                                  tDllAsyncReqBuffer buffer_p);
 
 tOplkError dllucal_process(tEvent* pEvent_p);
 

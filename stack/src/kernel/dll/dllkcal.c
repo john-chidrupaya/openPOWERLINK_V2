@@ -92,9 +92,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 typedef struct
 {
     tDllCalQueueInstance    dllCalQueueTxNmt;       ///< Dll Cal Queue instance for NMT priority
-    tDllCalQueueInstance    dllCalQueueTxGen;       ///< Dll Cal Queue instance for Generic priority
+    tDllCalQueueInstance    dllCalQueueTxGenAsnd;   ///< Dll Cal Queue instance for Generic priority
     tDllCalFuncIntf*        pTxNmtFuncs;
-    tDllCalFuncIntf*        pTxGenFuncs;
+    tDllCalFuncIntf*        pTxGenAsndFuncs;
+
+#if defined(CONFIG_INCLUDE_VETH)
+    tDllCalFuncIntf*        pTxGenEthFuncs;
+    tDllCalQueueInstance    dllCalQueueTxGenEth;
+#endif
+
+    tDllAsyncReqBuffer      currentTxBuffer;       ///< Current transmit buffer (Asnd or Eth)
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
     tDllCalQueueInstance    dllCalQueueTxSync;      ///< Dll Cal Queue instance for Sync Request
@@ -138,6 +145,11 @@ static BOOL getMnSyncRequest(tDllReqServiceId* pReqServiceId_p, UINT* pNodeId_p,
                              tSoaPayload* pSoaPayload_p);
 #endif
 
+static tOplkError sendFrameGenericPriority(tFrameInfo * pFrameInfo_p,
+                                          tDllAsyncReqPriority priority_p,
+                                          tDllAsyncReqBuffer buffer_p);
+static tOplkError getGenericAsyncTxFrame(BYTE* pFrame_p, UINT* pFrameSize_p);
+
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
 //============================================================================//
@@ -164,7 +176,10 @@ tOplkError dllkcal_init(void)
     OPLK_MEMSET(&instance_l, 0, sizeof (instance_l));
 
     instance_l.pTxNmtFuncs = GET_DLLKCAL_INTERFACE();
-    instance_l.pTxGenFuncs = GET_DLLKCAL_INTERFACE();
+    instance_l.pTxGenAsndFuncs = GET_DLLKCAL_INTERFACE();
+#if defined(CONFIG_INCLUDE_VETH)
+    instance_l.pTxGenEthFuncs = GET_DLLKCAL_INTERFACE();
+#endif
 #if defined(CONFIG_INCLUDE_NMT_MN)
     instance_l.pTxSyncFuncs = GET_DLLKCAL_INTERFACE();
 #endif
@@ -177,13 +192,23 @@ tOplkError dllkcal_init(void)
         goto Exit;
     }
 
-    ret = instance_l.pTxGenFuncs->pfnAddInstance(&instance_l.dllCalQueueTxGen,
-                                                 kDllCalQueueTxGen);
+    ret = instance_l.pTxGenAsndFuncs->pfnAddInstance(&instance_l.dllCalQueueTxGenAsnd,
+                                                 kDllCalQueueTxGenAsnd);
     if (ret != kErrorOk)
     {
         DEBUG_LVL_ERROR_TRACE("%s() TxGen failed\n", __func__);
         goto Exit;
     }
+
+#if defined(CONFIG_INCLUDE_VETH)
+    ret = instance_l.pTxGenEthFuncs->pfnAddInstance(&instance_l.dllCalQueueTxGenEth,
+                                                 kDllCalQueueTxGenEth);
+    if(ret != kErrorOk)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s() TxGen failed\n", __func__);
+        goto Exit;
+    }
+#endif
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
     ret = instance_l.pTxSyncFuncs->pfnAddInstance(&instance_l.dllCalQueueTxSync,
@@ -226,6 +251,8 @@ tOplkError dllkcal_init(void)
     }
 #endif
 
+    instance_l.currentTxBuffer = kDllAsyncReqBufferAsnd;
+
 Exit:
     return ret;
 }
@@ -262,8 +289,13 @@ tOplkError dllkcal_exit(void)
     if (instance_l.pTxNmtFuncs != NULL)
         instance_l.pTxNmtFuncs->pfnDelInstance(instance_l.dllCalQueueTxNmt);
 
-    if (instance_l.pTxGenFuncs != NULL)
-        instance_l.pTxGenFuncs->pfnDelInstance(instance_l.dllCalQueueTxGen);
+    if (instance_l.pTxGenAsndFuncs != NULL)
+        instance_l.pTxGenAsndFuncs->pfnDelInstance(instance_l.dllCalQueueTxGenAsnd);
+
+#if defined(CONFIG_INCLUDE_VETH)
+    if (instance_l.pTxGenEthFuncs != NULL)
+        instance_l.pTxGenEthFuncs->pfnDelInstance(instance_l.dllCalQueueTxGenEth);
+#endif
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
     if (instance_l.pTxSyncFuncs != NULL)
@@ -393,41 +425,52 @@ tOplkError dllkcal_getAsyncTxCount(tDllAsyncReqPriority* pPriority_p,
                                    UINT* pCount_p)
 {
     tOplkError  ret = kErrorOk;
-    ULONG       frameCount;
+    ULONG       frameCountNmt;
+    ULONG       frameCountGenAsnd;
+    ULONG       frameCountGenEth = 0;
 
     ret = instance_l.pTxNmtFuncs->pfnGetDataBlockCount(instance_l.dllCalQueueTxNmt,
-                                                       &frameCount);
+                                                       &frameCountNmt);
     if (ret != kErrorOk)
     {
         goto Exit;
     }
 
-    if (frameCount > instance_l.statistics.maxTxFrameCountNmt)
+    if (frameCountNmt > instance_l.statistics.maxTxFrameCountNmt)
     {
-        instance_l.statistics.maxTxFrameCountNmt = frameCount;
+        instance_l.statistics.maxTxFrameCountNmt = frameCountNmt;
     }
 
-    if (frameCount != 0)
+    if (frameCountNmt != 0)
     {   // NMT requests are in queue
         *pPriority_p = kDllAsyncReqPrioNmt;
-        *pCount_p = (UINT)frameCount;
+        *pCount_p = (UINT)frameCountNmt;
         goto Exit;
     }
 
-    ret = instance_l.pTxGenFuncs->pfnGetDataBlockCount(instance_l.dllCalQueueTxGen,
-                                                       &frameCount);
+    ret = instance_l.pTxGenAsndFuncs->pfnGetDataBlockCount(instance_l.dllCalQueueTxGenAsnd,
+                                                       &frameCountGenAsnd);
     if (ret != kErrorOk)
     {
         goto Exit;
     }
 
-    if (frameCount > instance_l.statistics.maxTxFrameCountGen)
+#if defined(CONFIG_INCLUDE_VETH)
+    ret = instance_l.pTxGenEthFuncs->pfnGetDataBlockCount(instance_l.dllCalQueueTxGenEth,
+                                                       &frameCountGenEth);
+    if(ret != kErrorOk)
     {
-        instance_l.statistics.maxTxFrameCountGen = frameCount;
+        goto Exit;
+    }
+#endif
+
+    if ((frameCountGenAsnd + frameCountGenEth) > instance_l.statistics.maxTxFrameCountGen)
+    {
+        instance_l.statistics.maxTxFrameCountGen = frameCountGenAsnd + frameCountGenEth;
     }
 
     *pPriority_p = kDllAsyncReqPrioGeneric;
-    *pCount_p = (UINT)frameCount;
+    *pCount_p = (UINT)(frameCountGenAsnd + frameCountGenEth);
 
 Exit:
     return ret;
@@ -463,9 +506,8 @@ tOplkError dllkcal_getAsyncTxFrame(void* pFrame_p, UINT* pFrameSize_p,
             break;
 
         default:    // generic priority
-            ret = instance_l.pTxGenFuncs->pfnGetDataBlock(
-                                            instance_l.dllCalQueueTxGen,
-                                            (BYTE*)pFrame_p, pFrameSize_p);
+            ret = getGenericAsyncTxFrame((BYTE*)pFrame_p, pFrameSize_p);
+
             break;
     }
 
@@ -526,6 +568,7 @@ priority.
 
 \param  pFrameInfo_p            Pointer to frame info structure
 \param  priority_p              Priority to send frame with
+\param  buffer_p                Target buffer for the asynchronous frame
 
 \return The function returns a tOplkError error code.
 
@@ -533,7 +576,8 @@ priority.
 */
 //------------------------------------------------------------------------------
 tOplkError dllkcal_sendAsyncFrame(tFrameInfo* pFrameInfo_p,
-                                  tDllAsyncReqPriority priority_p)
+                                  tDllAsyncReqPriority priority_p,
+                                  tDllAsyncReqBuffer buffer_p)
 {
     tOplkError  ret = kErrorOk;
     tEvent      event;
@@ -548,10 +592,7 @@ tOplkError dllkcal_sendAsyncFrame(tFrameInfo* pFrameInfo_p,
             break;
 
         default:    // generic priority
-            ret = instance_l.pTxGenFuncs->pfnInsertDataBlock(
-                                        instance_l.dllCalQueueTxGen,
-                                        (BYTE*)pFrameInfo_p->pFrame,
-                                        &(pFrameInfo_p->frameSize));
+            ret = sendFrameGenericPriority(pFrameInfo_p, priority_p, buffer_p);
             break;
     }
 
@@ -599,12 +640,20 @@ tOplkError dllkcal_writeAsyncFrame(tFrameInfo* pFrameInfo_p, tDllCalQueue dllQue
                                         &(pFrameInfo_p->frameSize));
             break;
 
-        case kDllCalQueueTxGen:    // generic priority
-            ret = instance_l.pTxGenFuncs->pfnInsertDataBlock(
-                                        instance_l.dllCalQueueTxGen,
+        case kDllCalQueueTxGenAsnd:    // generic Asnd priority
+            ret = instance_l.pTxGenAsndFuncs->pfnInsertDataBlock(
+                                        instance_l.dllCalQueueTxGenAsnd,
                                         (BYTE*)pFrameInfo_p->pFrame,
                                         &(pFrameInfo_p->frameSize));
             break;
+#if defined(CONFIG_INCLUDE_VETH)
+        case kDllCalQueueTxGenEth:    // generic ethernet priority
+            ret = instance_l.pTxGenEthFuncs->pfnInsertDataBlock(
+                                        instance_l.dllCalQueueTxGenEth,
+                                        (BYTE*)pFrameInfo_p->pFrame,
+                                        &(pFrameInfo_p->frameSize));
+            break;
+#endif
 #if defined(CONFIG_INCLUDE_NMT_MN)
         case kDllCalQueueTxSync:   // sync request priority
             ret = instance_l.pTxSyncFuncs->pfnInsertDataBlock(
@@ -640,8 +689,15 @@ tOplkError dllkcal_clearAsyncBuffer(void)
                                     instance_l.dllCalQueueTxNmt, 1000);
 
     //ret is ignored
-    ret = instance_l.pTxGenFuncs->pfnResetDataBlockQueue(
-                                    instance_l.dllCalQueueTxGen, 1000);
+    ret = instance_l.pTxGenAsndFuncs->pfnResetDataBlockQueue(
+                                    instance_l.dllCalQueueTxGenAsnd, 1000);
+
+#if defined(CONFIG_INCLUDE_VETH)
+    //ret is ignored
+    ret = instance_l.pTxGenEthFuncs->pfnResetDataBlockQueue(
+                                    instance_l.dllCalQueueTxGenEth, 1000);
+#endif
+
     return ret;
 }
 
@@ -693,14 +749,24 @@ The function returns statistics of the asynchronous queues
 tOplkError dllkcal_getStatistics(tDllkCalStatistics** ppStatistics)
 {
     tOplkError  ret = kErrorOk;
+    ULONG       frameCountGenAsnd = 0;
+    ULONG       frameCountGenEth = 0;
 
     //ret is ignored
     ret = instance_l.pTxNmtFuncs->pfnGetDataBlockCount(instance_l.dllCalQueueTxNmt,
                                      &instance_l.statistics.curTxFrameCountNmt);
 
     //ret is ignored
-    ret = instance_l.pTxGenFuncs->pfnGetDataBlockCount(instance_l.dllCalQueueTxGen,
-                                     &instance_l.statistics.curTxFrameCountGen);
+    ret = instance_l.pTxGenAsndFuncs->pfnGetDataBlockCount(instance_l.dllCalQueueTxGenAsnd,
+                                     &frameCountGenAsnd);
+
+#if defined(CONFIG_INCLUDE_VETH)
+    //ret is ignored
+    ret = instance_l.pTxGenEthFuncs->pfnGetDataBlockCount(instance_l.dllCalQueueTxGenEth,
+                                     &frameCountGenEth);
+#endif
+
+    instance_l.statistics.curTxFrameCountGen = frameCountGenAsnd + frameCountGenEth;
 
     *ppStatistics = &instance_l.statistics;
     return ret;
@@ -1192,3 +1258,101 @@ static BOOL getMnSyncRequest(tDllReqServiceId* pReqServiceId_p, UINT* pNodeId_p,
 
 #endif
 
+//------------------------------------------------------------------------------
+/**
+\brief  Send an asynchronous frame with generic priority
+
+\param  pFrameInfo_p             Pointer to the payload of the asynchronous frame
+\param  priority_p               Priority of the asynchronous frame
+\param  buffer_p                 Target buffer for the asynchronous frame
+
+\return The function returns a tOplkError error code.
+*/
+//------------------------------------------------------------------------------
+static tOplkError sendFrameGenericPriority(tFrameInfo * pFrameInfo_p,
+                                          tDllAsyncReqPriority priority_p,
+                                          tDllAsyncReqBuffer buffer_p)
+{
+    tOplkError ret = kErrorOk;
+
+    UNUSED_PARAMETER(priority_p);
+
+    switch(buffer_p)
+    {
+        case kDllAsyncReqBufferAsnd:
+            ret = instance_l.pTxGenAsndFuncs->pfnInsertDataBlock(
+                                        instance_l.dllCalQueueTxGenAsnd,
+                                        (BYTE*)pFrameInfo_p->pFrame,
+                                        &(pFrameInfo_p->frameSize));
+            break;
+#if defined(CONFIG_INCLUDE_VETH)
+        case kDllAsyncReqBufferEth:
+            ret = instance_l.pTxGenEthFuncs->pfnInsertDataBlock(
+                                        instance_l.dllCalQueueTxGenEth,
+                                        (BYTE*)pFrameInfo_p->pFrame,
+                                        &(pFrameInfo_p->frameSize));
+            break;
+#endif
+        default:
+            ret = kErrorDllInvalidParam;
+    }
+
+    return ret;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Get current asynchronous frame with generic priority
+
+\param  pFrame_p             Pointer to the payload of the asynchronous frame
+\param  pFrameSize_p         Size of the asynchronous frame
+
+\return The function returns a tOplkError error code.
+*/
+//------------------------------------------------------------------------------
+static tOplkError getGenericAsyncTxFrame(BYTE* pFrame_p, UINT* pFrameSize_p)
+{
+	tOplkError ret = kErrorOk;
+
+#if defined(CONFIG_INCLUDE_VETH)
+    switch(instance_l.currentTxBuffer)
+    {
+        case kDllAsyncReqBufferAsnd:
+            ret = instance_l.pTxGenAsndFuncs->pfnGetDataBlock(
+                                            instance_l.dllCalQueueTxGenAsnd,
+                                            (BYTE*) pFrame_p, pFrameSize_p);
+            if(ret == kErrorDllAsyncTxBufferEmpty)
+            {   // nothing to read in Asnd queue -> try Eth frames!
+                ret = instance_l.pTxGenEthFuncs->pfnGetDataBlock(
+                                            instance_l.dllCalQueueTxGenEth,
+                                            (BYTE*) pFrame_p, pFrameSize_p);
+            }
+
+            break;
+        case kDllAsyncReqBufferEth:
+            ret = instance_l.pTxGenEthFuncs->pfnGetDataBlock(
+                                            instance_l.dllCalQueueTxGenEth,
+                                            (BYTE*) pFrame_p, pFrameSize_p);
+            if(ret == kErrorDllAsyncTxBufferEmpty)
+            {   // nothing to read in Eth queue -> try Asnd frames!
+                ret = instance_l.pTxGenAsndFuncs->pfnGetDataBlock(
+                                            instance_l.dllCalQueueTxGenAsnd,
+                                            (BYTE*) pFrame_p, pFrameSize_p);
+            }
+
+            break;
+        default:
+            ret = kErrorDllInvalidParam;
+    }
+
+    // Switch buffer pointer for next run
+    instance_l.currentTxBuffer = (instance_l.currentTxBuffer == kDllAsyncReqBufferAsnd)
+                ? kDllAsyncReqBufferEth : kDllAsyncReqBufferAsnd;
+#else
+    ret = instance_l.pTxGenAsndFuncs->pfnGetDataBlock(
+                                    instance_l.dllCalQueueTxGenAsnd,
+                                    (BYTE*) pFrame_p, pFrameSize_p);
+#endif
+
+    return ret;
+}

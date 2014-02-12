@@ -50,8 +50,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define CONFIG_DLLCAL_BUFFER_SIZE_TX_NMT   32767
 #endif
 
-#ifndef CONFIG_DLLCAL_BUFFER_SIZE_TX_GEN
-#define CONFIG_DLLCAL_BUFFER_SIZE_TX_GEN   32767
+#ifndef CONFIG_DLLCAL_BUFFER_SIZE_TX_GEN_ASND
+#define CONFIG_DLLCAL_BUFFER_SIZE_TX_GEN_ASND   32767
+#endif
+
+#ifndef CONFIG_DLLCAL_BUFFER_SIZE_TX_GEN_ETH
+#define CONFIG_DLLCAL_BUFFER_SIZE_TX_GEN_ETH   32767
 #endif
 
 #ifndef CONFIG_DLLCAL_BUFFER_SIZE_TX_SYNC
@@ -100,8 +104,9 @@ the queues.
 typedef enum
 {
     kDllCalQueueTxNmt        = 0x01, ///< TX NMT queue
-    kDllCalQueueTxGen        = 0x02, ///< TX Generic queue
-    kDllCalQueueTxSync       = 0x03, ///< Tx Sync queue
+    kDllCalQueueTxSync       = 0x02, ///< TX Sync queue
+    kDllCalQueueTxGenAsnd    = 0x03, ///< TX generic asnd queue
+    kDllCalQueueTxGenEth     = 0x04, ///< TX generic ethernet queue
 } tDllCalQueue;
 
 /**

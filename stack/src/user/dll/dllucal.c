@@ -79,13 +79,17 @@ typedef struct
 {
     tDlluCbAsnd              apfnDlluCbAsnd[DLL_MAX_ASND_SERVICE_ID];
     tDllCalQueueInstance     dllCalQueueTxNmt;          ///< Dll Cal Queue instance for NMT priority
-    tDllCalQueueInstance     dllCalQueueTxGen;          ///< Dll Cal Queue instance for Generic priority
+    tDllCalQueueInstance     dllCalQueueTxGenAsnd;       ///< Dll Cal Queue instance for Generic priority Asnd frames
+#if defined(CONFIG_INCLUDE_VETH)
+    tDllCalQueueInstance     dllCalQueueTxGenEth;       ///< Dll Cal Queue instance for Generic priority ethernet frames
+    tDllCalFuncIntf*         pTxGenEthFuncs;
+#endif
 #if defined(CONFIG_INCLUDE_NMT_MN)
     tDllCalQueueInstance     dllCalQueueTxSync;         ///< Dll Cal Queue instance for Sync Request
     tDllCalFuncIntf*         pTxSyncFuncs;
 #endif
     tDllCalFuncIntf*         pTxNmtFuncs;
-    tDllCalFuncIntf*         pTxGenFuncs;
+    tDllCalFuncIntf*         pTxGenAsndFuncs;
 } tDlluCalInstance;
 
 //------------------------------------------------------------------------------
@@ -103,6 +107,9 @@ static tOplkError SetAsndServiceIdFilter(tDllAsndServiceId ServiceId_p,
                                          tDllAsndFilter Filter_p);
 static tOplkError HandleRxAsndFrame(tFrameInfo* pFrameInfo_p);
 static tOplkError HandleNotRxAsndFrame(tDllAsndNotRx* pAsndNotRx_p);
+static tOplkError sendFrameGenericPriority(tFrameInfo * pFrameInfo_p,
+                                          tDllAsyncReqPriority priority_p,
+                                          tDllAsyncReqBuffer buffer_p);
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -127,7 +134,10 @@ tOplkError dllucal_init(void)
     OPLK_MEMSET(&instance_l, 0, sizeof(instance_l));
 
     instance_l.pTxNmtFuncs = GET_DLLUCAL_INTERFACE();
-    instance_l.pTxGenFuncs = GET_DLLUCAL_INTERFACE();
+    instance_l.pTxGenAsndFuncs = GET_DLLUCAL_INTERFACE();
+#if defined(CONFIG_INCLUDE_VETH)
+    instance_l.pTxGenEthFuncs = GET_DLLUCAL_INTERFACE();
+#endif
 #if defined(CONFIG_INCLUDE_NMT_MN)
     instance_l.pTxSyncFuncs = GET_DLLUCAL_INTERFACE();
 #endif
@@ -139,12 +149,21 @@ tOplkError dllucal_init(void)
         goto Exit;
     }
 
-    ret = instance_l.pTxGenFuncs->pfnAddInstance(&instance_l.dllCalQueueTxGen,
-                                                 kDllCalQueueTxGen);
+    ret = instance_l.pTxGenAsndFuncs->pfnAddInstance(&instance_l.dllCalQueueTxGenAsnd,
+                                                 kDllCalQueueTxGenAsnd);
     if (ret != kErrorOk)
     {
         goto Exit;
     }
+
+#if defined(CONFIG_INCLUDE_VETH)
+    ret = instance_l.pTxGenEthFuncs->pfnAddInstance(&instance_l.dllCalQueueTxGenEth,
+                                                 kDllCalQueueTxGenEth);
+    if(ret != kErrorOk)
+    {
+        goto Exit;
+    }
+#endif
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
     ret = instance_l.pTxSyncFuncs->pfnAddInstance(&instance_l.dllCalQueueTxSync,
@@ -179,10 +198,17 @@ tOplkError dllucal_exit(void)
         instance_l.pTxNmtFuncs->pfnDelInstance(instance_l.dllCalQueueTxNmt);
     }
 
-    if (instance_l.pTxGenFuncs != NULL)
+    if (instance_l.pTxGenAsndFuncs != NULL)
     {
-        instance_l.pTxGenFuncs->pfnDelInstance(instance_l.dllCalQueueTxGen);
+        instance_l.pTxGenAsndFuncs->pfnDelInstance(instance_l.dllCalQueueTxGenAsnd);
     }
+
+#if defined(CONFIG_INCLUDE_VETH)
+    if (instance_l.pTxGenEthFuncs != NULL)
+    {
+        instance_l.pTxGenEthFuncs->pfnDelInstance(instance_l.dllCalQueueTxGenEth);
+    }
+#endif
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
     if (instance_l.pTxSyncFuncs != NULL)
@@ -349,6 +375,7 @@ This function sends an asynchronous fram with the specified priority.
 \param  pFrameInfo_p            Pointer to asynchronous frame. The frame size
                                 includes the ethernet header (14 bytes).
 \param  priority_p              Priority for sending this frame.
+\param  buffer_p                Target buffer for frames with generic priority
 
 \return The function returns a tOplkError error code.
 
@@ -356,7 +383,8 @@ This function sends an asynchronous fram with the specified priority.
 */
 //------------------------------------------------------------------------------
 tOplkError dllucal_sendAsyncFrame(tFrameInfo* pFrameInfo_p,
-                                  tDllAsyncReqPriority priority_p)
+                                  tDllAsyncReqPriority priority_p,
+                                  tDllAsyncReqBuffer buffer_p)
 {
     tOplkError  ret = kErrorOk;
     tEvent      event;
@@ -371,10 +399,7 @@ tOplkError dllucal_sendAsyncFrame(tFrameInfo* pFrameInfo_p,
             break;
 
         default:
-            ret = instance_l.pTxGenFuncs->pfnInsertDataBlock(
-                                        instance_l.dllCalQueueTxGen,
-                                        (BYTE*)pFrameInfo_p->pFrame,
-                                        &(pFrameInfo_p->frameSize));
+            ret = sendFrameGenericPriority(pFrameInfo_p, priority_p, buffer_p);
             break;
     }
 
@@ -684,3 +709,44 @@ static tOplkError HandleNotRxAsndFrame(tDllAsndNotRx* pAsndNotRx_p)
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Send an asynchronous frame with generic priority
+
+\param  pFrameInfo_p             Pointer to the payload of the asynchronous frame
+\param  priority_p               Priority of the asynchronous frame
+\param  buffer_p                 Target buffer for the asynchronous frame
+
+\return The function returns a tOplkError error code.
+*/
+//------------------------------------------------------------------------------
+static tOplkError sendFrameGenericPriority(tFrameInfo * pFrameInfo_p,
+                                          tDllAsyncReqPriority priority_p,
+                                          tDllAsyncReqBuffer buffer_p)
+{
+    tOplkError ret = kErrorOk;
+
+    UNUSED_PARAMETER(priority_p);
+
+    switch(buffer_p)
+    {
+        case kDllAsyncReqBufferAsnd:
+            ret = instance_l.pTxGenAsndFuncs->pfnInsertDataBlock(
+                                        instance_l.dllCalQueueTxGenAsnd,
+                                        (BYTE*)pFrameInfo_p->pFrame,
+                                        &(pFrameInfo_p->frameSize));
+            break;
+#if defined(CONFIG_INCLUDE_VETH)
+        case kDllAsyncReqBufferEth:
+            ret = instance_l.pTxGenEthFuncs->pfnInsertDataBlock(
+                                        instance_l.dllCalQueueTxGenEth,
+                                        (BYTE*)pFrameInfo_p->pFrame,
+                                        &(pFrameInfo_p->frameSize));
+            break;
+#endif
+        default:
+            ret = kErrorDllInvalidParam;
+    }
+
+    return ret;
+}

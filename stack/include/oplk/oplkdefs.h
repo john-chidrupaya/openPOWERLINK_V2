@@ -145,13 +145,14 @@ These constants determine the different queue implementations.
 #define CIRCBUF_KERNEL_TO_USER_QUEUE                    1                   ///< Kernel-to-user event queue
 #define CIRCBUF_KERNEL_INTERNAL_QUEUE                   2                   ///< Kernel internal event queue
 #define CIRCBUF_USER_INTERNAL_QUEUE                     3                   ///< User internal event queue
-#define CIRCBUF_DLLCAL_TXGEN                            4                   ///< Queue for sending generic requests in the DLLCAL
-#define CIRCBUF_DLLCAL_TXNMT                            5                   ///< Queue for sending NMT requests in the DLLCAL
-#define CIRCBUF_DLLCAL_TXSYNC                           6                   ///< Queue for sending sync requests in the DLLCAL
-#define CIRCBUF_DLLCAL_CN_REQ_NMT                       7                   ///< NMT request queue for MN asynchronous scheduler
-#define CIRCBUF_DLLCAL_CN_REQ_GEN                       8                   ///< Generic request queue for MN asynchronous scheduler
-#define CIRCBUF_DLLCAL_CN_REQ_IDENT                     9                   ///< Ident request queue for MN asynchronous scheduler
-#define CIRCBUF_DLLCAL_CN_REQ_STATUS                    10                  ///< Status request queue for MN asynchronous scheduler
+#define CIRCBUF_DLLCAL_TXGEN_ASND                       4                   ///< Queue for sending generic priority asnd frames in the DLLCAL
+#define CIRCBUF_DLLCAL_TXGEN_ETH                        5                   ///< Queue for sending generic priority eth frames in the DLLCAL
+#define CIRCBUF_DLLCAL_TXNMT                            6                   ///< Queue for sending NMT requests in the DLLCAL
+#define CIRCBUF_DLLCAL_TXSYNC                           7                   ///< Queue for sending sync requests in the DLLCAL
+#define CIRCBUF_DLLCAL_CN_REQ_NMT                       8                   ///< NMT request queue for MN asynchronous scheduler
+#define CIRCBUF_DLLCAL_CN_REQ_GEN                       9                   ///< Generic request queue for MN asynchronous scheduler
+#define CIRCBUF_DLLCAL_CN_REQ_IDENT                     10                  ///< Ident request queue for MN asynchronous scheduler
+#define CIRCBUF_DLLCAL_CN_REQ_STATUS                    11                  ///< Status request queue for MN asynchronous scheduler
 /// \}
 
 //------------------------------------------------------------------------------

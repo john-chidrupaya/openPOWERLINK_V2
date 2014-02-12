@@ -169,8 +169,13 @@ static tOplkError addInstance(tDllCalQueueInstance* ppDllCalQueue_p,
     //initialize shared buffer
     switch (pDllCalCircBufInstance->dllCalQueue)
     {
-        case kDllCalQueueTxGen:
-            error = circbuf_alloc(CIRCBUF_DLLCAL_TXGEN, CONFIG_DLLCAL_BUFFER_SIZE_TX_GEN,
+        case kDllCalQueueTxGenAsnd:
+            error = circbuf_alloc(CIRCBUF_DLLCAL_TXGEN_ASND, CONFIG_DLLCAL_BUFFER_SIZE_TX_GEN_ASND,
+                                  &pDllCalCircBufInstance->pCircBufInstance);
+            break;
+
+        case kDllCalQueueTxGenEth:
+            error = circbuf_alloc(CIRCBUF_DLLCAL_TXGEN_ETH, CONFIG_DLLCAL_BUFFER_SIZE_TX_GEN_ETH,
                                   &pDllCalCircBufInstance->pCircBufInstance);
             break;
 

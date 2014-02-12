@@ -122,6 +122,16 @@ typedef enum
 } tDllAsyncReqPriority;
 
 /**
+\brief Enumeration for asynchronous transmit buffers
+*/
+typedef enum
+{
+    kDllAsyncReqBufferInvalid = 0x00,   ///< Invalid buffer selected
+    kDllAsyncReqBufferAsnd    = 0x01,   ///< Buffer for asynchronous Asnd frames
+    kDllAsyncReqBufferEth     = 0x02,   ///< Buffer for asynchronous generic ethernet frames
+} tDllAsyncReqBuffer;
+
+/**
 \brief Structure for frame information
 
 The structure contains all information about a POWERLINK frame.

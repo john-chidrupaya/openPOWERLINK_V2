@@ -696,7 +696,7 @@ tOplkError oplk_sendAsndFrame(UINT8 dstNodeId_p, tAsndFrame* pAsndFrame_p,
     ami_setUint8Le(&frameInfo.pFrame->srcNodeId, (UINT8)0);
 
     // Request frame transmission
-    ret = dllucal_sendAsyncFrame(&frameInfo, kDllAsyncReqPrioGeneric);
+    ret = dllucal_sendAsyncFrame(&frameInfo, kDllAsyncReqPrioGeneric, kDllAsyncReqBufferAsnd);
 
     return ret;
 }
