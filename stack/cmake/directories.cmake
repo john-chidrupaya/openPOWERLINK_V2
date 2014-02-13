@@ -36,6 +36,7 @@ SET(COMMON_SOURCE_DIR ${OPLK_BASE_DIR}/stack/src/common)
 SET(ARCH_SOURCE_DIR ${OPLK_BASE_DIR}/stack/src/arch)
 SET(EDRV_SOURCE_DIR ${OPLK_BASE_DIR}/stack/src/kernel/edrv)
 SET(CONTRIB_SOURCE_DIR ${OPLK_BASE_DIR}/contrib)
+SET(IP_STACK_DIR ${OPLK_BASE_DIR}/ip)
 
 # Include file directories
 SET(STACK_INCLUDE_DIR ${OPLK_BASE_DIR}/stack/include)

@@ -56,6 +56,7 @@ SET(LIB_USER_SOURCES
      ${EVENT_UCAL_NOOSKERNEL_SOURCES}
      ${USER_TIMER_GENERIC_SOURCES}
      ${VETH_USER_NOOS_SOURCES}
+     ${SDOUDP_USER_NOOS_SOURCES}
     )
 
 SET(LIB_COMMON_SOURCES
@@ -77,6 +78,7 @@ SET(LIB_SOURCES
 INCLUDE_DIRECTORIES(
                     ${PROJECT_SOURCE_DIR}
                     ${OBJDICT_DIR}/${OBJDICT}
+                    ${IP_STACK_DIR}
                    )
 
 # set flags of the openPOWERLINK library

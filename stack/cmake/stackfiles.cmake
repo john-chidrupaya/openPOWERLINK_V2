@@ -93,7 +93,7 @@ SET(USER_SOURCES
     ${USER_SOURCE_DIR}/sdo/sdo-comu.c
     ${USER_SOURCE_DIR}/sdo/sdo-sequ.c
     ${USER_SOURCE_DIR}/sdo/sdo-asndu.c
-    ${USER_SOURCE_DIR}/sdo/sdo-udpu.c
+    ${USER_SOURCE_DIR}/sdo/sdoudp-noos.c
     ${USER_SOURCE_DIR}/errhnd/errhndu.c
     ${USER_SOURCE_DIR}/ctrl/ctrlu.c
     ${USER_SOURCE_DIR}/ledu.c
@@ -186,6 +186,17 @@ SET(VETH_USER_NOOS_SOURCES
     ${USER_SOURCE_DIR}/veth/veth-noos.c
     ${USER_SOURCE_DIR}/veth/vethtest-noos.c
    )
+
+################################################################################
+# User IP stack and SDO/UDP sources for NoOs targets
+SET(SDOUDP_USER_NOOS_SOURCES
+    ${IP_STACK_DIR}/ip.c
+    ${IP_STACK_DIR}/ip_name.c
+    ${IP_STACK_DIR}/ip_dhcp.c
+    ${IP_STACK_DIR}/edrv2veth.c
+    ${IP_STACK_DIR}/hton.c
+   )
+
 
 ################################################################################
 # Driver library (Kernel) sources
