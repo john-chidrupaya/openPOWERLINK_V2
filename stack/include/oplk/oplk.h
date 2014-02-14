@@ -357,6 +357,8 @@ OPLKDLLEXPORT tOplkError oplk_shutdown(void);
 OPLKDLLEXPORT tOplkError oplk_execNmtCommand(tNmtEvent NmtEvent_p);
 OPLKDLLEXPORT tOplkError oplk_linkObject(UINT objIndex_p, void* pVar_p, UINT* pVarEntries_p,
                                          tObdSize* pEntrySize_p, UINT firstSubindex_p);
+OPLKDLLEXPORT tOplkError oplk_copyRxPdoToApp(void);
+OPLKDLLEXPORT tOplkError oplk_copyTxPdoFromApp(void);
 OPLKDLLEXPORT tOplkError oplk_readObject(tSdoComConHdl* pSdoComConHdl_p, UINT nodeId_p, UINT index_p,
                                          UINT subindex_p, void* pDstData_le_p, UINT* pSize_p,
                                          tSdoType sdoType_p, void* pUserArg_p);

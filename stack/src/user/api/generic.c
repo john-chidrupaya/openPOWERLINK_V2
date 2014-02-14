@@ -47,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <oplk/ami.h>
 
 #include <user/pdoucal.h>
+#include <user/pdou.h>
 #include <user/dllucal.h>
 #include <user/nmtcnu.h>
 #include <user/nmtmnu.h>
@@ -311,6 +312,39 @@ tOplkError oplk_linkObject(UINT objIndex_p, void* pVar_p, UINT* pVarEntries_p,
     *pVarEntries_p = ((indexEntries - firstSubindex_p) + 1);
     *pEntrySize_p = usedSize;
     return ret;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Copy RXPDO to the linked objects
+
+The function copies RXPDOs into linked objects of the user application.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_api
+*/
+//------------------------------------------------------------------------------
+tOplkError oplk_copyRxPdoToApp(void)
+{
+    return pdou_copyRxPdoToPi();
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Forward the linked objects to the TXPDO
+
+The function copies TXPDOs from the linked objects of the user application to
+the transmit PDOs.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_api
+*/
+//------------------------------------------------------------------------------
+tOplkError oplk_copyTxPdoFromApp(void)
+{
+    return pdou_copyTxPdoFromPi();
 }
 
 //------------------------------------------------------------------------------
