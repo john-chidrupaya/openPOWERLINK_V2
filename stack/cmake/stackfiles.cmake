@@ -126,6 +126,10 @@ SET(DLL_UCAL_LINUXIOCTL_SOURCES
     ${USER_SOURCE_DIR}/dll/dllucal-ioctl.c
     )
 
+SET(DLL_UCALMEM_LOCAL_SOURCES
+    ${USER_SOURCE_DIR}/dll/dllucalmem-local.c
+    )
+
 ################################################################################
 # User error handler CAL sources
 

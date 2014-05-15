@@ -94,6 +94,13 @@ tOplkError dllucal_issueSyncRequest(tDllSyncRequest* pSyncRequest_p, unsigned in
 
 #endif
 
+#if CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC == TRUE
+
+tPlkFrame* dllucal_getRxBufferInKernel(tPlkFrame* pFrame_p);
+void       dllucal_freeRxBufferInKernel(tPlkFrame* pFrame_p);
+
+#endif
+
 #ifdef __cplusplus
 }
 #endif

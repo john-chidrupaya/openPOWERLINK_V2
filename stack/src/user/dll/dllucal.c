@@ -599,6 +599,19 @@ static tOplkError HandleRxAsndFrame(tFrameInfo *pFrameInfo_p)
 #if CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC != FALSE
     tOplkError      eventRet;
     tEvent          event;
+    tPlkFrame*      pKernelBuffer = pFrameInfo_p->pFrame;
+    tPlkFrame*      pAcqBuffer;
+
+    // Get Rx buffer from kernel layer
+    pAcqBuffer = dllucal_getRxBufferInKernel(pKernelBuffer);
+    if (pAcqBuffer == NULL)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s Getting the Rx buffer from kernel failed!\n", __func__);
+        return kErrorDllOutOfMemory; //jz Use other error code?
+    }
+
+    // Set reference to kernel buffer for processing
+    pFrameInfo_p->pFrame = pAcqBuffer;
 #endif
 
     msgType = (tMsgType)ami_getUint8Le(&pFrameInfo_p->pFrame->messageType);
@@ -619,6 +632,12 @@ static tOplkError HandleRxAsndFrame(tFrameInfo *pFrameInfo_p)
 
 Exit:
 #if CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC != FALSE
+    // Free the acquired kernel buffer
+    dllucal_freeRxBufferInKernel(pAcqBuffer);
+
+    // Restore frame info for releasing Rx frame
+    pFrameInfo_p->pFrame = pKernelBuffer;
+
     // call free function for Asnd frame
     event.eventSink = kEventSinkDllkCal;
     event.eventType = kEventTypeReleaseRxFrame;

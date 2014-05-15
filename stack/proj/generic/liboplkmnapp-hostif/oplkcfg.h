@@ -74,6 +74,7 @@ The generic defines are valid for the whole openPOWERLINK stack.
 #endif
 /**@}*/
 
+#define CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC   TRUE
 #define CONFIG_VETH_SET_DEFAULT_GATEWAY        FALSE
 
 #define CONFIG_CHECK_HEARTBEAT_PERIOD           1000        // 1000 ms

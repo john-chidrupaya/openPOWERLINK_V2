@@ -104,6 +104,14 @@ DLL_UCAL_CIRCBUF_SOURCES="\
 ${USER_SOURCE_DIR}/dll/dllucal-circbuf.c \
 "
 
+DLL_UCALMEM_LOCAL_SOURCES="\
+${USER_SOURCE_DIR}/dll/dllucalmem-local.c \
+"
+
+DLL_UCALMEM_HOSTIF_SOURCES="\
+${USER_SOURCE_DIR}/dll/dllucalmem-hostif.c \
+"
+
 ################################################################################
 # User error handler CAL sources
 
