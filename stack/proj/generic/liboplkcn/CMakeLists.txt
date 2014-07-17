@@ -3,6 +3,7 @@
 # CMake file for openPOWERLINK CN library on Linux userspace
 #
 # Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
+# Copyright (c) 2014, Kalycito Infotech Private Limited
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,7 +84,7 @@ INCLUDE_DIRECTORIES(
 ADD_DEFINITIONS("-Wall -Wextra -pedantic -std=c99")
 
 # set macro to change mapping to internal memory
-ADD_DEFINITIONS(-DCONFIG_CN)
+ADD_DEFINITIONS(-DCONFIG_CN -DCONFIG_PCP)
 
 ################################################################################
 # Handle target specific functions
