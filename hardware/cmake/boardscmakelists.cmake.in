@@ -30,10 +30,11 @@
 
 ##################################################################################
 # Handle Includes
-INCLUDE(genbsp)
-INCLUDE(genbitstream)
-INCLUDE(installbsp)
-INCLUDE(installbitstream)
+INCLUDE(xilinx/genbsp)
+INCLUDE(xilinx/genbitstream)
+INCLUDE(xilinx/installbsp)
+INCLUDE(xilinx/installbitstream)
+
 
 REDUCE_BOARD_NAME(${CFG_DEMO_BOARD_NAME} "-" FRAG_DEMO_BOARD_NAME)
 

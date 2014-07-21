@@ -1,8 +1,8 @@
 ################################################################################
 #
-# CMake file for omethlib library where target is Microblaze
+# CMake boards configuration file for ARM Xilinx
 #
-# Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
+# Copyright (c) 2014, Kalycito Infotech Private Limited
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -29,33 +29,37 @@
 ################################################################################
 
 ################################################################################
-# Set architecture specific sources and include directories
-SET(LIB_ARCH_SRCS
-                   ${BOARDS_COMMON_DIR}/drivers/openmac/omethlib_phycfg.c
-   )
+# Handle includes
+SET(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/microblaze" ${CMAKE_MODULE_PATH})
+SET(CMAKE_MODULE_PATH "${OPLK_BASE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
-SET(LIB_ARCH_INCS
-                    ${EXAMPLE_BINARY_DIR}/bsp${CFG_${PROC_INST_NAME}_NAME}/${CFG_${PROC_INST_NAME}_NAME}/include
-                   )
-
-# Set architecture specific definitions
-ADD_DEFINITIONS(${XIL_${PROC_INST_NAME}_CFLAGS} "-fmessage-length=0 -mcpu=${CFG_${PROC_INST_NAME}_CPU_VERSION} -ffunction-sections -fdata-sections")
+INCLUDE(geneclipsefilelist)
+INCLUDE(geneclipseincludelist)
+INCLUDE(setarma9boardconfig)
 
 ################################################################################
-# Set architecture specific installation files
+# U S E R    O P T I O N S
 
-########################################################################
-# Eclipse project files
-SET(CFG_CPU_NAME ${CFG_${PROC_INST_NAME}_NAME})
+# Assemble path to all boards with Xilinx demos
+SET(BOARD_DIRS ${PROJECT_SOURCE_DIR}/boards/xilinx-z702)
 
-GEN_ECLIPSE_FILE_LIST("${OMETH_LIB_SRCS}" "" PART_ECLIPSE_FILE_LIST)
-SET(ECLIPSE_FILE_LIST "${ECLIPSE_FILE_LIST} ${PART_ECLIPSE_FILE_LIST}")
+################################################################################
+# Find the Xilinx toolchain
+UNSET(XIL_LIBGEN CACHE)
+FIND_PROGRAM(XIL_LIBGEN NAMES libgen
+    PATHS
+    ${XIL_ISE_ROOT}/EDK/bin
+    DOC "Xilinx board support package generation tool"
+)
 
-GEN_ECLIPSE_FILE_LIST("${LIB_ARCH_SRCS}" "arch" PART_ECLIPSE_FILE_LIST)
-SET(ECLIPSE_FILE_LIST "${ECLIPSE_FILE_LIST} ${PART_ECLIPSE_FILE_LIST}")
+UNSET(XIL_XPS CACHE)
+FIND_PROGRAM(XIL_XPS NAMES xps
+    PATHS
+    ${XIL_ISE_ROOT}/EDK/bin
+    DOC "Xilinx Platform Studio"
+)
 
-SET(LIBRARY_INCLUDES ${OMETH_LIB_INCS} ${LIB_ARCH_INCS})
-GEN_ECLIPSE_INCLUDE_LIST("${LIBRARY_INCLUDES}" ECLIPSE_INCLUDE_LIST )
-
-CONFIGURE_FILE(${ARCH_TOOLS_DIR}/eclipse/libproject.in ${PROJECT_BINARY_DIR}/.project @ONLY)
-CONFIGURE_FILE(${ARCH_TOOLS_DIR}/eclipse/libcproject.in ${PROJECT_BINARY_DIR}/.cproject @ONLY)
+################################################################################
+# Set path to system folders
+SET(ARCH_IPCORE_REPO ${PROJECT_SOURCE_DIR}/ipcore/xilinx)
+SET(ARCH_TOOLS_DIR ${OPLK_BASE_DIR}/tools/xilinx-arm)
