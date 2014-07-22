@@ -40,8 +40,11 @@ SET(XIL_HW_LIB_DIR ${OPLK_ROOT_DIR}/hardware/lib/${SYSTEM_NAME_DIR}/${SYSTEM_PRO
 
 ################################################################################
 # Path to the hardware library folder of your board example
+IF (CFG_KERNEL_DUALPROCSHM)
+    SET( CFG_HW_LIB_DIR ${XIL_HW_LIB_DIR}/xilinx-z702/mn-dual-shmem-gpio
+            CACHE PATH "Path to the hardware library folder for the dual processor shared memory interface MN library")
 
-IF (CFG_KERNEL_STACK_PCP_HOSTIF_MODULE)
+ELSEIF (CFG_KERNEL_STACK_PCP_HOSTIF_MODULE)
     SET(CFG_HW_LIB_DIR ${XIL_HW_LIB_DIR}/avnet-lx150t/mn-dual-hostif-gpio
         CACHE PATH "Path to the hardware library folder for the dual processor host interface MN library")
 
@@ -90,8 +93,21 @@ FIND_LIBRARY(XIL_LIB_OMETH NAMES ${LIB_OMETHLIB_NAME}
             )
 ################################################################################
 # Find driver dualprocshm-pcp
+IF (CFG_KERNEL_DUALPROCSHM)
+    IF (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    SET(LIB_DUALPROCSHM_NAME "dualprocshm-pcp_d")
+    ELSE ()
+    SET(LIB_DUALPROCSHM_NAME "dualprocshm-pcp")
+    ENDIF ()
 
-IF (CFG_KERNEL_STACK_PCP_HOSTIF_MODULE)
+    UNSET(XIL_LIB_DUALPROCSHM CACHE)
+    UNSET(XIL_LIB_HOSTIF CACHE)
+    MESSAGE(STATUS "Searching for LIBRARY ${LIB_DUALPROCSHM_NAME} in ${CFG_HW_LIB_DIR}/libdualprocshm-pcp")
+    FIND_LIBRARY(XIL_LIB_DUALPROCSHM NAMES ${LIB_DUALPROCSHM_NAME}
+                     HINTS ${CFG_HW_LIB_DIR}/libdualprocshm-pcp
+            )
+
+ELSEIF (CFG_KERNEL_STACK_PCP_HOSTIF_MODULE)
     IF (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
         SET(LIB_HOSTIFLIB_NAME "hostiflib-pcp_d")
     ELSE ()
@@ -147,7 +163,14 @@ ELSE ()
     MESSAGE(FATAL_ERROR "${LIB_OMETHLIB_NAME} for board ${CFG_DEMO_BOARD_NAME} and demo ${CFG_DEMO_NAME} not found! Check the parameter CMAKE_BUILD_TYPE to confirm your 'Debug' or 'Release' settings")
 ENDIF ()
 
-IF (CFG_KERNEL_STACK_PCP_HOSTIF_MODULE)
+IF (CFG_KERNEL_DUALPROCSHM)
+    IF (NOT ${XIL_LIB_DUALPROCSHM} STREQUAL "XIL_LIB_DUALPROCSHM-NOTFOUND")
+        SET(ARCH_LIBRARIES  ${ARCH_LIBRARIES} ${XIL_LIB_DUALPROCSHM})
+    ELSE ()
+        MESSAGE(FATAL_ERROR "${LIB_DUALPROCSHM_NAME} for board ${CFG_DEMO_BOARD_NAME} and demo ${CFG_DEMO_NAME} not found! Check the parameter CMAKE_BUILD_TYPE to confirm your 'Debug' or 'Release' settings")
+    ENDIF ()
+
+ELSEIF (CFG_KERNEL_STACK_PCP_HOSTIF_MODULE)
 
     IF (NOT ${XIL_LIB_HOSTIF} STREQUAL "XIL_LIB_HOSTIF-NOTFOUND")
         SET(ARCH_LIBRARIES  ${ARCH_LIBRARIES} ${XIL_LIB_HOSTIF})
