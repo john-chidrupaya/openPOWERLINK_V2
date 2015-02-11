@@ -89,7 +89,6 @@ SET(DEMO_ARCH_SOURCES
 INCLUDE_DIRECTORIES(
                     ${XIL_BSP_DIR}/include
                     ${OPLK_ROOT_DIR}/stack/src/arch/xilinx-zynqarm
-                    ${COMMON_SOURCE_DIR}/gpio
                    )
 
 IF(CFG_CDC_ON_SD)
@@ -101,7 +100,6 @@ IF(CFG_CDC_ON_SD)
 
     INCLUDE_DIRECTORIES(
                         ${SDFAT16_DIR}/include
-                        ${COMMON_SOURCE_DIR}/sdcard
                        )
 
 ENDIF()

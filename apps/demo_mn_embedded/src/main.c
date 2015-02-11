@@ -44,15 +44,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 #include <oplk/oplk.h>
 
-#include <gpio.h>
-#include <lcd.h>
-#include <arp.h>
+#include <gpio/gpio.h>
+#include <lcd/lcd.h>
+#include <arp/arp.h>
+#include <system/system.h>
 
 #include "app.h"
 #include "event.h"
 
 #if (CONFIG_CDC_ON_SD != FALSE)
-#include <sdcard.h>
+#include <sdcard/sdcard.h>
 #endif
 
 //============================================================================//
@@ -145,7 +146,11 @@ int main(void)
 #if (CONFIG_CDC_ON_SD != FALSE)
     tCdcBuffInfo    cdcBuffInfo;
 #endif
+
+    // initialize the target platform
+    system_init();
     lcd_init();
+    gpio_init();
 
     // get node ID from input
     nodeid = gpio_getNodeid();
@@ -202,6 +207,9 @@ Exit:
     arp_shutdown();
     shutdownPowerlink(&instance_l);
     shutdownApp();
+    lcd_exit();
+    gpio_shutdown();
+    system_exit();
 
     return 0;
 }
