@@ -107,7 +107,9 @@ The SDO defines determine the SDO stack configuration.
 #define CONFIG_SDO_MAX_CONNECTION_COM              100
     ///< max. supported SDO command connections
 /**@}*/
+#ifndef CONFIG_CDC_ON_SD
 #define CONFIG_CDC_ON_SD            TRUE
+#endif
 //------------------------------------------------------------------------------
 // typedef
 //------------------------------------------------------------------------------
