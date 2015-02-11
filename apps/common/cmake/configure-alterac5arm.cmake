@@ -69,7 +69,7 @@ SET(CFG_BUILD_KERNEL_STACK "PCP Daemon Host-Interface"
     CACHE STRING "Configure how to build the kernel stack")
 
 SET(KernelStackBuildTypes
-    "PCP Daemon Host-Interface;None"
+    "PCP Daemon Host-Interface;PCP Daemon Shared Memory Interface;None"
     CACHE INTERNAL
     "List of possible kernel stack build types")
 
