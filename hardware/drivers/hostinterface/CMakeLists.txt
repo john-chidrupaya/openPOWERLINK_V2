@@ -113,6 +113,8 @@ ADD_DEFINITIONS("${HOSTIF_CFLAGS} -DCONFIG_HOSTIF_PCP=${CFG_HOSTIF_PCP}")
 ########################################################################
 IF(CMAKE_SYSTEM_NAME STREQUAL "Generic" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "Microblaze")
     include(configure-microblaze)
+ELSEIF(${CMAKE_SYSTEM_NAME} STREQUAL "Generic" AND ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "alterac5arm")
+    include(configure-alterac5arm)
 ELSE()
     MESSAGE(FATAL_ERROR "System ${CMAKE_SYSTEM_NAME} with processor ${CMAKE_SYSTEM_PROCESSOR} is not supported!")
 ENDIF()
