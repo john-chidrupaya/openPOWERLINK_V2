@@ -193,6 +193,7 @@ tDualprocReturn dualprocshm_registerHandler(tDualprocDrvInstance pInstance_p,
 {
     UINT16    irqEnableVal;
 
+//FIXME coherency to be restored in the number of interrupts across this module
     if (irqId_p > TARGET_MAX_INTERRUPTS || pInstance_p == NULL)
         return kDualprocInvalidParameter;
 
@@ -235,6 +236,7 @@ The function enables the specified interrupt.
 tDualprocReturn dualprocshm_enableIrq(tDualprocDrvInstance pInstance_p,
                                       UINT8 irqId_p, BOOL fEnable_p)
 {
+//FIXME: same bit is accessed by both enable and register functions
     UINT16    irqEnableVal;
 
     if (irqId_p > TARGET_MAX_INTERRUPTS || pInstance_p == NULL)
@@ -356,6 +358,10 @@ static void targetInterruptHandler(void* pArg_p)
         // then try to execute the callback
         if (intrInst_l.apfnIrqCb[i] != NULL)
             intrInst_l.apfnIrqCb[i]();
+
+        DUALPROCSHM_INVALIDATE_DCACHE_RANGE(&intrInst_l.intrReg->irq.irqPending,
+                                    sizeof(intrInst_l.intrReg->irq.irqPending));
+        pendings = DPSHM_READ16(&intrInst_l.intrReg->irq.irqPending);
     }
 }
 
