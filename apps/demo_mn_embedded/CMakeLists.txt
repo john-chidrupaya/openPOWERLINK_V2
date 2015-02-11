@@ -44,6 +44,13 @@ INCLUDE(../common/cmake/options.cmake)
 SET(OBJDICT CiA302-4_MN)              # Set object dictionary to use
 FIND_OPLK_LIBRARY("mn")
 
+IF ((NOT ${OPLKLIB} STREQUAL "OPLKLIB-NOTFOUND") AND (NOT ${OPLKLIB_DEBUG} STREQUAL "OPLKLIB_DEBUG-NOTFOUND"))
+    GET_FILENAME_COMPONENT(OPLKCFG_PATH ${OPLKLIB} DIRECTORY)
+    GET_FILENAME_COMPONENT(OPLKLIB_NAME ${OPLKLIB} NAME_WE)
+    STRING(REPLACE ${CMAKE_STATIC_LIBRARY_PREFIX} "" OPLKLIB_NAME ${OPLKLIB_NAME})
+    SET(OPLKCFG_PATH ${OPLKCFG_PATH}/config-${OPLKLIB_NAME})
+ENDIF()
+
 IF (NOT DEFINED CFG_CDC_ONSDCARD)
     SET(CFG_CDC_ON_SD OFF CACHE BOOL "CDC is compiled with application")
 ELSE()
@@ -64,6 +71,7 @@ SET(DEMO_SOURCES
 INCLUDE_DIRECTORIES(
                     ${DEMO_SOURCE_DIR}
                     ${COMMON_SOURCE_DIR}
+                    ${OPLKCFG_PATH}
                    )
 
 ################################################################################
