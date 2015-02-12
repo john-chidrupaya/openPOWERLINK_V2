@@ -127,6 +127,8 @@ static tDualProcDrv*            paDualProcDrvInstance[DUALPROC_INSTANCE_COUNT] =
 //------------------------------------------------------------------------------
 static void     setDynBuffAddr(tDualprocDrvInstance pDrvInst_p, UINT16 index_p, UINT32 addr_p);
 static UINT32   getDynBuffAddr(tDualprocDrvInstance pDrvInst_p, UINT16 index_p);
+static UINT32 configureDpshmHeader(tDualProcInstance procInstance_p,
+                                   tDualprocHeader* pConfigMemBase_p);
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -158,6 +160,7 @@ tDualprocReturn dualprocshm_create(tDualprocConfig* pConfig_p, tDualprocDrvInsta
     tDualprocReturn     ret = kDualprocSuccessful;
     tDualProcDrv*       pDrvInst = NULL;
     INT                 iIndex;
+    int                 ret = 0;
 
     if (pConfig_p->procInstance != kDualProcFirst && pConfig_p->procInstance != kDualProcSecond)
     {
@@ -188,6 +191,9 @@ tDualprocReturn dualprocshm_create(tDualprocConfig* pConfig_p, tDualprocDrvInsta
     // get the dpshm configuration segment base address
     pDrvInst->commMemInst.pConfigMemBase =
                     (tDualprocHeader*) pDrvInst->commMemInst.pCommMemBase;
+
+    ret = configureDpshmHeader(pConfig_p->procInstance,
+                               pDrvInst->commMemInst.pConfigMemBase);
 
     // get the control segment base address
     pDrvInst->commMemInst.pCtrlMemBase =
@@ -866,4 +872,25 @@ static UINT32 getDynBuffAddr(tDualprocDrvInstance pInstance_p, UINT16 index_p)
     return buffAddr;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Read the buffer address from dynamic memory mapping table
+
+\param  pInstance_p  Driver instance.
+\param  index_p      Buffer index.
+
+\return Address of the buffer requested.
+
+*/
+//------------------------------------------------------------------------------
+static UINT32 configureDpshmHeader(tDualProcInstance procInstance_p,
+                                   tDualprocHeader* pConfigMemBase_p)
+{
+    int iIndex = 0;
+    UINT32 shmemBaseAddr = SHARED_MEM_BASE;
+
+    dualprocshm_targetWriteData((UINT8*) (&pConfigMemBase_p->sharedMemBase[procInstance_p]),
+                                sizeof(UINT32), (UINT8*) (&shmemBaseAddr));
+    return 0;
+}
 /// \}
