@@ -109,6 +109,7 @@ typedef enum eDualProcInstance
 {
     kDualProcFirst        = 0,              ///< Instance on first processor
     kDualProcSecond       = 1,              ///< Instance on second processor
+    kDualProcEndOfList    = 2,              ///< End of list flag
 } tDualProcInstance;
 
 /**
@@ -198,7 +199,7 @@ Currently holds the address of shared memory on the First processor.
 */
 typedef struct sDualprocHeader
 {
-    UINT32      sharedMemBase;
+    UINT32      sharedMemBase[kDualProcEndOfList];
 } tDualprocHeader;
 
 /**
