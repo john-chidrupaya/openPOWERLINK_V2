@@ -191,6 +191,29 @@ typedef struct sDualprocDynRes
 } tDualprocDynResConfig;
 
 /**
+\brief Header structure for dual processor library
+
+Currently holds the address of shared memory on the First processor.
+
+*/
+typedef struct sDualprocHeader
+{
+    UINT32      sharedMemBase;
+} tDualprocHeader;
+
+/**
+\brief Dual Processor Common memory instance
+
+Holds the individual segment configuration details, inside common memory
+*/
+typedef struct sCommMemInst
+{
+    UINT8*                      pCommMemBase;       ///< Base address of the common memory
+    tDualprocHeader*            pConfigMemBase;     ///< Pointer to the dpshm config segment
+    UINT8*                      pCtrlMemBase;       ///< Pointer to the control segment
+}tCommMemInst;
+
+/**
 \brief Dual Processor Instance
 
 Holds the configuration passed to the instance at creation.
@@ -198,7 +221,7 @@ Holds the configuration passed to the instance at creation.
 typedef struct sDualProcDrv
 {
     tDualprocConfig             config;             ///< Copy of configuration
-    UINT8*                      pCommMemBase;       ///< Base address of the common memory
+    tCommMemInst                commMemInst;        ///< Common memory instance
     UINT8*                      pAddrTableBase;     ///< Pointer to dynamic memory address table
     int                         iMaxDynBuffEntries; ///< Number of dynamic buffers (Pcp/Host)
     tDualprocDynResConfig*      pDynResTbl;         ///< Dynamic buffer table (Pcp/Host)
@@ -226,6 +249,14 @@ tDualprocReturn         dualprocshm_readData(tDualprocDrvInstance pInstance_p, U
 tDualprocReturn         dualprocshm_readDataCommon(tDualprocDrvInstance pInstance_p, UINT32 offset_p,
                                                    size_t Size_p, UINT8* pData_p);
 tDualprocReturn         dualprocshm_writeDataCommon(tDualprocDrvInstance pInstance_p, UINT32 offset_p,
+                                                    size_t Size_p, UINT8* pData_p);
+tDualprocReturn         dualprocshm_readDataCfg(tDualprocDrvInstance pInstance_p, UINT32 offset_p,
+                                                   size_t Size_p, UINT8* pData_p);
+tDualprocReturn         dualprocshm_writeDataCfg(tDualprocDrvInstance pInstance_p, UINT32 offset_p,
+                                                    size_t Size_p, UINT8* pData_p);
+tDualprocReturn         dualprocshm_readDataCtrl(tDualprocDrvInstance pInstance_p, UINT32 offset_p,
+                                                   size_t Size_p, UINT8* pData_p);
+tDualprocReturn         dualprocshm_writeDataCtrl(tDualprocDrvInstance pInstance_p, UINT32 offset_p,
                                                     size_t Size_p, UINT8* pData_p);
 
 tDualprocReturn         dualprocshm_acquireBuffLock(tDualprocDrvInstance pInstance_p, UINT8 id_p) SECTION_DUALPROCSHM_RE_BUFF_LOCK;

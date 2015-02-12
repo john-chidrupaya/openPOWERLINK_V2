@@ -178,12 +178,21 @@ tDualprocReturn dualprocshm_create(tDualprocConfig* pConfig_p, tDualprocDrvInsta
     pDrvInst->config = *pConfig_p;
 
     // get the common memory address
-    pDrvInst->pCommMemBase = dualprocshm_getCommonMemAddr(&pDrvInst->config.commMemSize);
+    pDrvInst->commMemInst.pCommMemBase = dualprocshm_getCommonMemAddr(&pDrvInst->config.commMemSize);
 
     if (pConfig_p->procInstance == kDualProcFirst)
     {
-        memset(pDrvInst->pCommMemBase, 0, MAX_COMMON_MEM_SIZE);
+        memset(pDrvInst->commMemInst.pCommMemBase, 0, MAX_COMMON_MEM_SIZE);
     }
+
+    // get the dpshm configuration segment base address
+    pDrvInst->commMemInst.pConfigMemBase =
+                    (tDualprocHeader*) pDrvInst->commMemInst.pCommMemBase;
+
+    // get the control segment base address
+    pDrvInst->commMemInst.pCtrlMemBase =
+    (UINT8*) ((UINT32) pDrvInst->commMemInst.pConfigMemBase + sizeof(tDualprocHeader));
+
     // get the address to store address mapping table
     pDrvInst->pAddrTableBase = dualprocshm_getDynMapTableAddr();
 
@@ -531,7 +540,7 @@ tDualprocReturn dualprocshm_readDataCommon(tDualprocDrvInstance pInstance_p,
                                            UINT32 offset_p, size_t size_p, UINT8* pData_p)
 {
     tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
-    UINT8*          base = pDrvInst->pCommMemBase;
+    UINT8*          base = pDrvInst->commMemInst.pCommMemBase;
 
     if (pInstance_p == NULL || pData_p == NULL)
         return kDualprocInvalidParameter;
@@ -563,7 +572,135 @@ tDualprocReturn dualprocshm_writeDataCommon(tDualprocDrvInstance pInstance_p,
                                             UINT32 offset_p, size_t size_p, UINT8* pData_p)
 {
     tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
-    UINT8*          base = pDrvInst->pCommMemBase;
+    UINT8*          base = pDrvInst->commMemInst.pCommMemBase;
+
+    if (pInstance_p == NULL || pData_p == NULL)
+        return kDualprocInvalidParameter;
+
+    dualprocshm_targetWriteData(base + offset_p, size_p, pData_p);
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Read from the dpshm config segment
+
+The function reads from the dpshm config/header segment of common memory.
+
+\param  pInstance_p  Driver instance.
+\param  offset_p     Offset from the base of config segment to be read.
+\param  size_p       Number of bytes to be read.
+\param  pData_p      Pointer to buffer where the read data is to be stored.
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The config segment buffer is read successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_readDataCfg(tDualprocDrvInstance pInstance_p,
+                                           UINT32 offset_p, size_t size_p, UINT8* pData_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pConfigMemBase;
+
+    if (pInstance_p == NULL || pData_p == NULL)
+        return kDualprocInvalidParameter;
+
+    dualprocshm_targetReadData(base + offset_p, size_p, pData_p);
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Write to the config segment
+
+The function writes to the dpshm config/header segment of common memory region.
+
+\param  pInstance_p  Driver instance.
+\param  offset_p     Offset from the base of config segment to be written.
+\param  size_p       Number of bytes to write.
+\param  pData_p      Pointer to memory containing data to be written.
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The config segment buffer is written successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_writeDataCfg(tDualprocDrvInstance pInstance_p,
+                                            UINT32 offset_p, size_t size_p, UINT8* pData_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pConfigMemBase;
+
+    if (pInstance_p == NULL || pData_p == NULL)
+        return kDualprocInvalidParameter;
+
+    dualprocshm_targetWriteData(base + offset_p, size_p, pData_p);
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Read from the control segment
+
+The function reads from the control segment of common memory.
+
+\param  pInstance_p  Driver instance.
+\param  offset_p     Offset from the base of control segment to be read.
+\param  size_p       Number of bytes to be read.
+\param  pData_p      Pointer to buffer where the read data is to be stored.
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The control segment buffer is read successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_readDataCtrl(tDualprocDrvInstance pInstance_p,
+                                           UINT32 offset_p, size_t size_p, UINT8* pData_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pCtrlMemBase;
+
+    if (pInstance_p == NULL || pData_p == NULL)
+        return kDualprocInvalidParameter;
+
+    dualprocshm_targetReadData(base + offset_p, size_p, pData_p);
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Write to the control segment
+
+The function writes to the control segment of common memory region.
+
+\param  pInstance_p  Driver instance.
+\param  offset_p     Offset from the base of control segment to be written.
+\param  size_p       Number of bytes to write.
+\param  pData_p      Pointer to memory containing data to be written.
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The control segment buffer is written successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_writeDataCtrl(tDualprocDrvInstance pInstance_p,
+                                            UINT32 offset_p, size_t size_p, UINT8* pData_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pCtrlMemBase;
 
     if (pInstance_p == NULL || pData_p == NULL)
         return kDualprocInvalidParameter;
