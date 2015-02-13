@@ -53,7 +53,7 @@ ADD_DEFINITIONS(${ALT_${PROC_INST_NAME}_CFLAGS} -D__altera_arm__ )
 
 ################################################################################
 # Set architecture specific installation files
-########################################################################
+################################################################################
 # Eclipse project files
 SET(CFG_CPU_NAME ${CFG_${PROC_INST_NAME}_NAME})
 
