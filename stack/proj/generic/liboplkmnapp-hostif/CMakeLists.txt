@@ -87,6 +87,8 @@ ADD_DEFINITIONS(-DCONFIG_HOSTIF_PCP=FALSE -DCONFIG_PCP=FALSE)
 # Handle target specific functions
 IF (${CMAKE_SYSTEM_NAME} STREQUAL "Generic" AND ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "Microblaze")
     INCLUDE(configure-microblaze.cmake)
+ELSEIF (${CMAKE_SYSTEM_NAME} STREQUAL "Generic" AND ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "alterac5arm")
+    INCLUDE(configure-alterac5arm.cmake)
 ELSE ()
     MESSAGE(FATAL_ERROR "Unknown platform selected!")
 ENDIF ()
