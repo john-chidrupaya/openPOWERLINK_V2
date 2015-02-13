@@ -152,7 +152,7 @@ tOplkError ctrlkcal_init(void)
     }
 
     magic = CTRL_MAGIC;
-    dualRet = dualprocshm_writeDataCommon(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, magic),
+    dualRet = dualprocshm_writeDataCtrl(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, magic),
                                           sizeof(magic), (UINT8*)&magic);
     if (dualRet != kDualprocSuccessful)
     {
@@ -256,7 +256,7 @@ void ctrlkcal_sendReturn(UINT16 retval_p)
     ctrlCmd.cmd = 0;
     ctrlCmd.retVal = retval_p;
 
-    dualprocshm_writeDataCommon(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, ctrlCmd),
+    dualprocshm_writeDataCtrl(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, ctrlCmd),
                                 sizeof(tCtrlCmd), (UINT8*)&ctrlCmd);
 }
 
@@ -273,7 +273,7 @@ The function stores the status of the kernel stack in the control memory block.
 //------------------------------------------------------------------------------
 void ctrlkcal_setStatus(UINT16 status_p)
 {
-    dualprocshm_writeDataCommon(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, status),
+    dualprocshm_writeDataCtrl(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, status),
                                 sizeof(status_p), (UINT8*)&status_p);
 }
 
@@ -291,7 +291,7 @@ can be used by the user stack to detect if the kernel stack is still running.
 //------------------------------------------------------------------------------
 void ctrlkcal_updateHeartbeat(UINT16 heartbeat_p)
 {
-    dualprocshm_writeDataCommon(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, heartbeat),
+    dualprocshm_writeDataCtrl(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, heartbeat),
                                 sizeof(heartbeat_p), (UINT8*)&heartbeat_p);
 }
 
@@ -311,7 +311,7 @@ parameters modified in the kernel stack.
 //------------------------------------------------------------------------------
 void ctrlkcal_storeInitParam(tCtrlInitParam* pInitParam_p)
 {
-    dualprocshm_writeDataCommon(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, initParam),
+    dualprocshm_writeDataCtrl(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, initParam),
                                 sizeof(tCtrlInitParam), (UINT8*)pInitParam_p);
 }
 
