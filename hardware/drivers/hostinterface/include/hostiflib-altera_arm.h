@@ -1,17 +1,16 @@
 /**
 ********************************************************************************
-\file   hostiflib_target.h
+\file   hostiflib-altera_arm.h
 
-\brief  Host Interface Library - Target header file
+\brief  Host Interface Library - For Altera Cyclone-V ARM target
 
-This header file defines target specific macros (e.g. data types) and selects
-the target specific header file (e.g. hostiflib_nios.h).
+This header file provides specific macros for Altera Cyclone-V ARM CPU.
 
 *******************************************************************************/
 
 /*------------------------------------------------------------------------------
 Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
-Copyright (c) 2014, Kalycito Infotech Private Limited
+Copyright (c) 2015, Kalycito Infotech Private Ltd.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -37,79 +36,55 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------*/
 
-#ifndef _INC_hostiflib_target_H_
-#define _INC_hostiflib_target_H_
+#ifndef _INC_hostiflib-altera_arm_H_
+#define _INC_hostiflib-altera_arm_H_
 
 //------------------------------------------------------------------------------
 // includes
 //------------------------------------------------------------------------------
 #include <stdint.h>
+#include <unistd.h>
 
-#if defined(__NIOS2__)
+#include <system.h>
 
-#include "hostiflib_nios.h"
-
-#elif defined(__MICROBLAZE__)
-
-#include "hostiflib_microblaze.h"
-
-#elif defined(__altera_arm__)
-
-#include "hostiflib-altera_arm.h"
-
-#else
-
-#error "Target is not supported! Please revise hostiflib_target.h"
-
-#endif
-
-#ifndef HOSTIF_INLINE
-#define HOSTIF_INLINE
-#endif
+#include <socal/socal.h>
 
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
-
-/**
-\name Data types
-If the following data types are not defined in the environment, then they are
-set to those provided by stdint.h.
-*/
-/**@{*/
-#ifndef UINT8
-#define UINT8       uint8_t
+// Get hostinterface base address from system.h
+#if defined(HOSTINTERFACE_0_BASE)
+#define HOSTIF_BASE                         HOSTINTERFACE_0_BASE
+#else
+#define HOSTIF_BASE                         0x10000000  //FIXME: Use multiplex ipcore base here
 #endif
 
-#ifndef UINT16
-#define UINT16      uint16_t
-#endif
+#define HOSTIF_IRQ_IC_ID                    0           ///< Irq Controller Id
+#define HOSTIF_IRQ                          0           ///< Irq Id
 
-#ifndef UINT32
-#define UINT32      uint32_t
-#endif
+#define HOSTIF_SYNC_IRQ_TARGET_CPU          0x1 // dual Core
 
-#ifndef UINT
-#define UINT        unsigned int
-#endif
+/// cache
+#warning "Cache bypassing not available"
+#define HOSTIF_MAKE_NONCACHEABLE(ptr)       (void*)(((unsigned long)ptr))
 
-#ifndef BOOL
-#define BOOL        uint8_t
-#endif
+#define HOSTIF_UNCACHED_MALLOC(size)        malloc(size)
+#define HOSTIF_UNCACHED_FREE(ptr)           free(ptr)
 
-#ifndef FALSE
-#define FALSE       0x00
-#endif
+/// sleep
+#define HOSTIF_USLEEP(x)                    hostif_usSleep(x)
+#define HOSTIF_BRIDGE_INIT_TIMEOUT_MS       10
 
-#ifndef TRUE
-#define TRUE        0xFF
-#endif
-/**@}*/
+/// hw access
+#define HOSTIF_RD32(base, offset)           alt_read_word((unsigned int)base + (unsigned int)offset)
+#define HOSTIF_RD16(base, offset)           alt_read_hword((unsigned int)base + (unsigned int)offset)
+#define HOSTIF_RD8(base, offset)            alt_read_byte((unsigned int)base + (unsigned int)offset)
 
-#ifndef UNUSED_PARAMETER
-#define UNUSED_PARAMETER(par)   (void)par
-#endif
+#define HOSTIF_WR32(base, offset, dword)    alt_write_word((unsigned int)base + (unsigned int)offset, dword)
+#define HOSTIF_WR16(base, offset, word)     alt_write_hword((unsigned int)base + (unsigned int)offset, word)
+#define HOSTIF_WR8(base, offset, byte)      alt_write_byte((unsigned int)base + (unsigned int)offset, byte)
 
+#define HOSTIF_INLINE                       inline
 //------------------------------------------------------------------------------
 // typedef
 //------------------------------------------------------------------------------
@@ -117,5 +92,6 @@ set to those provided by stdint.h.
 //------------------------------------------------------------------------------
 // function prototypes
 //------------------------------------------------------------------------------
+void hostif_usSleep(uint32_t usDelay_p);
 
-#endif /* _INC_hostiflib_target_H_ */
+#endif /* _INC_hostiflib-altera_arm_H_ */
