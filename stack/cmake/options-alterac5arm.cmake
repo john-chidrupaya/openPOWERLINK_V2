@@ -46,6 +46,7 @@ SET(ALT_TOOLS_DIR ${TOOLS_DIR}/altera-arm)
 ################################################################################
 # Options for MN libraries
 OPTION(CFG_COMPILE_LIB_MNAPP_HOSTIF     "Compile openPOWERLINK MN host/application library" OFF)
+OPTION(CFG_COMPILE_LIB_MNAPP_DUALPROCSHM "Compile openPOWERLINK MN library for application using dual processor shared memory" OFF)
 
 ################################################################################
 # Add library subdirectories and hardware library path
@@ -59,4 +60,16 @@ IF (CFG_COMPILE_LIB_MNAPP_HOSTIF)
 
 ELSE ()
     UNSET(CFG_COMPILE_LIB_MN_APP_HOSTIF_HW_LIB_DIR CACHE)
+ENDIF ()
+
+
+IF(CFG_COMPILE_LIB_MNAPP_DUALPROCSHM)
+      # Path to the hardware library folder of your board example
+      SET(CFG_COMPILE_LIB_MN_HW_LIB_DIR ${ALT_HW_LIB_DIR}/altera-c5soc/mn-soc-shmem-gpio
+                CACHE PATH "Path to the hardware library folder for the dual processor MN library")
+
+    ADD_SUBDIRECTORY(proj/generic/liboplkmnapp-dualprocshm)
+
+ELSE ()
+    UNSET(CFG_COMPILE_LIB_MN_HW_LIB_DIR CACHE)
 ENDIF ()
