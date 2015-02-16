@@ -117,8 +117,7 @@ tMemMapReturn memmap_init(void)
     pDrvInst = dualprocshm_getDrvInst(memMapInstance_l.curProcInst);
 
     //TODO: Check if a wait loop is required.
-    ret = dualprocshm_readDataCfg(pDrvInst, 0, sizeof(tDualprocHeader),
-                                  (UINT8*) (memMapInstance_l.pDpshmCfg));
+    ret = dualprocshm_getHdlCfg(pDrvInst, (UINT8**) (&memMapInstance_l.pDpshmCfg));
 
 
     if (memMapInstance_l.pDpshmCfg == NULL)

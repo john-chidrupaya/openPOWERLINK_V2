@@ -251,6 +251,7 @@ tDualprocReturn         dualprocshm_readDataCommon(tDualprocDrvInstance pInstanc
                                                    size_t Size_p, UINT8* pData_p);
 tDualprocReturn         dualprocshm_writeDataCommon(tDualprocDrvInstance pInstance_p, UINT32 offset_p,
                                                     size_t Size_p, UINT8* pData_p);
+tDualprocReturn         dualprocshm_getHdlCfg(tDualprocDrvInstance pInstance_p, UINT8** ppHdl_p);
 tDualprocReturn         dualprocshm_readDataCfg(tDualprocDrvInstance pInstance_p, UINT32 offset_p,
                                                    size_t Size_p, UINT8* pData_p);
 tDualprocReturn         dualprocshm_writeDataCfg(tDualprocDrvInstance pInstance_p, UINT32 offset_p,
