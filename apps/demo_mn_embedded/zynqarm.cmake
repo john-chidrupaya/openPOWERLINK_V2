@@ -84,6 +84,7 @@ SET(DEMO_ARCH_SOURCES
     ${DEMO_ARCHSOURCES}
     ${COMMON_SOURCE_DIR}/gpio/gpio-zynqarm.c
     ${COMMON_SOURCE_DIR}/lcd/lcdl-null.c
+    ${COMMON_SOURCE_DIR}/system/system-null.c
    )
 
 INCLUDE_DIRECTORIES(
@@ -106,7 +107,8 @@ ENDIF()
 
 ################################################################################
 # Set architecture specific definitions
-ADD_DEFINITIONS(${XIL_HOST_CFLAGS} "-fmessage-length=0 -mcpu=${CFG_HOST_CPU_VERSION} -ffunction-sections -fdata-sections -fno-inline -D__xilinx_arm__")
+ADD_DEFINITIONS(${XIL_HOST_CFLAGS} "-fmessage-length=0 -mcpu=${CFG_HOST_CPU_VERSION} -ffunction-sections -fdata-sections -fno-inline")
+ADD_DEFINITIONS(-D__xilinx_arm__)
 
 ################################################################################
 # Set architecture specific linker flags
