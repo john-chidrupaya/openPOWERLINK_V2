@@ -103,7 +103,14 @@ typedef enum
     kEventTypeReceivedPres          = 0x30,     ///< Received a PRes frame, which shall be forwarded to application (arg is pointer to tEventReceivedPres)
     kEventTypeRequPresForward       = 0x31,     ///< Request forwarding of a PRes frame to API layer (e.g. for conformance test)
     kEventTypeSdoAsySend            = 0x32,     ///< SDO sequence layer event (for SDO command layer testing module)
-} tEventType;
+} eEventType;
+
+/**
+\brief Event type data type
+
+Data type for the enumerator \ref eEventType.
+*/
+typedef UINT8 tEventType; //TODO: Detailed tests required!
 
 /**
 \brief  Valid sinks for an event
@@ -130,7 +137,14 @@ typedef enum
     kEventSinkSdoTest               = 0x10,     ///< events for SDO testing module
 
     kEventSinkInvalid               = 0xFF      ///< Identifies an invalid sink
-} tEventSink;
+} eEventSink;
+
+/**
+\brief Event sink data type
+
+Data type for the enumerator \ref eEventSink.
+*/
+typedef UINT8 tEventSink; //TODO: Detailed tests required!
 
 /**
 \brief  Valid sources for an event
@@ -168,7 +182,14 @@ typedef enum
     kEventSourceSdoTest             = 0x20,     ///< Events from SDO testing module
 
     kEventSourceInvalid             = 0xFF      ///< Identifies an invalid event source
-} tEventSource;
+} eEventSource;
+
+/**
+\brief Event source data type
+
+Data type for the enumerator \ref eEventSource.
+*/
+typedef UINT8 tEventSource; //TODO: Detailed tests required!
 
 /**
 \brief Enumerator for queue
@@ -184,7 +205,14 @@ typedef enum
     kEventQueueU2K                  = 0x02,     ///< User-to-kernel queue
     kEventQueueUInt                 = 0x03,     ///< User-internal queue
     kEventQueueNum                  = 0x04      ///< Maximum number of queues
-} tEventQueue;
+} eEventQueue;
+
+/**
+\brief Event queue data type
+
+Data type for the enumerator \ref eEventQueue.
+*/
+typedef UINT8 tEventQueue;
 
 /**
 \brief  Structure for events

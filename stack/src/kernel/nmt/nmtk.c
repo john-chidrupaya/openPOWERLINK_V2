@@ -106,7 +106,9 @@ typedef enum
     kNmtkMsReadyToOperate,
     kNmtkMsOperational,
     kNmtkMsBasicEthernet
-} tNmtkStateIndexes;
+} eNmtkStateIndexes;
+
+typedef UINT32 tNmtkStateIndexes;
 
 //------------------------------------------------------------------------------
 // local types

@@ -146,7 +146,9 @@ typedef enum
 {
     kObdCdcTypeFile      = 0,
     kObdCdcTypeBuffer    = 1,
-} tObdCdcType;
+} eObdCdcType;
+
+typedef UINT32 tObdCdcType;
 
 typedef struct
 {

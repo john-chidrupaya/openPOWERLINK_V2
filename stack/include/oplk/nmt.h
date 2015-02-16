@@ -115,7 +115,14 @@ typedef enum
     kNmtMsOperational               = 0x02FD,   ///< NMT_MS_OPERATIONAL
     kNmtMsBasicEthernet             = 0x021E,   ///< NMT_MS_BASIC_ETHERNET
     kNmtStateInvalid                = 0xFFFF    ///< Dummy state to detect invalid states (garbage)
-} tNmtState;
+} eNmtState;
+
+/**
+\brief NMT state data type
+
+Data type for the enumerator \ref eNmtState.
+*/
+typedef UINT16 tNmtState;
 
 /**
 * \brief NMT events
@@ -168,7 +175,14 @@ typedef enum
     kNmtEventEnterMsOperational     =   0x2C,   ///< enter Operational on MN
     kNmtEventSwitchOff              =   0x2D,   ///< enter state Off
     kNmtEventCriticalError          =   0x2E,   ///< enter state Off because of critical error
-} tNmtEvent;
+} eNmtEvent;
+
+/**
+\brief NMT event data type
+
+Data type for the enumerator \ref eNmtEvent.
+*/
+typedef UINT8 tNmtEvent; //TODO: Detailed tests required!
 
 /**
 * \brief NMT state change event
@@ -180,6 +194,7 @@ typedef struct
     tNmtState               newNmtState;        ///< New NMT state
     tNmtState               oldNmtState;        ///< Old NMT state
     tNmtEvent               nmtEvent;           ///< NMT event
+    //TODO: Add padding?
 } tEventNmtStateChange;
 
 /**
@@ -210,7 +225,14 @@ typedef enum
     kNmtNodeEventReadyToStart       = 0x05,     ///< Issued if NMT_STARTUP_NO_STARTNODE set, application must call oplk_execNmtCommand(kErrorNmtCmdStartNode) manually.
     kNmtNodeEventNmtState           = 0x06,     ///< Issued if the NMT state of the CN has changed.
     kNmtNodeEventError              = 0x07,     ///< NMT error of the CN.
-} tNmtNodeEvent;
+} eNmtNodeEvent;
+
+/**
+\brief Node event data type
+
+Data type for the enumerator \ref eNmtNodeEvent.
+*/
+typedef UINT32 tNmtNodeEvent;
 
 /**
 * \brief NMT node commands
@@ -227,7 +249,14 @@ typedef enum
     kNmtNodeCommandConfReset        = 0x06,     ///< The application / Configuration Manager has successfully updated the configuration on the CN, and the CN needs ResetConf so that the configuration gets activated.
     kNmtNodeCommandConfErr          = 0x07,     ///< The application / Configuration Manager failed on updating configuration on the CN.
     kNmtNodeCommandStart            = 0x08,     ///< If NMT_STARTUP_NO_STARTNODE is set, this command must be issued after kNmtNodeEventReadyToStart.
-} tNmtNodeCommand;
+} eNmtNodeCommand;
+
+/**
+\brief Node command data type
+
+Data type for the enumerator \ref eNmtNodeCommand.
+*/
+typedef UINT32 tNmtNodeCommand;
 
 /**
 * \brief NMT boot events
@@ -242,6 +271,13 @@ typedef enum
     kNmtBootEventCheckComFinish     = 0x03,     ///< Operational is possible
     kNmtBootEventOperational        = 0x04,     ///< all mandatory CNs are Operational
     kNmtBootEventError              = 0x05,     ///< boot process halted because of an error
-} tNmtBootEvent;
+} eNmtBootEvent;
+
+/**
+\brief NMT boot event data type
+
+Data type for the enumerator \ref eNmtBootEvent.
+*/
+typedef UINT32 tNmtBootEvent;
 
 #endif  // #ifndef _INC_oplk_nmt_H_

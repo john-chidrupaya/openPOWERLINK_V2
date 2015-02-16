@@ -466,6 +466,13 @@ typedef enum
     kMsgTypeSoa                 = 0x05,                     ///< Defines Start of Asynchronous Cycle Frame
     kMsgTypeAsnd                = 0x06,                     ///< Defines Asynchronous Send Frame
     kMsgTypeAInv                = 0x0D,                     ///< Defines Asynchronous Invite Frame
-} tMsgType;
+} eMsgType;
+
+/**
+\brief Message type data type
+
+Data type for the enumerator \ref eMsgType.
+*/
+typedef UINT8 tMsgType; //TODO: Replace in tPlkFrame
 
 #endif /* _INC_oplk_frame_H_ */
