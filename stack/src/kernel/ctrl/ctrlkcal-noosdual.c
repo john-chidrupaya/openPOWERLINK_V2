@@ -228,7 +228,7 @@ tOplkError ctrlkcal_getCmd(tCtrlCmdType* pCmd_p)
 {
     UINT16    cmd;
 
-    if (dualprocshm_readDataCommon(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, ctrlCmd.cmd),
+    if (dualprocshm_readDataCtrl(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, ctrlCmd.cmd),
                                    sizeof(cmd), (UINT8*)&cmd) != kDualprocSuccessful)
         return kErrorGeneralError;
 
@@ -332,7 +332,7 @@ tOplkError ctrlkcal_readInitParam(tCtrlInitParam* pInitParam_p)
 {
     tDualprocReturn    dualRet;
 
-    dualRet = dualprocshm_readDataCommon(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, initParam),
+    dualRet = dualprocshm_readDataCtrl(instance_l.dualProcDrvInst, offsetof(tCtrlBuf, initParam),
                                          sizeof(tCtrlInitParam), (UINT8*)pInitParam_p);
 
     if (dualRet != kDualprocSuccessful)

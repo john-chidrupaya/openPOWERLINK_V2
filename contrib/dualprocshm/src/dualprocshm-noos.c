@@ -81,6 +81,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef DUALPROCSHM_FREE
 #define DUALPROCSHM_FREE(ptr_p)         free(ptr_p)
 #endif
+
+#ifndef DPSHM_MAKE_NONCACHEABLE
+#define DPSHM_MAKE_NONCACHEABLE(ptr_p)      ptr_p
+#endif
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
@@ -590,6 +594,35 @@ tDualprocReturn dualprocshm_writeDataCommon(tDualprocDrvInstance pInstance_p,
 
 //------------------------------------------------------------------------------
 /**
+\brief  Get the pointer to the dpshm config segment
+
+The function gets the address of the dpshm config/header segment of common memory.
+
+\param  pInstance_p  Driver instance.
+\param  ppHdl_p      pointer to get the address of the config segment
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The config segment buffer is read successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_getHdlCfg(tDualprocDrvInstance pInstance_p, UINT8** ppHdl_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pConfigMemBase;
+
+    if (pInstance_p == NULL || ppHdl_p == NULL)
+        return kDualprocInvalidParameter;
+
+    *ppHdl_p = base;
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
 \brief  Read from the dpshm config segment
 
 The function reads from the dpshm config/header segment of common memory.
@@ -887,10 +920,11 @@ static UINT32 configureDpshmHeader(tDualProcInstance procInstance_p,
                                    tDualprocHeader* pConfigMemBase_p)
 {
     int iIndex = 0;
-    UINT32 shmemBaseAddr = SHARED_MEM_BASE;
+    UINT32 shmemBaseAddr = DPSHM_MAKE_NONCACHEABLE(SHARED_MEM_BASE);
 
     dualprocshm_targetWriteData((UINT8*) (&pConfigMemBase_p->sharedMemBase[procInstance_p]),
                                 sizeof(UINT32), (UINT8*) (&shmemBaseAddr));
+
     return 0;
 }
 /// \}
