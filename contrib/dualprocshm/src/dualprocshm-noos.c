@@ -70,6 +70,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MEM_LOCK_SIZE               1   ///< Memory lock size
 #define DYN_MEM_TABLE_ENTRY_SIZE    4   ///< Size of Dynamic table entry
 
+#ifndef SHARED_MEM_BASE
+#define SHARED_MEM_BASE             0x0
+#endif
+
 #ifndef CALC_OFFSET
 #define CALC_OFFSET(addr_p, baseAddr_p)     (addr_p - baseAddr_p)
 #endif
@@ -164,7 +168,7 @@ tDualprocReturn dualprocshm_create(tDualprocConfig* pConfig_p, tDualprocDrvInsta
     tDualprocReturn     ret = kDualprocSuccessful;
     tDualProcDrv*       pDrvInst = NULL;
     INT                 iIndex;
-    int                 ret = 0;
+    int                 retVal = 0;
 
     if (pConfig_p->procInstance != kDualProcFirst && pConfig_p->procInstance != kDualProcSecond)
     {
@@ -196,8 +200,8 @@ tDualprocReturn dualprocshm_create(tDualprocConfig* pConfig_p, tDualprocDrvInsta
     pDrvInst->commMemInst.pConfigMemBase =
                     (tDualprocHeader*) pDrvInst->commMemInst.pCommMemBase;
 
-    ret = configureDpshmHeader(pConfig_p->procInstance,
-                               pDrvInst->commMemInst.pConfigMemBase);
+    retVal = configureDpshmHeader(pConfig_p->procInstance,
+                                pDrvInst->commMemInst.pConfigMemBase);
 
     // get the control segment base address
     pDrvInst->commMemInst.pCtrlMemBase =
