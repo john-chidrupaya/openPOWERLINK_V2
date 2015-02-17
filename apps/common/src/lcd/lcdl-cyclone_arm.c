@@ -348,7 +348,7 @@ void lcdl_printText(const char* sText_p)
             break;
         }
 
-        usleep(LCD_PRINT_DELAY_US);
+        //usleep(LCD_PRINT_DELAY_US);
     }
 }
 
@@ -389,7 +389,7 @@ static inline ALT_STATUS_CODE sendLcdCommand(ALT_I2C_DEV_t* deviceHdl_p,
 
     halRet = alt_i2c_master_transmit(deviceHdl_p, data, dataLen,
                                      ALT_E_FALSE, ALT_E_TRUE);
-    usleep(lcdCommandDesc.executionDuration);
+    //usleep(lcdCommandDesc.executionDuration);
 
     return halRet;
 }
