@@ -70,6 +70,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MEM_LOCK_SIZE               1   ///< Memory lock size
 #define DYN_MEM_TABLE_ENTRY_SIZE    4   ///< Size of Dynamic table entry
 
+#ifndef CALC_OFFSET
+#define CALC_OFFSET(addr_p, baseAddr_p)     (addr_p - baseAddr_p)
+#endif
+
+#ifndef DUALPROCSHM_MALLOC
+#define DUALPROCSHM_MALLOC(size_p)      malloc(size_p)
+#endif
+
+#ifndef DUALPROCSHM_FREE
+#define DUALPROCSHM_FREE(ptr_p)         free(ptr_p)
+#endif
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
@@ -154,7 +165,7 @@ tDualprocReturn dualprocshm_create(tDualprocConfig* pConfig_p, tDualprocDrvInsta
     }
 
     //create driver instance
-    pDrvInst = (tDualProcDrv*)malloc(sizeof(tDualProcDrv));
+    pDrvInst = (tDualProcDrv*) DUALPROCSHM_MALLOC(sizeof(tDualProcDrv));
 
     if (pDrvInst == NULL)
     {
@@ -258,7 +269,7 @@ tDualprocReturn dualprocshm_delete(tDualprocDrvInstance pInstance_p)
         }
     }
 
-    free(pDrvInst);
+    DUALPROCSHM_FREE(pDrvInst);
 
     return kDualprocSuccessful;
 }
@@ -403,7 +414,7 @@ tDualprocReturn dualprocshm_freeMemory(tDualprocDrvInstance pInstance_p, UINT8 i
         pDrvInst->pDynResTbl[id_p].pfnSetDynAddr(pDrvInst, id_p, 0);
         pMemBase = (UINT8*)pDrvInst->pDynResTbl[id_p].memInst;
         pDrvInst->pDynResTbl[id_p].pBase = NULL;
-        free(pMemBase);
+        DUALPROCSHM_FREE(pMemBase);
     }
     else
     {
@@ -678,9 +689,15 @@ static void setDynBuffAddr(tDualprocDrvInstance pInstance_p, UINT16 index_p, UIN
     tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
     UINT8*          tableBase = pDrvInst->pAddrTableBase;
     UINT32          tableEntryOffs = index_p * DYN_MEM_TABLE_ENTRY_SIZE;
+    UINT32          offset = 0;
+
+    if (addr_p != 0)
+    {
+        offset = (UINT32) CALC_OFFSET(addr_p, SHARED_MEM_BASE);
+    }
 
     dualprocshm_targetWriteData(tableBase + tableEntryOffs,
-                                DYN_MEM_TABLE_ENTRY_SIZE, (UINT8*)&addr_p);
+                                DYN_MEM_TABLE_ENTRY_SIZE, (UINT8*)&offset);
 }
 
 //------------------------------------------------------------------------------
@@ -699,10 +716,16 @@ static UINT32 getDynBuffAddr(tDualprocDrvInstance pInstance_p, UINT16 index_p)
     tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
     UINT8*          tableBase = pDrvInst->pAddrTableBase;
     UINT32          tableEntryOffs = index_p * DYN_MEM_TABLE_ENTRY_SIZE;
+    UINT32          buffoffset = 0x00;
     UINT32          buffAddr;
 
-    dualprocshm_targetReadData(tableBase + tableEntryOffs,
-                               DYN_MEM_TABLE_ENTRY_SIZE, (UINT8*)&buffAddr);
+    while (buffoffset == 0)
+    {
+        dualprocshm_targetReadData(tableBase + tableEntryOffs,
+                                   DYN_MEM_TABLE_ENTRY_SIZE, (UINT8*)&buffoffset);
+    }
+
+    buffAddr = (SHARED_MEM_BASE + buffoffset);
     return buffAddr;
 }
 
