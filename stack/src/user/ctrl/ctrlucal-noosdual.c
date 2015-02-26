@@ -209,7 +209,7 @@ tOplkError ctrlucal_executeCmd(tCtrlCmdType cmd_p, UINT16* pRetVal_p)
     ctrlCmd.cmd = cmd_p;
     ctrlCmd.retVal = 0;
 
-    dualRet = dualprocshm_writeDataCommon(instance_l.dualProcDrvInst,
+    dualRet = dualprocshm_writeDataCtrl(instance_l.dualProcDrvInst,
                                           offsetof(tCtrlBuf, ctrlCmd),
                                           sizeof(tCtrlCmd), (UINT8*)&ctrlCmd);
     if (dualRet != kDualprocSuccessful)
@@ -220,7 +220,7 @@ tOplkError ctrlucal_executeCmd(tCtrlCmdType cmd_p, UINT16* pRetVal_p)
     {
         target_msleep(1000U);
 
-        dualRet = dualprocshm_readDataCommon(instance_l.dualProcDrvInst,
+        dualRet = dualprocshm_readDataCtrl(instance_l.dualProcDrvInst,
                                              offsetof(tCtrlBuf, ctrlCmd),
                                              sizeof(tCtrlCmd), (UINT8*)&ctrlCmd);
         if (dualRet != kDualprocSuccessful)
@@ -264,7 +264,7 @@ tOplkError ctrlucal_checkKernelStack(void)
 
     DEBUG_LVL_CTRL_TRACE("Checking for kernel stack...\n");
 
-    dualRet = dualprocshm_readDataCommon(instance_l.dualProcDrvInst,
+    dualRet = dualprocshm_readDataCtrl(instance_l.dualProcDrvInst,
                                          offsetof(tCtrlBuf, magic),
                                          sizeof(magic), (UINT8*)&magic);
     if (dualRet != kDualprocSuccessful)
@@ -335,7 +335,7 @@ UINT16 ctrlucal_getStatus(void)
     tDualprocReturn dualRet;
     UINT16          status;
 
-    dualRet = dualprocshm_readDataCommon(instance_l.dualProcDrvInst,
+    dualRet = dualprocshm_readDataCtrl(instance_l.dualProcDrvInst,
                                          offsetof(tCtrlBuf, status),
                                          sizeof(status), (UINT8*)&status);
     if (dualRet == kDualprocSuccessful)
@@ -360,7 +360,7 @@ UINT16 ctrlucal_getHeartbeat(void)
     tDualprocReturn dualRet;
     UINT16          heartbeat;
 
-    dualRet = dualprocshm_readDataCommon(instance_l.dualProcDrvInst,
+    dualRet = dualprocshm_readDataCtrl(instance_l.dualProcDrvInst,
                                          offsetof(tCtrlBuf, heartbeat),
                                          sizeof(heartbeat), (UINT8*)&heartbeat);
     if (dualRet == kDualprocSuccessful)
@@ -383,7 +383,7 @@ can be accessed by the kernel stack.
 //------------------------------------------------------------------------------
 void ctrlucal_storeInitParam(tCtrlInitParam* pInitParam_p)
 {
-    dualprocshm_writeDataCommon(instance_l.dualProcDrvInst,
+    dualprocshm_writeDataCtrl(instance_l.dualProcDrvInst,
                                 offsetof(tCtrlBuf, initParam),
                                 sizeof(tCtrlInitParam), (UINT8*)pInitParam_p);
 }
@@ -405,7 +405,7 @@ tOplkError ctrlucal_readInitParam(tCtrlInitParam* pInitParam_p)
 {
     tDualprocReturn    dualRet;
 
-    dualRet = dualprocshm_readDataCommon(instance_l.dualProcDrvInst,
+    dualRet = dualprocshm_readDataCtrl(instance_l.dualProcDrvInst,
                                          offsetof(tCtrlBuf, initParam),
                                          sizeof(tCtrlInitParam),
                                          (UINT8*)pInitParam_p);

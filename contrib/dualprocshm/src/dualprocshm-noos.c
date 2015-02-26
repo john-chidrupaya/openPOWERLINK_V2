@@ -135,6 +135,8 @@ static tDualProcDrv*            paDualProcDrvInstance[DUALPROC_INSTANCE_COUNT] =
 //------------------------------------------------------------------------------
 static void     setDynBuffAddr(tDualprocDrvInstance pDrvInst_p, UINT16 index_p, UINT32 addr_p);
 static UINT32   getDynBuffAddr(tDualprocDrvInstance pDrvInst_p, UINT16 index_p);
+static UINT32 configureDpshmHeader(tDualProcInstance procInstance_p,
+                                   tDualprocHeader* pConfigMemBase_p);
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -166,6 +168,7 @@ tDualprocReturn dualprocshm_create(tDualprocConfig* pConfig_p, tDualprocDrvInsta
     tDualprocReturn     ret = kDualprocSuccessful;
     tDualProcDrv*       pDrvInst = NULL;
     INT                 iIndex;
+    int                 retVal = 0;
 
     if (pConfig_p->procInstance != kDualProcFirst && pConfig_p->procInstance != kDualProcSecond)
     {
@@ -186,12 +189,24 @@ tDualprocReturn dualprocshm_create(tDualprocConfig* pConfig_p, tDualprocDrvInsta
     pDrvInst->config = *pConfig_p;
 
     // get the common memory address
-    pDrvInst->pCommMemBase = dualprocshm_getCommonMemAddr(&pDrvInst->config.commMemSize);
+    pDrvInst->commMemInst.pCommMemBase = dualprocshm_getCommonMemAddr(&pDrvInst->config.commMemSize);
 
     if (pConfig_p->procInstance == kDualProcFirst)
     {
-        memset(pDrvInst->pCommMemBase, 0, MAX_COMMON_MEM_SIZE);
+        memset(pDrvInst->commMemInst.pCommMemBase, 0, MAX_COMMON_MEM_SIZE);
     }
+
+    // get the dpshm configuration segment base address
+    pDrvInst->commMemInst.pConfigMemBase =
+                    (tDualprocHeader*) pDrvInst->commMemInst.pCommMemBase;
+
+    retVal = configureDpshmHeader(pConfig_p->procInstance,
+                                pDrvInst->commMemInst.pConfigMemBase);
+
+    // get the control segment base address
+    pDrvInst->commMemInst.pCtrlMemBase =
+    (UINT8*) ((UINT32) pDrvInst->commMemInst.pConfigMemBase + sizeof(tDualprocHeader));
+
     // get the address to store address mapping table
     pDrvInst->pAddrTableBase = dualprocshm_getDynMapTableAddr();
 
@@ -539,7 +554,7 @@ tDualprocReturn dualprocshm_readDataCommon(tDualprocDrvInstance pInstance_p,
                                            UINT32 offset_p, size_t size_p, UINT8* pData_p)
 {
     tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
-    UINT8*          base = pDrvInst->pCommMemBase;
+    UINT8*          base = pDrvInst->commMemInst.pCommMemBase;
 
     if (pInstance_p == NULL || pData_p == NULL)
         return kDualprocInvalidParameter;
@@ -571,7 +586,164 @@ tDualprocReturn dualprocshm_writeDataCommon(tDualprocDrvInstance pInstance_p,
                                             UINT32 offset_p, size_t size_p, UINT8* pData_p)
 {
     tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
-    UINT8*          base = pDrvInst->pCommMemBase;
+    UINT8*          base = pDrvInst->commMemInst.pCommMemBase;
+
+    if (pInstance_p == NULL || pData_p == NULL)
+        return kDualprocInvalidParameter;
+
+    dualprocshm_targetWriteData(base + offset_p, size_p, pData_p);
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Get the pointer to the dpshm config segment
+
+The function gets the address of the dpshm config/header segment of common memory.
+
+\param  pInstance_p  Driver instance.
+\param  ppHdl_p      pointer to get the address of the config segment
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The config segment buffer is read successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_getHdlCfg(tDualprocDrvInstance pInstance_p, UINT8** ppHdl_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pConfigMemBase;
+
+    if (pInstance_p == NULL || ppHdl_p == NULL)
+        return kDualprocInvalidParameter;
+
+    *ppHdl_p = base;
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Read from the dpshm config segment
+
+The function reads from the dpshm config/header segment of common memory.
+
+\param  pInstance_p  Driver instance.
+\param  offset_p     Offset from the base of config segment to be read.
+\param  size_p       Number of bytes to be read.
+\param  pData_p      Pointer to buffer where the read data is to be stored.
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The config segment buffer is read successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_readDataCfg(tDualprocDrvInstance pInstance_p,
+                                           UINT32 offset_p, size_t size_p, UINT8* pData_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pConfigMemBase;
+
+    if (pInstance_p == NULL || pData_p == NULL)
+        return kDualprocInvalidParameter;
+
+    dualprocshm_targetReadData(base + offset_p, size_p, pData_p);
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Write to the config segment
+
+The function writes to the dpshm config/header segment of common memory region.
+
+\param  pInstance_p  Driver instance.
+\param  offset_p     Offset from the base of config segment to be written.
+\param  size_p       Number of bytes to write.
+\param  pData_p      Pointer to memory containing data to be written.
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The config segment buffer is written successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_writeDataCfg(tDualprocDrvInstance pInstance_p,
+                                            UINT32 offset_p, size_t size_p, UINT8* pData_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pConfigMemBase;
+
+    if (pInstance_p == NULL || pData_p == NULL)
+        return kDualprocInvalidParameter;
+
+    dualprocshm_targetWriteData(base + offset_p, size_p, pData_p);
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Read from the control segment
+
+The function reads from the control segment of common memory.
+
+\param  pInstance_p  Driver instance.
+\param  offset_p     Offset from the base of control segment to be read.
+\param  size_p       Number of bytes to be read.
+\param  pData_p      Pointer to buffer where the read data is to be stored.
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The control segment buffer is read successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_readDataCtrl(tDualprocDrvInstance pInstance_p,
+                                           UINT32 offset_p, size_t size_p, UINT8* pData_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pCtrlMemBase;
+
+    if (pInstance_p == NULL || pData_p == NULL)
+        return kDualprocInvalidParameter;
+
+    dualprocshm_targetReadData(base + offset_p, size_p, pData_p);
+
+    return kDualprocSuccessful;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Write to the control segment
+
+The function writes to the control segment of common memory region.
+
+\param  pInstance_p  Driver instance.
+\param  offset_p     Offset from the base of control segment to be written.
+\param  size_p       Number of bytes to write.
+\param  pData_p      Pointer to memory containing data to be written.
+
+\return The function returns a tDualprocReturn error code.
+\retval kDualprocSuccessful       The control segment buffer is written successfully.
+\retval kDualprocInvalidParameter The caller has provided incorrect parameters.
+
+\ingroup module_dualprocshm
+*/
+//------------------------------------------------------------------------------
+tDualprocReturn dualprocshm_writeDataCtrl(tDualprocDrvInstance pInstance_p,
+                                            UINT32 offset_p, size_t size_p, UINT8* pData_p)
+{
+    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*          base = pDrvInst->commMemInst.pCtrlMemBase;
 
     if (pInstance_p == NULL || pData_p == NULL)
         return kDualprocInvalidParameter;
@@ -737,4 +909,26 @@ static UINT32 getDynBuffAddr(tDualprocDrvInstance pInstance_p, UINT16 index_p)
     return buffAddr;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Read the buffer address from dynamic memory mapping table
+
+\param  pInstance_p  Driver instance.
+\param  index_p      Buffer index.
+
+\return Address of the buffer requested.
+
+*/
+//------------------------------------------------------------------------------
+static UINT32 configureDpshmHeader(tDualProcInstance procInstance_p,
+                                   tDualprocHeader* pConfigMemBase_p)
+{
+    int iIndex = 0;
+    UINT32 shmemBaseAddr = DPSHM_MAKE_NONCACHEABLE(SHARED_MEM_BASE);
+
+    dualprocshm_targetWriteData((UINT8*) (&pConfigMemBase_p->sharedMemBase[procInstance_p]),
+                                sizeof(UINT32), (UINT8*) (&shmemBaseAddr));
+
+    return 0;
+}
 /// \}
