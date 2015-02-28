@@ -52,7 +52,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // const defines
 //------------------------------------------------------------------------------
 #define DEFAULT_LOCK_ID    0x00             ///< Default lock Id
-
+#ifndef SHARED_MEM_BASE
+#define SHARED_MEM_BASE    0x0              ///< Shared memory address
+#endif
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
@@ -120,6 +122,27 @@ void dualprocshm_releaseCommonMemAddr(UINT16 pSize_p)
 {
     UNUSED_PARAMETER(pSize_p);
     // nothing to do be done on zynq
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Get shared memory base address
+
+Target specific routine to retrieve the base address of shared memory region
+between two processors.
+
+\return Pointer to base address of common memory.
+
+\ingroup module_dualprocshm
+ */
+//------------------------------------------------------------------------------
+UINT8*  dualprocshm_getSharedMemBaseAddr(void)
+{
+    UINT8*   pAddr;
+
+    pAddr = (UINT8*) (SHARED_MEM_BASE);
+
+    return pAddr;
 }
 
 //------------------------------------------------------------------------------

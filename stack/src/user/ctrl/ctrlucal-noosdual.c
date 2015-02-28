@@ -59,6 +59,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // const defines
 //------------------------------------------------------------------------------
 #define CMD_TIMEOUT_SEC     20 // command timeout in seconds
+#define WAIT_BRIDGE_ENABLE_TIMEOUT_SEC 10   // wait for bridge enable time out
 
 //------------------------------------------------------------------------------
 // module global vars
@@ -120,6 +121,7 @@ tOplkError ctrlucal_init(void)
 {
     tDualprocReturn     dualRet;
     tDualprocConfig     dualProcConfig;
+    int                 loopCnt = 0;
 
     OPLK_MEMSET(&instance_l, 0, sizeof(tCtrluCalInstance));
 
@@ -136,6 +138,23 @@ tOplkError ctrlucal_init(void)
         dualprocshm_delete(instance_l.dualProcDrvInst);
         return kErrorNoResource;
     }
+
+    for (loopCnt = 0; loopCnt <= WAIT_BRIDGE_ENABLE_TIMEOUT_SEC; loopCnt++)
+    {
+    	target_msleep(1000U);
+    	dualRet = dualprocshm_checkCommMemBridgeState(instance_l.dualProcDrvInst);
+        if (dualRet == kDualprocBridgeDisabled)
+    	    continue;
+        else
+    	   break;
+    }
+
+	if (dualRet != kDualprocBridgeEnabled)
+	{
+		DEBUG_LVL_ERROR_TRACE("%s Time out waiting for driver to enable bridge (0x%X)\n",
+							  __func__, dualRet);
+        return kErrorNoResource;
+	}
 
     dualRet = dualprocshm_initInterrupts(instance_l.dualProcDrvInst);
     if (dualRet != kDualprocSuccessful)
