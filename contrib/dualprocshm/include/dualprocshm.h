@@ -246,8 +246,8 @@ tDualprocReturn         dualprocshm_create(tDualprocConfig* pConfig_p, tDualproc
 tDualprocReturn         dualprocshm_delete(tDualprocDrvInstance pInstance_p);
 tDualprocDrvInstance    dualprocshm_getDrvInst(tDualProcInstance instance_p);
 tDualprocDrvInstance    dualprocshm_getLocalProcDrvInst(void);
-tDualprocDrvInstance    dualprocshm_getLocalProcInst(void);
-tDualprocDrvInstance    dualprocshm_getRemoteProcInst(void);
+tDualProcInstance       dualprocshm_getLocalProcInst(void);
+tDualProcInstance       dualprocshm_getRemoteProcInst(void);
 tDualprocReturn         dualprocshm_getMemory(tDualprocDrvInstance pInstance_p, UINT8 id_p,
                                               UINT8** ppAddr_p, size_t* pSize_p, BOOL fAlloc_p);
 tDualprocReturn         dualprocshm_freeMemory(tDualprocDrvInstance pInstance_p, UINT8 id_p,

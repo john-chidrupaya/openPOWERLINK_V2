@@ -964,12 +964,19 @@ tDualprocReturn dualprocshm_releaseBuffLock(tDualprocDrvInstance pInstance_p, UI
 //------------------------------------------------------------------------------
 static void setDynBuffAddr(tDualprocDrvInstance pInstance_p, UINT16 index_p, UINT32 addr_p)
 {
-    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
-    UINT8*          tableBase = pDrvInst->pAddrTableBase;
-    UINT32          tableEntryOffs = index_p * DYN_MEM_TABLE_ENTRY_SIZE;
-
+    tDualProcDrv*       pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*              tableBase = pDrvInst->pAddrTableBase;
+    UINT32              tableEntryOffs = index_p * DYN_MEM_TABLE_ENTRY_SIZE;
+    UINT32              offset = 0;
+	UINT32              sharedMemBaseAddr = dualprocshm_getSharedMemBaseAddr();
+	
+	if (addr_p <= sharedMemBaseAddr)
+	    // failed
+		return;
+	
+	offset = addr_p - sharedMemBaseAddr;
     dualprocshm_targetWriteData(tableBase + tableEntryOffs,
-                                DYN_MEM_TABLE_ENTRY_SIZE, (UINT8*)&addr_p);
+                                DYN_MEM_TABLE_ENTRY_SIZE, (UINT8*)&offset);
 }
 
 //------------------------------------------------------------------------------
@@ -985,13 +992,17 @@ static void setDynBuffAddr(tDualprocDrvInstance pInstance_p, UINT16 index_p, UIN
 //------------------------------------------------------------------------------
 static UINT32 getDynBuffAddr(tDualprocDrvInstance pInstance_p, UINT16 index_p)
 {
-    tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
-    UINT8*          tableBase = pDrvInst->pAddrTableBase;
-    UINT32          tableEntryOffs = index_p * DYN_MEM_TABLE_ENTRY_SIZE;
-    UINT32          buffAddr;
-
-    dualprocshm_targetReadData(tableBase + tableEntryOffs,
-                               DYN_MEM_TABLE_ENTRY_SIZE, (UINT8*)&buffAddr);
+    tDualProcDrv*       pDrvInst = (tDualProcDrv*) pInstance_p;
+    UINT8*              tableBase = pDrvInst->pAddrTableBase;
+    UINT32              tableEntryOffs = index_p * DYN_MEM_TABLE_ENTRY_SIZE;
+    UINT32              buffoffset = 0x00;
+    UINT32              buffAddr;
+	UINT32              sharedMemBaseAddr = dualprocshm_getSharedMemBaseAddr();
+	
+	while (buffoffset == 0)
+        dualprocshm_targetReadData(tableBase + tableEntryOffs,
+                                   DYN_MEM_TABLE_ENTRY_SIZE, (UINT8*)&buffoffset);
+    buffAddr = (sharedMemBaseAddr + buffoffset);
     return buffAddr;
 }
 
