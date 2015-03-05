@@ -1,15 +1,15 @@
 /**
 ********************************************************************************
-\file   common/timer.h
+\file   drvintf.h
 
-\brief  Generic definitions for timer modules
+\brief  Driver interface header file
 
-This file contains some generic definitions for timer modules.
+Driver interface for the kernel daemon - Header file
+
 *******************************************************************************/
 
 /*------------------------------------------------------------------------------
-Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
-Copyright (c) 2013, SYSTEC electronic GmbH
+Copyright (c) 2015, Kalycito Infotech Private Limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,20 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------*/
 
-#ifndef _INC_common_timer_H_
-#define _INC_common_timer_H_
+#ifndef _INC_drvintf_H_
+#define _INC_drvintf_H_
 
 //------------------------------------------------------------------------------
 // includes
 //------------------------------------------------------------------------------
-#include <common/oplkinc.h>
+#include <common/driver.h>
+#include <common/ctrl.h>
+#include <common/target.h>
+#include <kernel/ctrlk.h>
+#include <kernel/ctrlkcal.h>
+#include <kernel/dllkcal.h>
+#include <kernel/pdokcal.h>
+#include <common/ctrlcal-mem.h>
 
 //------------------------------------------------------------------------------
 // const defines
@@ -51,37 +58,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // typedef
 //------------------------------------------------------------------------------
 
-// type for timer handle
-#if (TARGET_SYSTEM == _WIN32_)
-typedef ULONG_PTR tTimerHdl;
-#else
-typedef ULONGLONG tTimerHdl;
+//------------------------------------------------------------------------------
+// function prototypes
+//------------------------------------------------------------------------------
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+void        drv_executeCmd(tCtrlCmd* ctrlCmd_p);
+void        drv_readInitParam(tCtrlInitParam* pInitParam_p);
+void        drv_storeInitParam(tCtrlInitParam* pInitParam_p);
+void        drv_getStatus(UINT16* status_p);
+void        drv_getHeartbeat(UINT16* heartbeat);
+void        drv_sendAsyncFrame(unsigned char* pArg_p);
+void        drv_writeErrorObject(tErrHndIoctl* pWriteObject_p);
+void        drv_readErrorObject(tErrHndIoctl* pReadObject_p);
+tOplkError  drv_initDualProcDrv(void);
+void        drv_exitDualProcDrv(void);
+void        drv_postEvent(void* pEvent_p);
+void        drv_getEvent(void* pEvent_p, size_t* pSize_p);
+tOplkError  drv_getPdoMem(UINT8** ppPdoMem_p, size_t memSize_p);
+void        drv_freePdoMem(UINT8* pPdoMem_p, size_t memSize_p);
+tOplkError  drv_getBenchmarkMem(UINT8** ppBenchmarkMem_p);
+void        drv_freeBenchmarkMem(UINT8* pBenchmarkMem_p);
+tOplkError  drv_mapKernelMem(UINT8** pKernelMem_p, UINT8** pUserMem_p);
+void        drv_unmapKernelMem(UINT8* pUserMem_p);
+tOplkError  drv_waitSyncEvent(void);
+
+#ifdef __cplusplus
+}
 #endif
 
-/**
-\brief  Structure for timer event arguments
-
-The structure defines a timer event argument. It provides information about
-the timer to the sink the event is sent to.
-*/
-#ifdef _MSC_VER
-#pragma pack(push, packing)
-#pragma pack(4)
-#endif
-#ifdef __GNUC__
-typedef struct __attribute__ ((aligned(4)))
-#else
-typedef struct
-#endif
-{
-    tTimerHdl           timerHdl;       ///< Delivers the handle of the expired timer
-    union
-    {
-        UINT32          value;          ///< Timer argument supplied as UINT32
-        void*           pValue;         ///< Timer argument supplied as void*
-    } argument;                         ///< The timer argument the timer was initialized with.
-} tTimerEventArg;
-#ifdef _MSC_VER
-#pragma pack(pop, packing)
-#endif
-#endif /* _INC_common_timer_H_ */
+#endif /* _INC_drvintf_H_ */

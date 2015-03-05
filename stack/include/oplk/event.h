@@ -196,7 +196,11 @@ The structure defines an openPOWERLINK event.
 #pragma pack(push, packing)
 #pragma pack(4)
 #endif
+#ifdef __GNUC__
+typedef struct __attribute__ ((aligned(4)))
+#else
 typedef struct
+#endif
 {
     tEventType          eventType;              ///< Type of this event
     tEventSink          eventSink;              ///< Sink of this event

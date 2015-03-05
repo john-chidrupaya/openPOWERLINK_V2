@@ -80,7 +80,11 @@ typedef struct
 This structure specifies a PDO channel. The PDO channel contains all
 information needed to transfer the PDO on the network.
 */
+#ifdef __GNUC__
+typedef struct __attribute__ ((aligned(4)))
+#else
 typedef struct
+#endif
 {
     /** The node ID for this PDO
     0xFF = invalid; RPDO: 0x00=PReq, localNodeId=PRes, remoteNodeId=PRes;
@@ -101,7 +105,11 @@ typedef struct
 This structure specifies a PDO channel configuration. It is used to exchange
 PDO channel information between the user and the kernel layer.
 */
+#ifdef __GNUC__
+typedef struct __attribute__ ((aligned(4)))
+#else
 typedef struct
+#endif
 {
     UINT                channelId;              ///< ID of the PDO channel
     BOOL                fTx;                    ///< Flag determines the direction. TRUE = TPDO, FALSE = RPDO
@@ -114,7 +122,11 @@ typedef struct
 This structure specifies a PDO channel setup. It is the basic structure used
 to manage the complete setup of the PDO channels.
 */
+#ifdef __GNUC__
+typedef struct __attribute__ ((aligned(4)))
+#else
 typedef struct
+#endif
 {
     tPdoAllocationParam allocation;             ///< Number of used PDO channels
     tPdoChannel*        pRxPdoChannel;          ///< Pointer to RXPDO channel table

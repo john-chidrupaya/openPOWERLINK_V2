@@ -56,9 +56,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 #include <dualprocshm.h>
 
-#include <stdlib.h>
-#include <string.h>
-
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
 //============================================================================//
@@ -534,10 +531,13 @@ tDualprocReturn dualprocshm_readDataCommon(tDualprocDrvInstance pInstance_p,
     tDualProcDrv*   pDrvInst = (tDualProcDrv*) pInstance_p;
     UINT8*          base = pDrvInst->pCommMemBase;
 
+    UINT8*          pTemp = kmalloc(size_p, GFP_KERNEL);
+
     if (pInstance_p == NULL || pData_p == NULL)
         return kDualprocInvalidParameter;
 
-    dualprocshm_targetReadData(base + offset_p, (UINT16)size_p, pData_p);
+    dualprocshm_targetReadData(base + offset_p, (UINT16)size_p, pTemp);
+    memcpy(pData_p, pTemp, size_p);
 
     return kDualprocSuccessful;
 }
@@ -695,7 +695,7 @@ tDualprocReturn dualprocshm_mapMem(tDualprocDrvInstance pInstance_p, UINT32 base
 
     *ppBufBase_p = dualprocshm_targetMapMem(baseAddr_p);
 
-    if(*ppBufBase_p == NULL)
+    if (*ppBufBase_p == NULL)
         return kDualprocNoResource;
 
     return kDualprocSuccessful;
@@ -734,7 +734,7 @@ tDualprocReturn dualprocshm_getSharedMemInfo(tDualprocDrvInstance pInstance_p,
     if (pDrvInst->config.procInstance == kDualProcSecond)
         pSharedMemInst_p->remoteBase = dualprocshm_targetGetRemoteMemBase();
 
-    if(pSharedMemInst_p->remoteBase == -1)
+    if (pSharedMemInst_p->remoteBase == -1)
         return kDualprocNoResource;
 
     return kDualprocSuccessful;

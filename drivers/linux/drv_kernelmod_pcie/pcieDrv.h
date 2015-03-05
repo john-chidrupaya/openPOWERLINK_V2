@@ -1,14 +1,15 @@
 /**
 ********************************************************************************
-\file   dualprocshm-pcie.h
+\file   pcieDrv.h
 
-\brief  Dual processor Library platform support header - For PCIe solutions
+\brief  PCIe interface Driver header file
 
-This header file provides specific macros for external PCIe based solutions.
+Driver interface for the kernel daemon - Header file
 
 *******************************************************************************/
+
 /*------------------------------------------------------------------------------
-Copyright (c) 2014 Kalycito Infotech Private Limited
+Copyright (c) 2015, Kalycito Infotech Private Limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -33,44 +34,29 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------*/
-#ifndef _INC_dualprocshm_pcie_H_
-#define _INC_dualprocshm_pcie_H_
 
-#if defined(_KERNEL_MODE)
+#ifndef _INC_pciedrv_H_
+#define _INC_pciedrv_H_
 
-#include <dualprocshm-winkernel.h>
+//------------------------------------------------------------------------------
+// includes
+//------------------------------------------------------------------------------
+#include <oplk/oplk.h>
+//------------------------------------------------------------------------------
+// const defines
+//------------------------------------------------------------------------------
 
-#define MEM_ADDR_TABLE_OFFSET      MAX_COMMON_MEM_SIZE
-#define MEM_INTR_OFFSET            MAX_COMMON_MEM_SIZE + MAX_DYNAMIC_BUFF_SIZE
-#define OPLK_PCIEBAR_SHM           0
-#define OPLK_PCIEBAR_COMM_MEM      1
+//------------------------------------------------------------------------------
+// typedef
+//------------------------------------------------------------------------------
 
-#elif defined(__NIOS2__)
-#include <system.h>
+//------------------------------------------------------------------------------
+// function prototypes
+//------------------------------------------------------------------------------
 
-#define TARGET_SYNC_IRQ_ID         -1
-#define TARGET_SYNC_IRQ            -1
+tOplkError  pcieDrv_init(void);
+tOplkError  pcieDrv_shutdown(void);
+ULONG       pcieDrv_getBarLength(ULONG barCount_p);
+ULONG       pcieDrv_getBarAddr(UINT8 barCount_p);
 
-///< Interrupt controller specific defines
-#define TARGET_IRQ_IC_BASE         -1
-#define TARGET_IRQ_IC_DIST_BASE    -1
-
-#include "dualprocshm-nios2.h"
-
-#elif defined(__linux__)
-
-#include <dualprocshm-linuxkernel.h>
-
-#define OPLK_OPTIMIZE               FALSE
-#define MEM_ADDR_TABLE_OFFSET       MAX_COMMON_MEM_SIZE
-#define MEM_INTR_OFFSET             MAX_COMMON_MEM_SIZE + MAX_DYNAMIC_BUFF_SIZE
-#define OPLK_PCIEBAR_SHM            0
-#define OPLK_PCIEBAR_COMM_MEM       1
-
-#else
-
-#error "unknown target for external PCIe solutions"
-
-#endif
-
-#endif //_INC_dualprocshm_pcie_H_
+#endif /* _INC_pciedrv_H_ */

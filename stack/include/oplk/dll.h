@@ -132,7 +132,11 @@ The structure contains all information about a POWERLINK frame.
 #pragma pack(push, packing)
 #pragma pack(4)
 #endif
+#ifdef __GNUC__
+typedef struct __attribute__ ((aligned(4)))
+#else
 typedef struct
+#endif
 {
     UINT            frameSize;                      ///< Size of the frame
     tPlkFrame*      pFrame;                         ///< Pointer to the frame
@@ -144,7 +148,11 @@ typedef struct
 The structure contains all information needed for the identification of a
 node on the network.
 */
+#ifdef __GNUC__
+typedef struct __attribute__ ((aligned(4)))
+#else
 typedef struct
+#endif
 {
     UINT                sizeOfStruct;                   ///< Size of the structure
     UINT32              deviceType;                     ///< NMT_DeviceType_U32

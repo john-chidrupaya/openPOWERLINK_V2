@@ -79,7 +79,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // typedef
 //------------------------------------------------------------------------------
+#ifdef __GNUC__
+typedef struct __attribute__ ((aligned(4)))
+#else
 typedef struct
+#endif
 {
     tDllAsndServiceId       serviceId;
     tDllAsndFilter          filter;

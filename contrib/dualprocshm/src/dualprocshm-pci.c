@@ -42,7 +42,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <dualprocshm.h>
 
-#include <ndis-intf.h>
 #include <common/target.h>
 
 //============================================================================//
@@ -89,14 +88,14 @@ to the calling processor.
 //------------------------------------------------------------------------------
 void dualprocshm_targetInit(UINT32 procInstance_p)
 {
-    pHeader_l = (UINT8*) ndis_getBarAddr(OPLK_PCIEBAR_COMM_MEM);
+    pHeader_l = (UINT8*) pcieDrv_getBarAddr(OPLK_PCIEBAR_COMM_MEM);
 
-    if(pHeader_l == NULL)
+    if (pHeader_l == NULL)
         return;
 
     if (procInstance_p == kDualProcFirst)
     {
-        UINT8*    sharedMemBase = (UINT8*) ndis_getBarAddr(OPLK_PCIEBAR_SHM);
+        UINT8*   sharedMemBase = (UINT8*) pcieDrv_getBarAddr(OPLK_PCIEBAR_SHM);
         DPSHM_WRITE32(&pHeader_l->sharedMemBase, (UINT32) sharedMemBase);
         DUALPROCSHM_FLUSH_DCACHE_RANGE(&pHeader_l->sharedMemBase, sizeof(UINT32));
     }
@@ -167,12 +166,12 @@ UINT8* dualprocshm_targetGetSharedMemInfo(UINT32* pSize_p)
 {
     UINT8*   pAddr;
 
-    pAddr = (UINT8*) ndis_getBarAddr(OPLK_PCIEBAR_SHM);
+    pAddr = (UINT8*) pcieDrv_getBarAddr(OPLK_PCIEBAR_SHM);
 
     if (pAddr == NULL || pSize_p == NULL)
         return NULL;
 
-    *pSize_p = ndis_getBarLength(OPLK_PCIEBAR_SHM);
+    *pSize_p = pcieDrv_getBarLength(OPLK_PCIEBAR_SHM);
 
     return pAddr;
 }
@@ -191,11 +190,12 @@ processor.
 //------------------------------------------------------------------------------
 UINT64 dualprocshm_targetGetRemoteMemBase(void)
 {
-    if(pHeader_l == NULL)
+    if (pHeader_l == NULL)
         return -1;
 
-    return ((UINT64) pHeader_l->sharedMemBase);
+    return (UINT64) pHeader_l->sharedMemBase;
 }
+
 //------------------------------------------------------------------------------
 /**
 \brief  Get dynamic mapping table base address
@@ -441,7 +441,7 @@ void dualprocshm_targetSetDynBuffAddr(UINT8* pMemTableBase, UINT16 index_p, UINT
 
     if (addr_p != 0)
     {
-        offset = (UINT32) (addr_p - (UINT32) ndis_getBarAddr(OPLK_PCIEBAR_SHM));
+        offset = (UINT32) (addr_p - (UINT32) pcieDrv_getBarAddr(OPLK_PCIEBAR_SHM));
     }
 
     DPSHM_WRITE32(pMemTableBase + tableEntryOffs, offset);
@@ -465,7 +465,7 @@ UINT8* dualprocshm_targetGetDynBuffAddr(UINT8* pMemTableBase, UINT16 index_p)
 {
     UINT32    tableEntryOffs = index_p * DYN_MEM_TABLE_ENTRY_SIZE;
     UINT32    buffoffset = 0x00;
-    UINT8*    bar0Addr = (UINT8*) ndis_getBarAddr(OPLK_PCIEBAR_SHM);
+    UINT8*    bar0Addr = (UINT8*) pcieDrv_getBarAddr(OPLK_PCIEBAR_SHM);
     UINT8*    bufAddr;
     UINT8*    memEntryAddr = (pMemTableBase + tableEntryOffs);
     UINT      count = 0;
@@ -483,7 +483,7 @@ UINT8* dualprocshm_targetGetDynBuffAddr(UINT8* pMemTableBase, UINT16 index_p)
             TRACE("%s() Failed to get address for index %d\n", __FUNCTION__, index_p);
             return NULL;
         }
-        target_msleep(10);
+        DUALPROCSHM_MSLEEP(10);
         buffoffset = DPSHM_READ32(memEntryAddr);
         count++;
     }
@@ -508,15 +508,15 @@ memory.
 UINT8* dualprocshm_targetMapMem(UINT32 baseAddr_p)
 {
     UINT8*    pLocalAddr;
-    UINT8*    pShmBase = ndis_getBarAddr(OPLK_PCIEBAR_SHM);
+    UINT8*    pShmBase = (UINT8*) pcieDrv_getBarAddr(OPLK_PCIEBAR_SHM);
     UINT32    offset;
 
-    if(pShmBase == NULL || pHeader_l == NULL)
+    if (pShmBase == NULL || pHeader_l == NULL)
         return NULL;
 
     offset = baseAddr_p - pHeader_l->sharedMemBase;
 
-    pLocalAddr = (UINT8*)  + offset;
+    pLocalAddr = (UINT32) pShmBase + offset;
 
     return pLocalAddr;
 }
@@ -528,4 +528,3 @@ UINT8* dualprocshm_targetMapMem(UINT32 baseAddr_p)
 /// \{
 
 /// \}
-
