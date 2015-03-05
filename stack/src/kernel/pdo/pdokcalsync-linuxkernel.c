@@ -168,7 +168,7 @@ The function waits for a sync event
 tOplkError pdokcal_waitSyncEvent(void)
 {
     int                 ret;
-    int                 timeout = 1000 * HZ / 1000;
+    signed long     timeout = 1000 * HZ / 1000;
 
     if (!instance_l.fInitialized)
         return kErrorNoResource;
@@ -181,7 +181,6 @@ tOplkError pdokcal_waitSyncEvent(void)
     instance_l.fSync = FALSE;
     return kErrorOk;
 }
-
 
 //------------------------------------------------------------------------------
 /**

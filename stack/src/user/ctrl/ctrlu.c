@@ -341,6 +341,12 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
 
     OPLK_MEMCPY(ctrlInstance_l.initParam.aMacAddress, ctrlParam.aMacAddress, 6);
 
+#if defined(CONFIG_TEST_KERNEL_STACK)
+    DEBUG_LVL_CTRL_TRACE("MAC address read from PCP: %X:%X:%X:%X:%X:%X\n",
+                         ctrlParam.aMacAddress[0], ctrlParam.aMacAddress[1],
+                         ctrlParam.aMacAddress[2], ctrlParam.aMacAddress[3],
+                         ctrlParam.aMacAddress[4], ctrlParam.aMacAddress[5]);
+#else
     DEBUG_LVL_CTRL_TRACE("Initialize Eventu module...\n");
     if ((ret = eventu_init(processUserEvent)) != kErrorOk)
         goto Exit;
@@ -413,6 +419,7 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
     // and thereby the whole POWERLINK stack
 
     ctrlInstance_l.fInitialized = TRUE;
+#endif
 
 Exit:
     return ret;

@@ -250,7 +250,11 @@ typedef INT (*tProcessNodeEventFunc)(UINT nodeId_p, tNmtState nodeNmtState_p,
 *
 * The following struct specifies a node.
 */
+#ifdef __GNUC__
+typedef struct __attribute__ ((aligned(4)))
+#else
 typedef struct
+#endif
 {
     tTimerHdl           timerHdlStatReq;        ///< Timer to delay StatusRequests and IdentRequests
     tTimerHdl           timerHdlLonger;         ///< 2nd timer for NMT command EnableReadyToOp and CheckCommunication
@@ -267,7 +271,11 @@ typedef struct
 *
 * The following struct implements the instance information of the NMT MNU module.
 */
+#ifdef __GNUC__
+typedef struct __attribute__ ((aligned(4)))
+#else
 typedef struct
+#endif
 {
     tNmtMnuNodeInfo     aNodeInfo[NMT_MAX_NODE_ID];     ///< Information about CNs
     tTimerHdl           timerHdlNmtState;               ///< Timeout for stay in NMT state
