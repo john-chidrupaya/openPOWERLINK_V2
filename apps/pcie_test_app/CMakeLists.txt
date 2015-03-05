@@ -1,8 +1,9 @@
 ################################################################################
 #
-# CMake file of CiA 302 MN console demo application
+# CMake file of CiA 302 MN PCIe test application
 #
 # Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
+# Copyright (c) 2015, Kalycito Infotech Private Limited
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +32,8 @@
 ################################################################################
 # Setup project and generic options
 
-PROJECT(demo_mn_console C)
-MESSAGE(STATUS "Configuring demo_mn_console")
+PROJECT(pcie_test_app C)
+MESSAGE(STATUS "Configuring pcie_test_app")
 
 CMAKE_MINIMUM_REQUIRED (VERSION 2.8.7)
 
@@ -49,9 +50,6 @@ SET(CFG_CFM ON CACHE BOOL "Use Configuration Manager (CFM)")
 # Set generic sources and include directories for this demo
 SET(DEMO_SOURCES
     ${DEMO_SOURCE_DIR}/main.c
-    ${DEMO_SOURCE_DIR}/app.c
-    ${DEMO_SOURCE_DIR}/event.c
-    ${CONTRIB_SOURCE_DIR}/console/printlog.c
     ${CONTRIB_SOURCE_DIR}/getopt/getopt.c
     )
 
@@ -68,33 +66,20 @@ IF(CFG_CFM)
     ADD_DEFINITIONS(-DCONFIG_INCLUDE_CFM)
 ENDIF()
 
-# PCAP is used for directlink or userspace daemon
-IF (CFG_KERNEL_STACK_DIRECTLINK OR CFG_KERNEL_STACK_USERSPACE_DAEMON)
-    ADD_DEFINITIONS(-DCONFIG_USE_PCAP)
-    SET (DEMO_SOURCES ${DEMO_SOURCES} ${COMMON_SOURCE_DIR}/pcap/pcap-console.c)
-ENDIF (CFG_KERNEL_STACK_DIRECTLINK OR CFG_KERNEL_STACK_USERSPACE_DAEMON)
-
-IF (CFG_KERNEL_STACK_PCIE_LITE)
-    MESSAGE(FATAL_ERROR "PCIe lite interface is not supported for this demo!")
-ENDIF()
-
-IF (CFG_KERNEL_STACK_DIRECTLINK)
-    UNSET (CFG_DEMO_MN_CONSOLE_USE_SYNCTHREAD CACHE)
-    ADD_DEFINITIONS(-DCONFIG_KERNELSTACK_DIRECTLINK)
-ELSE (CFG_KERNEL_STACK_DIRECTLINK)
-    OPTION (CFG_DEMO_MN_CONSOLE_USE_SYNCTHREAD "Create separate thread for syncronous data exchange" ON)
-    IF (CFG_DEMO_MN_CONSOLE_USE_SYNCTHREAD)
+IF (NOT CFG_KERNEL_STACK_PCIE_LITE)
+    MESSAGE(FATAL_ERROR "Only PCIe Lite interface is supported!")
+ELSE ()
+    OPTION (CFG_PCIE_TEST_APP_USE_SYNCTHREAD "Create separate thread for syncronous data exchange" ON)
+    IF (CFG_PCIE_TEST_APP_USE_SYNCTHREAD)
         ADD_DEFINITIONS(-DCONFIG_USE_SYNCTHREAD)
-    ENDIF (CFG_DEMO_MN_CONSOLE_USE_SYNCTHREAD)
-ENDIF (CFG_KERNEL_STACK_DIRECTLINK)
+    ENDIF (CFG_PCIE_TEST_APP_USE_SYNCTHREAD)
+ENDIF ()
 
 ################################################################################
 # Setup the architecture specific definitions
 
 IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(linux.cmake)
-ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    include (windows.cmake)
 ELSE()
     MESSAGE(FATAL_ERROR "System ${CMAKE_SYSTEM_NAME} is not supported!")
 ENDIF()
@@ -108,8 +93,8 @@ SOURCE_GROUP("Architecture Specific Sources" FILES ${DEMO_ARCH_SOURCES})
 ################################################################################
 # Set the executable
 
-ADD_EXECUTABLE(demo_mn_console ${DEMO_SOURCES} ${DEMO_ARCH_SOURCES} ${CMAKE_BINARY_DIR}/mnobd.cdc)
-SET_PROPERTY(TARGET demo_mn_console
+ADD_EXECUTABLE(pcie_test_app ${DEMO_SOURCES} ${DEMO_ARCH_SOURCES} ${CMAKE_BINARY_DIR}/mnobd.cdc)
+SET_PROPERTY(TARGET pcie_test_app
              PROPERTY COMPILE_DEFINITIONS_DEBUG DEBUG;DEF_DEBUG_LVL=${CFG_DEBUG_LVL})
 
 ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/mnobd.cdc
@@ -121,12 +106,11 @@ ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/mnobd.cdc
 ################################################################################
 # Libraries to link
 
-TARGET_LINK_LIBRARIES(demo_mn_console optimized ${OPLKLIB} debug ${OPLKLIB_DEBUG})
-TARGET_LINK_LIBRARIES(demo_mn_console ${ARCH_LIBRARIES})
+TARGET_LINK_LIBRARIES(pcie_test_app optimized ${OPLKLIB} debug ${OPLKLIB_DEBUG})
+TARGET_LINK_LIBRARIES(pcie_test_app ${ARCH_LIBRARIES})
 
 ################################################################################
 # Installation rules
 
-INSTALL(TARGETS demo_mn_console RUNTIME DESTINATION ${CMAKE_PROJECT_NAME})
+INSTALL(TARGETS pcie_test_app RUNTIME DESTINATION ${CMAKE_PROJECT_NAME})
 INSTALL(FILES ${CMAKE_BINARY_DIR}/mnobd.cdc DESTINATION ${CMAKE_PROJECT_NAME})
-
