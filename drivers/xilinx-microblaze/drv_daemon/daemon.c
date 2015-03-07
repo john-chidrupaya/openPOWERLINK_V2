@@ -192,12 +192,14 @@ Routine to handle background tasks of POWERLINK such as
 - Status and command exchange
 */
 //------------------------------------------------------------------------------
+#include <oplk/benchmark.h>
 static void backgroundProcess(void)
 {
     BOOL    fExit = FALSE;
 
     while (1)
     {
+		//BENCHMARK_TOGGLE(4);
         ctrlk_updateHeartbeat();
         fExit = ctrlk_process();
 

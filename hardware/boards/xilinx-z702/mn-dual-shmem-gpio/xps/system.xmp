@@ -9,9 +9,9 @@ Architecture: zynq
 Device: xc7z020
 Package: clg484
 SpeedGrade: -1
-UserCmd1:
+UserCmd1: 
 UserCmd1Type: 0
-UserCmd2:
+UserCmd2: 
 UserCmd2Type: 0
 GenSimTB: 0
 SdkExportBmmBit: 1
@@ -24,12 +24,12 @@ ExternalMemSim: 0
 UcfFile: data/system.ucf
 EnableParTimingError: 1
 ShowLicenseDialog: 1
-BInfo:
+BInfo: 
 LockAddr: pcp_d_bram_ctrl,C_BASEADDR
 LockAddr: pcp_i_bram_ctrl,C_BASEADDR
 Processor: processing_system7_0
-ElfImp:
-ElfSim:
+ElfImp: 
+ElfSim: 
 Processor: pcp
-ElfImp:
-ElfSim:
+ElfImp: 
+ElfSim: 

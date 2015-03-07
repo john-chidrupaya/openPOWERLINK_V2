@@ -464,6 +464,7 @@ tOplkError dllk_setAsndServiceIdFilter(tDllAsndServiceId serviceId_p,
 
 
 #if CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_SYNC != FALSE || CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC != FALSE
+#include <oplk/benchmark.h>
 //------------------------------------------------------------------------------
 /**
 \brief  Release RX buffer frame in Edrv
@@ -483,6 +484,7 @@ tOplkError dllk_releaseRxFrame(tPlkFrame* pFrame_p, UINT frameSize_p)
     tOplkError      ret;
     tEdrvRxBuffer   rxBuffer;
 
+	BENCHMARK_RESET(1);
     rxBuffer.pBuffer = (UINT8*)pFrame_p;
     rxBuffer.rxFrameSize = frameSize_p;
 

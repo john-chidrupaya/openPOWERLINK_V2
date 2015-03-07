@@ -542,11 +542,14 @@ only for frames with registered AsndServiceIds.
 \ingroup module_dllkcal
 */
 //------------------------------------------------------------------------------
+#include <oplk/benchmark.h>
 tOplkError dllkcal_asyncFrameReceived(tFrameInfo* pFrameInfo_p)
 {
     tOplkError  ret = kErrorOk;
     tEvent      event;
 
+	BENCHMARK_TOGGLE(5);
+	BENCHMARK_SET(6);
     event.eventSink = kEventSinkDlluCal;
 #if CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC == FALSE
     // Copy the frame into event queue
@@ -554,6 +557,7 @@ tOplkError dllkcal_asyncFrameReceived(tFrameInfo* pFrameInfo_p)
     event.pEventArg = pFrameInfo_p->pFrame;
     event.eventArgSize = pFrameInfo_p->frameSize;
 #else
+	BENCHMARK_SET(1);
     // Only copy frame info into event queue
     event.eventType = kEventTypeAsndRxInfo;
     event.pEventArg = pFrameInfo_p;

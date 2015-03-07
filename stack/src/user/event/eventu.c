@@ -180,6 +180,7 @@ specific module
 \ingroup module_eventu
 */
 //------------------------------------------------------------------------------
+#include <oplk/benchmark.h>
 tOplkError eventu_process(tEvent* pEvent_p)
 {
     tOplkError              ret = kErrorOk;
@@ -188,8 +189,14 @@ tOplkError eventu_process(tEvent* pEvent_p)
     switch (pEvent_p->eventSink)
     {
         case kEventSinkDlluCal:
+			BENCHMARK_SET(3);
+			if (pEvent_p->eventType == kEventTypeAsndRxInfo)
+				BENCHMARK_SET(5);
             ret = dllucal_process(pEvent_p);
             eventSource = kEventSourceDllu;
+            BENCHMARK_RESET(3);
+			if (pEvent_p->eventType == kEventTypeAsndRxInfo)
+				BENCHMARK_RESET(5);
             break;
 
         case kEventSinkNmtu:

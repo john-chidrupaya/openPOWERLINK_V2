@@ -313,6 +313,7 @@ This function implements the main loop of the demo application.
 \return The function returns a tOplkError error code.
 */
 //------------------------------------------------------------------------------
+#include <oplk/benchmark.h>
 static tOplkError loopMain(tInstance* pInstance_p)
 {
     tOplkError    ret = kErrorOk;
@@ -323,6 +324,7 @@ static tOplkError loopMain(tInstance* pInstance_p)
 
     while (1)
     {
+		//BENCHMARK_TOGGLE(4);
         // do background tasks
         if ((ret = oplk_process()) != kErrorOk)
             break;

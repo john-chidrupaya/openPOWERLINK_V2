@@ -747,15 +747,18 @@ user layer modules.
 \return The function returns a tOplkError error code.
 */
 //------------------------------------------------------------------------------
+#include <oplk/benchmark.h>
 static tOplkError handleRxAsyncFrameInfo(tFrameInfo* pFrameInfo_p)
 {
     tOplkError      ret;
     tEvent          event;
     tPlkFrame*      pKernelBuffer = pFrameInfo_p->pFrame;
-    tPlkFrame*      pAcqBuffer;
+    tPlkFrame*      pAcqBuffer = NULL;
 
+	BENCHMARK_SET(1);
     // Get Rx buffer from kernel layer
-    pAcqBuffer = memmap_mapKernelBuffer(pKernelBuffer);
+    //pAcqBuffer = memmap_mapKernelBuffer(pKernelBuffer);
+	pAcqBuffer = pKernelBuffer;
     if (pAcqBuffer == NULL)
     {
         DEBUG_LVL_ERROR_TRACE("%s Getting the Rx buffer from kernel failed!\n", __func__);
@@ -781,6 +784,7 @@ static tOplkError handleRxAsyncFrameInfo(tFrameInfo* pFrameInfo_p)
     event.pEventArg = pFrameInfo_p;
 
     eventu_postEvent(&event);
+	BENCHMARK_RESET(1);
 
     // Return handleRxAsyncFrameInfo() return value (ignore others)
     return ret;

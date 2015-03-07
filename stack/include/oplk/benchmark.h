@@ -108,6 +108,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #ifdef XPAR_BENCHMARK_PIO_BASEADDR
         #include "xgpio_l.h"
 
+		#warning #########################################################################################################################
         #define BENCHMARK_SET(x)    XGpio_WriteReg(XPAR_BENCHMARK_PIO_BASEADDR, 0, \
                                     XGpio_ReadReg(XPAR_BENCHMARK_PIO_BASEADDR, 0) | (1<<x))
         #define BENCHMARK_RESET(x)  XGpio_WriteReg(XPAR_BENCHMARK_PIO_BASEADDR, 0, \
@@ -126,6 +127,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #ifdef XPAR_HOST_BENCHMARK_PIO_BASEADDR
         #include <xgpio_l.h>
 
+		#warning **************************************************************************************************************************
         #define BENCHMARK_SET(x)    XGpio_WriteReg(XPAR_HOST_BENCHMARK_PIO_BASEADDR, 0, \
                                     XGpio_ReadReg(XPAR_HOST_BENCHMARK_PIO_BASEADDR, 0) | (1<<x))
         #define BENCHMARK_RESET(x)  XGpio_WriteReg(XPAR_HOST_BENCHMARK_PIO_BASEADDR, 0, \
@@ -142,6 +144,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #define BENCHMARK_MODULES               0x00000000
 #endif
 
+#define BENCHMARK_MODULES                   0x00000000
 #ifndef BENCHMARK_MODULES
 #define BENCHMARK_MODULES                   0x00000000
 #endif
