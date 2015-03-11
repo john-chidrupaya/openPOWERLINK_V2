@@ -191,12 +191,12 @@ tOplkError eventu_process(tEvent* pEvent_p)
         case kEventSinkDlluCal:
 			BENCHMARK_SET(3);
 			if (pEvent_p->eventType == kEventTypeAsndRxInfo)
-				BENCHMARK_SET(5);
+				BENCHMARK_TOGGLE(5);
             ret = dllucal_process(pEvent_p);
             eventSource = kEventSourceDllu;
             BENCHMARK_RESET(3);
 			if (pEvent_p->eventType == kEventTypeAsndRxInfo)
-				BENCHMARK_RESET(5);
+				BENCHMARK_TOGGLE(6);
             break;
 
         case kEventSinkNmtu:
