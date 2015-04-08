@@ -484,7 +484,7 @@ tOplkError dllk_releaseRxFrame(tPlkFrame* pFrame_p, UINT frameSize_p)
     tOplkError      ret;
     tEdrvRxBuffer   rxBuffer;
 
-	BENCHMARK_RESET(1);
+	//BENCHMARK_RESET(1);
     rxBuffer.pBuffer = (UINT8*)pFrame_p;
     rxBuffer.rxFrameSize = frameSize_p;
 

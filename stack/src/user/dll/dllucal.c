@@ -755,10 +755,9 @@ static tOplkError handleRxAsyncFrameInfo(tFrameInfo* pFrameInfo_p)
     tPlkFrame*      pKernelBuffer = pFrameInfo_p->pFrame;
     tPlkFrame*      pAcqBuffer = NULL;
 
-	BENCHMARK_SET(1);
+	BENCHMARK_SET(7);
     // Get Rx buffer from kernel layer
-    //pAcqBuffer = memmap_mapKernelBuffer(pKernelBuffer);
-	pAcqBuffer = pKernelBuffer;
+    pAcqBuffer = memmap_mapKernelBuffer(pKernelBuffer);
     if (pAcqBuffer == NULL)
     {
         DEBUG_LVL_ERROR_TRACE("%s Getting the Rx buffer from kernel failed!\n", __func__);
@@ -784,7 +783,7 @@ static tOplkError handleRxAsyncFrameInfo(tFrameInfo* pFrameInfo_p)
     event.pEventArg = pFrameInfo_p;
 
     eventu_postEvent(&event);
-	BENCHMARK_RESET(1);
+	BENCHMARK_RESET(7);
 
     // Return handleRxAsyncFrameInfo() return value (ignore others)
     return ret;

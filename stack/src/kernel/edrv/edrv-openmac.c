@@ -921,8 +921,13 @@ tOplkError edrv_releaseRxBuffer(tEdrvRxBuffer* pRxBuffer_p)
 {
     tOplkError          ret = kErrorOk;
     ometh_packet_typ*   pPacket = NULL;
+	static UINT8		bufCount = 0;
 
 	BENCHMARK_RESET(6);
+	if (bufCount >= 6)
+			bufCount = 0;
+	BENCHMARK_RESET(bufCount);
+	bufCount++;
     pPacket = GET_TYPE_BASE(ometh_packet_typ, data, pRxBuffer_p->pBuffer);
     pPacket->length = pRxBuffer_p->rxFrameSize;
 
@@ -930,7 +935,7 @@ tOplkError edrv_releaseRxBuffer(tEdrvRxBuffer* pRxBuffer_p)
     {
         target_enableGlobalInterrupt(FALSE);
 
-		BENCHMARK_TOGGLE(2);
+		//BENCHMARK_TOGGLE(2);
         // Freeing the Rx buffer is done in a critical section
         omethPacketFree(pPacket);
 

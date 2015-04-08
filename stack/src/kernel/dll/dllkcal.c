@@ -547,8 +547,10 @@ tOplkError dllkcal_asyncFrameReceived(tFrameInfo* pFrameInfo_p)
 {
     tOplkError  ret = kErrorOk;
     tEvent      event;
+	static UINT8	bufCnt = 0;
 
-	BENCHMARK_TOGGLE(5);
+	//BENCHMARK_TOGGLE(5);
+	//BENCHMARK_SET(6);
 	BENCHMARK_SET(6);
     event.eventSink = kEventSinkDlluCal;
 #if CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC == FALSE
@@ -557,7 +559,11 @@ tOplkError dllkcal_asyncFrameReceived(tFrameInfo* pFrameInfo_p)
     event.pEventArg = pFrameInfo_p->pFrame;
     event.eventArgSize = pFrameInfo_p->frameSize;
 #else
-	BENCHMARK_SET(1);
+	if (bufCnt >= 6)
+		bufCnt = 0;
+	BENCHMARK_SET(bufCnt);
+	
+	bufCnt++;
     // Only copy frame info into event queue
     event.eventType = kEventTypeAsndRxInfo;
     event.pEventArg = pFrameInfo_p;
