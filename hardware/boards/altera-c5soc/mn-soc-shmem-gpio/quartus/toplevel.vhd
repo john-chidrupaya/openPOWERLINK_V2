@@ -162,6 +162,8 @@ architecture rtl of toplevel is
   signal clk100                 : std_logic;
   signal clk100_p               : std_logic;
   signal pllLocked              : std_logic;
+  
+  signal h2f_cold_reset_n       : std_logic;
 
   component mnSocShmemGpio is
         port (
@@ -414,7 +416,7 @@ architecture rtl of toplevel is
       clk_50_clk                            =>  clk50,
       clk_100_clk                           =>  clk100,
       reset_reset_n                         =>  hps_fpga_reset_n,
-      hps_0_f2h_cold_reset_req_reset_n      =>  hps_fpga_reset_n,
+      hps_0_f2h_cold_reset_req_reset_n      =>  cnInactivated,
       hps_0_f2h_debug_reset_req_reset_n     =>  cnInactivated,
       hps_0_f2h_warm_reset_req_reset_n      =>  cnInactivated,
       memory_fpga_mem_a                     =>  fpga_memory_mem_addr,
@@ -450,13 +452,13 @@ architecture rtl of toplevel is
       openmac_0_mactimerout_export          =>  open,
 		host_0_hps_0_h2f_gp_gp_in             =>  open,                         --            host_0_hps_0_h2f_gp.gp_in
 		host_0_hps_0_h2f_gp_gp_out            =>  open,                        --                               .gp_out
-		host_0_hps_0_h2f_cold_reset_reset_n   =>  open,               --    host_0_hps_0_h2f_cold_reset.reset_n
-		pcp_cpu_0_cpu_resetrequest_resetrequest => '0',         --     pcp_cpu_0_cpu_resetrequest.resetrequest
+		host_0_hps_0_h2f_cold_reset_reset_n   =>  h2f_cold_reset_n,               --    host_0_hps_0_h2f_cold_reset.reset_n
+		pcp_cpu_0_cpu_resetrequest_resetrequest => not(hps_fpga_reset_n),         --     pcp_cpu_0_cpu_resetrequest.resetrequest
 		pcp_cpu_0_cpu_resetrequest_resettaken => open              --                               .resettaken
     );
 
     --Remove NIOS out of reset after DDR3 and PLL ready to operate
-     hps_fpga_reset_n <= pllLocked and ddr3_afi_resetn;
+     hps_fpga_reset_n <= pllLocked and ddr3_afi_resetn and h2f_cold_reset_n;
    -- PLL for Qsys
     pllInst : pll
     port map
