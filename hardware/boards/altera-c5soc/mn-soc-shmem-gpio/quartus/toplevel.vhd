@@ -164,6 +164,9 @@ architecture rtl of toplevel is
   signal pllLocked              : std_logic;
   
   signal h2f_cold_reset_n       : std_logic;
+  signal h2f_gp_in              : std_logic_vector(31 downto 0);
+  signal h2f_gp_out             : std_logic_vector(31 downto 0);
+
 
   component mnSocShmemGpio is
         port (
@@ -450,11 +453,11 @@ architecture rtl of toplevel is
       openmac_0_smi_clk                     =>  PLNK_SMI_CLK,
       openmac_0_smi_dio                     =>  PLNK_SMI_DIO,
       openmac_0_mactimerout_export          =>  open,
-		host_0_hps_0_h2f_gp_gp_in             =>  open,                         --            host_0_hps_0_h2f_gp.gp_in
-		host_0_hps_0_h2f_gp_gp_out            =>  open,                        --                               .gp_out
+		host_0_hps_0_h2f_gp_gp_in             =>  h2f_gp_in,                         --            host_0_hps_0_h2f_gp.gp_in
+		host_0_hps_0_h2f_gp_gp_out            =>  h2f_gp_out,                        --                               .gp_out
 		host_0_hps_0_h2f_cold_reset_reset_n   =>  h2f_cold_reset_n,               --    host_0_hps_0_h2f_cold_reset.reset_n
-		pcp_cpu_0_cpu_resetrequest_resetrequest => not(hps_fpga_reset_n),         --     pcp_cpu_0_cpu_resetrequest.resetrequest
-		pcp_cpu_0_cpu_resetrequest_resettaken => open              --                               .resettaken
+		pcp_cpu_0_cpu_resetrequest_resetrequest => not(hps_fpga_reset_n and h2f_gp_out(0)),         --     pcp_cpu_0_cpu_resetrequest.resetrequest
+		pcp_cpu_0_cpu_resetrequest_resettaken => h2f_gp_in(0)              --                               .resettaken
     );
 
     --Remove NIOS out of reset after DDR3 and PLL ready to operate
