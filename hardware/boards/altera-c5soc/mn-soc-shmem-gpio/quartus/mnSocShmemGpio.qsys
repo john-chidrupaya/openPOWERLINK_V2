@@ -137,19 +137,19 @@
          type = "boolean";
       }
    }
-   element led_pio.s1
-   {
-      datum baseAddress
-      {
-         value = "26880";
-         type = "String";
-      }
-   }
    element com_mem.s1
    {
       datum baseAddress
       {
          value = "0";
+         type = "String";
+      }
+   }
+   element led_pio.s1
+   {
+      datum baseAddress
+      {
+         value = "26880";
          type = "String";
       }
    }
@@ -280,6 +280,21 @@
    name="hps_0_f2h_warm_reset_req"
    internal="host_0.hps_0_f2h_warm_reset_req"
    type="reset"
+   dir="end" />
+ <interface
+   name="host_0_hps_0_h2f_gp"
+   internal="host_0.hps_0_h2f_gp"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="host_0_hps_0_h2f_cold_reset"
+   internal="host_0.hps_0_h2f_cold_reset"
+   type="reset"
+   dir="start" />
+ <interface
+   name="pcp_cpu_0_cpu_resetrequest"
+   internal="pcp.cpu_0_cpu_resetrequest"
+   type="conduit"
    dir="end" />
  <module
    kind="altera_mem_if_ddr3_emif"

@@ -158,14 +158,6 @@
          type = "int";
       }
    }
-   element slow_bridge.s0
-   {
-      datum baseAddress
-      {
-         value = "0";
-         type = "String";
-      }
-   }
    element flash_bridge.s0
    {
       datum _lockedAddress
@@ -205,6 +197,22 @@
          type = "String";
       }
    }
+   element slow_bridge.s0
+   {
+      datum baseAddress
+      {
+         value = "0";
+         type = "String";
+      }
+   }
+   element timer_0.s1
+   {
+      datum baseAddress
+      {
+         value = "131104";
+         type = "String";
+      }
+   }
    element tc_i_mem.s1
    {
       datum _lockedAddress
@@ -228,14 +236,6 @@
       datum baseAddress
       {
          value = "131072";
-         type = "String";
-      }
-   }
-   element timer_0.s1
-   {
-      datum baseAddress
-      {
-         value = "131104";
          type = "String";
       }
    }
@@ -371,6 +371,11 @@
    internal="reset_bridge_0.out_reset"
    type="reset"
    dir="start" />
+ <interface
+   name="cpu_0_cpu_resetrequest"
+   internal="cpu_0.cpu_resetrequest_conduit"
+   type="conduit"
+   dir="end" />
  <module
    kind="altera_avalon_jtag_uart"
    version="14.0"
@@ -479,7 +484,7 @@
   <parameter name="debug_debugReqSignals" value="false" />
   <parameter name="debug_assignJtagInstanceID" value="false" />
   <parameter name="dcache_omitDataMaster" value="false" />
-  <parameter name="cpuReset" value="false" />
+  <parameter name="cpuReset" value="true" />
   <parameter name="resetrequest_enabled" value="true" />
   <parameter name="setting_removeRAMinit" value="false" />
   <parameter name="setting_shadowRegisterSets" value="0" />

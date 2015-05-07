@@ -279,8 +279,8 @@ architecture rtl of toplevel is
             ddr3_emif_0_pll_sharing_pll_addr_cmd_clk          : out   std_logic;
             ddr3_emif_0_pll_sharing_pll_avl_clk               : out   std_logic;
             ddr3_emif_0_pll_sharing_pll_config_clk            : out   std_logic;
-            --ddr3_emif_0_pll_sharing_pll_dr_clk                : out   std_logic;
-            --ddr3_emif_0_pll_sharing_pll_dr_clk_pre_phy_clk    : out   std_logic;
+            ddr3_emif_0_pll_sharing_pll_dr_clk                : out   std_logic;
+            ddr3_emif_0_pll_sharing_pll_dr_clk_pre_phy_clk    : out   std_logic;
             ddr3_emif_0_pll_sharing_pll_mem_phy_clk           : out   std_logic;
             ddr3_emif_0_pll_sharing_afi_phy_clk               : out   std_logic;
             ddr3_emif_0_pll_sharing_pll_avl_phy_clk           : out   std_logic;
@@ -298,7 +298,12 @@ architecture rtl of toplevel is
             openmac_0_smi_nPhyRst                             : out   std_logic_vector(0 downto 0);
             openmac_0_smi_clk                                 : out   std_logic_vector(0 downto 0);
             openmac_0_smi_dio                                 : inout std_logic_vector(0 downto 0)  := (others => 'X');
-            openmac_0_mactimerout_export                      : out   std_logic_vector(0 downto 0)
+            openmac_0_mactimerout_export                      : out   std_logic_vector(0 downto 0);
+            host_0_hps_0_h2f_gp_gp_in                         : in    std_logic_vector(31 downto 0) := (others => 'X'); -- gp_in
+            host_0_hps_0_h2f_gp_gp_out                        : out   std_logic_vector(31 downto 0);                    -- gp_out
+            host_0_hps_0_h2f_cold_reset_reset_n               : out   std_logic;                                        -- reset_n
+            pcp_cpu_0_cpu_resetrequest_resetrequest           : in    std_logic                     := 'X';             -- resetrequest
+            pcp_cpu_0_cpu_resetrequest_resettaken             : out   std_logic                                         -- resettaken
         );
     end component mnSocShmemGpio;
 
@@ -442,7 +447,12 @@ architecture rtl of toplevel is
       openmac_0_smi_nPhyRst                 =>  PLNK_SMI_PHYRSTN,
       openmac_0_smi_clk                     =>  PLNK_SMI_CLK,
       openmac_0_smi_dio                     =>  PLNK_SMI_DIO,
-      openmac_0_mactimerout_export          =>  open
+      openmac_0_mactimerout_export          =>  open,
+		host_0_hps_0_h2f_gp_gp_in             =>  open,                         --            host_0_hps_0_h2f_gp.gp_in
+		host_0_hps_0_h2f_gp_gp_out            =>  open,                        --                               .gp_out
+		host_0_hps_0_h2f_cold_reset_reset_n   =>  open,               --    host_0_hps_0_h2f_cold_reset.reset_n
+		pcp_cpu_0_cpu_resetrequest_resetrequest => '0',         --     pcp_cpu_0_cpu_resetrequest.resetrequest
+		pcp_cpu_0_cpu_resetrequest_resettaken => open              --                               .resettaken
     );
 
     --Remove NIOS out of reset after DDR3 and PLL ready to operate

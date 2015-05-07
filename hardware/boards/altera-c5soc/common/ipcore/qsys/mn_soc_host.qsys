@@ -137,14 +137,6 @@
          type = "boolean";
       }
    }
-   element fpga_mem.s0
-   {
-      datum baseAddress
-      {
-         value = "0";
-         type = "String";
-      }
-   }
    element lw_bridge.s0
    {
       datum baseAddress
@@ -153,11 +145,11 @@
          type = "String";
       }
    }
-   element dipsw_pio.s1
+   element fpga_mem.s0
    {
       datum baseAddress
       {
-         value = "16";
+         value = "0";
          type = "String";
       }
    }
@@ -166,6 +158,14 @@
       datum baseAddress
       {
          value = "64";
+         type = "String";
+      }
+   }
+   element dipsw_pio.s1
+   {
+      datum baseAddress
+      {
+         value = "16";
          type = "String";
       }
    }
@@ -251,6 +251,12 @@
    type="interrupt"
    dir="start" />
  <interface name="lw_bridge_m0" internal="lw_bridge.m0" type="avalon" dir="start" />
+ <interface name="hps_0_h2f_gp" internal="hps_0.h2f_gp" type="conduit" dir="end" />
+ <interface
+   name="hps_0_h2f_cold_reset"
+   internal="hps_0.h2f_cold_reset"
+   type="reset"
+   dir="start" />
  <module kind="altera_hps" version="14.0" enabled="1" name="hps_0">
   <parameter name="MEM_VENDOR" value="JEDEC" />
   <parameter name="MEM_FORMAT" value="DISCRETE" />
@@ -625,7 +631,7 @@
   <parameter name="l4_mp_clk_div" value="1" />
   <parameter name="l4_sp_clk_div" value="1" />
   <parameter name="MPU_EVENTS_Enable" value="false" />
-  <parameter name="GP_Enable" value="false" />
+  <parameter name="GP_Enable" value="true" />
   <parameter name="DEBUGAPB_Enable" value="false" />
   <parameter name="STM_Enable" value="false" />
   <parameter name="CTI_Enable" value="false" />
@@ -643,7 +649,7 @@
   <parameter name="F2SDRAM_Type" value="" />
   <parameter name="F2SDRAM_Width" value="" />
   <parameter name="BONDING_OUT_ENABLED" value="false" />
-  <parameter name="S2FCLK_COLDRST_Enable" value="false" />
+  <parameter name="S2FCLK_COLDRST_Enable" value="true" />
   <parameter name="S2FCLK_PENDINGRST_Enable" value="false" />
   <parameter name="F2SCLK_DBGRST_Enable" value="true" />
   <parameter name="F2SCLK_WARMRST_Enable" value="true" />
