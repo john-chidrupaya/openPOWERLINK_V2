@@ -307,8 +307,8 @@ architecture rtl of toplevel is
             host_0_hps_0_h2f_gp_gp_in                         : in    std_logic_vector(31 downto 0) := (others => 'X'); -- gp_in
             host_0_hps_0_h2f_gp_gp_out                        : out   std_logic_vector(31 downto 0);                    -- gp_out
             host_0_hps_0_h2f_cold_reset_reset_n               : out   std_logic;                                        -- reset_n
-            pcp_cpu_0_cpu_resetrequest_resetrequest           : in    std_logic                     := 'X';             -- resetrequest
-            pcp_cpu_0_cpu_resetrequest_resettaken             : out   std_logic                                         -- resettaken
+            pcp_cpu_resetrequest_resetrequest           		  : in    std_logic                     := 'X';             -- resetrequest
+            pcp_cpu_resetrequest_resettaken                   : out   std_logic                                         -- resettaken
         );
     end component mnSocShmemGpio;
 
@@ -456,8 +456,8 @@ architecture rtl of toplevel is
 		host_0_hps_0_h2f_gp_gp_in             =>  h2f_gp_in,                         --            host_0_hps_0_h2f_gp.gp_in
 		host_0_hps_0_h2f_gp_gp_out            =>  h2f_gp_out,                        --                               .gp_out
 		host_0_hps_0_h2f_cold_reset_reset_n   =>  h2f_cold_reset_n,               --    host_0_hps_0_h2f_cold_reset.reset_n
-		pcp_cpu_0_cpu_resetrequest_resetrequest => not(hps_fpga_reset_n and h2f_gp_out(0)),         --     pcp_cpu_0_cpu_resetrequest.resetrequest
-		pcp_cpu_0_cpu_resetrequest_resettaken => h2f_gp_in(0)              --                               .resettaken
+		pcp_cpu_resetrequest_resetrequest     => not(hps_fpga_reset_n and h2f_gp_out(0)),         --     pcp_cpu_resetrequest.resetrequest
+		pcp_cpu_resetrequest_resettaken       => h2f_gp_in(0)              --                               .resettaken
     );
 
     --Remove NIOS out of reset after DDR3 and PLL ready to operate
