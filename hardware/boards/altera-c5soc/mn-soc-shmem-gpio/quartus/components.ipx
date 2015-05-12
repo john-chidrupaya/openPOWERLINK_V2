@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <library>
-    <path path="../../../../ipcore/altera/components.ipx" />
-    <path path="../../../../boards/altera-c5soc/common/ipcore/qsys/mn_soc_pcp.qsys"/>
-    <path path="../../../../boards/altera-c5soc/common/ipcore/qsys/mn_soc_host.qsys"/>
+    <path path="../../../../ipcore/altera/components.ipx"/>
+    <path path="../../common/ipcore/components.ipx"/>
+    <path path="../../../../ipcore/altera/qsys/mn_pcp.qsys"/>
+    <path path="../../../../ipcore/altera/qsys/mn_soc_host.qsys"/>
 </library>
