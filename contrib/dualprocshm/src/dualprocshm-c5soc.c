@@ -425,7 +425,7 @@ The function receives the sync IRQ from HPS distributor and forwards to the
 dualprocshm module callback function
 
  \param icciar_p     The Interrupt Controller CPU Interrupt
-                     Acknowledgement Register value (ICCIAR) value
+                     Acknowledgement Register value (ICCIAR)
                      corresponding to the current interrupt.
 
  \param pArg_p       argument to the function
