@@ -73,7 +73,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // const defines
 //------------------------------------------------------------------------------
 
-//FIXME
+//FIXME Take lock id from platform header that using hard coded value
 #define LOCK_LOCAL_ID    1
 
 #if (LOCK_LOCAL_ID == LOCK_UNLOCKED_C)
@@ -116,7 +116,7 @@ int target_initLock(LOCK_T* pLock_p)
         return -1;
 
     pLock_l = pLock_p;
-    alt_write_byte(pLock_l, LOCK_UNLOCKED_C);
+    OPLK_IO_WR8(pLock_l, 0, LOCK_UNLOCKED_C);
     OPLK_DCACHE_FLUSH(pLock_l, 1);
 
     return 0;
@@ -145,14 +145,13 @@ int target_lock(void)
     do
     {
         OPLK_DCACHE_INVALIDATE(pLock_l, 1);
-        val = alt_read_byte(pLock_l);
+        val = OPLK_IO_RD8(pLock_l, 0);
 
         // write local id if unlocked
         if (val == LOCK_UNLOCKED_C)
         {
-            alt_write_byte(pLock_l, LOCK_LOCAL_ID);
+            OPLK_IO_WR8(pLock_l, 0, LOCK_LOCAL_ID);
             OPLK_DCACHE_FLUSH(pLock_l, 1);
-            //usleep(2);
             continue; // return to top of loop to check again
         }
     } while (val != LOCK_LOCAL_ID);
@@ -176,7 +175,7 @@ int target_unlock(void)
     if (pLock_l == NULL)
         return -1;
 
-    alt_write_byte(pLock_l, LOCK_UNLOCKED_C);
+    OPLK_IO_WR8(pLock_l, 0, LOCK_UNLOCKED_C);
     OPLK_DCACHE_FLUSH(pLock_l, 1);
     return 0;
 }

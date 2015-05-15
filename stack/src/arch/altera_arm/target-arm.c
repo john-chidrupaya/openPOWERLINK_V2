@@ -98,13 +98,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // local function prototypes
 //------------------------------------------------------------------------------
 
-static inline int       enableInterruptMaster(void);
-static inline int       disableInterruptMaster(void);
+static inline INT       enableInterruptMaster(void);
+static inline INT       disableInterruptMaster(void);
 
-static inline uint64_t  getTimerMaxScaledCount(ALT_GPT_TIMER_t timerId_p,
-                                               uint32_t scalingFactor_p);
-static inline uint64_t  getTimerCurrentScaledCount(ALT_GPT_TIMER_t timerId_p,
-                                                   uint32_t scalingFactor_p);
+static inline UINT64    getTimerMaxScaledCount(ALT_GPT_TIMER_t timerId_p,
+                                               UINT32 scalingFactor_p);
+static inline UINT64    getTimerCurrentScaledCount(ALT_GPT_TIMER_t timerId_p,
+                                                   UINT32 scalingFactor_p);
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -123,7 +123,7 @@ This function returns the current system tick determined by the system timer.
 //------------------------------------------------------------------------------
 UINT32 target_getTickCount(void)
 {
-    return (uint32_t) getTimerCurrentScaledCount(ALT_GPT_CPU_GLOBAL_TMR, SECS_TO_MILLISECS);
+    return (UINT32)getTimerCurrentScaledCount(ALT_GPT_CPU_GLOBAL_TMR, SECS_TO_MILLISECS);
 }
 
 //------------------------------------------------------------------------------
@@ -225,9 +225,12 @@ The function cleans-up target specific stuff.
 //------------------------------------------------------------------------------
 tOplkError target_cleanup(void)
 {
+    ALT_STATUS_CODE     halRet = ALT_E_SUCCESS;
+
     disableInterruptMaster();
     alt_int_cpu_uninit();
     alt_int_global_uninit();
+    halRet = alt_cache_system_disable();
 
     return kErrorOk;
 }
@@ -321,10 +324,10 @@ interrupt interfaces.
 \retval -1                  Failure
 */
 //------------------------------------------------------------------------------
-static inline int enableInterruptMaster(void)
+static inline INT enableInterruptMaster(void)
 {
     ALT_STATUS_CODE     retStatus = ALT_E_SUCCESS;
-    int                 ret = 0;
+    INT                 ret = 0;
 
     // Enable global interrupt master
     retStatus = alt_int_global_enable();
@@ -360,10 +363,10 @@ interrupt interfaces.
 \retval -1                  Failure
 */
 //------------------------------------------------------------------------------
-static inline int disableInterruptMaster(void)
+static inline INT disableInterruptMaster(void)
 {
     ALT_STATUS_CODE     retStatus = ALT_E_SUCCESS;
-    int                 ret = 0;
+    INT                 ret = 0;
 
     // Disable all interrupts from the distributor
     retStatus = alt_int_global_disable();
@@ -398,23 +401,23 @@ The function returns the timestamp of the provided timer in standard time units.
 \retval Timestamp from the given timer in standard time unit provided.
 */
 //------------------------------------------------------------------------------
-static inline uint64_t getTimerCurrentScaledCount(ALT_GPT_TIMER_t timerId_p,
-                                                  uint32_t scalingFactor_p)
+static inline UINT64 getTimerCurrentScaledCount(ALT_GPT_TIMER_t timerId_p,
+                                                UINT32   scalingFactor_p)
 {
-    uint64_t        timeStamp_l = 0;
-    uint64_t        timeStamp_h = 0;
-    uint64_t        timeStamp = 0;
-    uint64_t        scaledTime = 0;
+    UINT64          timeStamp_l = 0;
+    UINT64          timeStamp_h = 0;
+    UINT64          timeStamp = 0;
+    UINT64          scaledTime = 0;
     ALT_CLK_t       clkSrc = ALT_CLK_UNKNOWN;
-    uint32_t        preScaler = 0;
-    uint32_t        freq = 1;
+    UINT32          preScaler = 0;
+    UINT32          freq = 1;
 
     preScaler = alt_gpt_prescaler_get(timerId_p);
     if (preScaler <= UINT8_MAX)
     {
         if (timerId_p == ALT_GPT_CPU_GLOBAL_TMR)    // Global Timer
         {
-            alt_globaltmr_get((uint32_t*)&timeStamp_h, (uint32_t*)&timeStamp_l);
+            alt_globaltmr_get((UINT32*)&timeStamp_h, (UINT32*)&timeStamp_l);
             clkSrc = ALT_CLK_MPU_PERIPH;
         }
         else
@@ -429,9 +432,9 @@ static inline uint64_t getTimerCurrentScaledCount(ALT_GPT_TIMER_t timerId_p,
             timeStamp_h *= (preScaler + 1);
             timeStamp_l *= scalingFactor_p;
             timeStamp_h *= scalingFactor_p;
-            timeStamp = (uint64_t) ((((timeStamp_h << 32) & ~UINT32_MAX) |
-                                     timeStamp_l) / freq);
-            scaledTime = (timeStamp > UINT64_MAX) ? UINT64_MAX : (uint64_t) timeStamp;
+            timeStamp = (UINT64)((((timeStamp_h << 32) & ~UINT32_MAX) |
+                                   timeStamp_l) / freq);
+            scaledTime = (timeStamp > UINT64_MAX) ? UINT64_MAX : (UINT64)timeStamp;
         }
     }
 
@@ -453,15 +456,15 @@ in standard time units.
 \retval Maximum timestamp from the given timer in standard time unit provided.
 */
 //------------------------------------------------------------------------------
-static inline uint64_t getTimerMaxScaledCount(ALT_GPT_TIMER_t timerId_p,
-                                              uint32_t scalingFactor_p)
+static inline UINT64 getTimerMaxScaledCount(ALT_GPT_TIMER_t timerId_p,
+                                            UINT32 scalingFactor_p)
 {
-    uint64_t        maxScaledTime = 0;
-    uint32_t        freq = 1;
-    uint64_t        maxTimeStamp_l = 0;
-    uint64_t        maxTimeStamp_h = 0;
-    uint64_t        maxTimeStamp = 0;
-    uint32_t        preScaler = 0;
+    UINT64          maxScaledTime = 0;
+    UINT32          freq = 1;
+    UINT64          maxTimeStampLow = 0;
+    UINT64          maxTimeStampHigh = 0;
+    UINT64          maxTimeStamp = 0;
+    UINT32          preScaler = 0;
     ALT_CLK_t       clkSrc;
 
     preScaler = alt_gpt_prescaler_get(timerId_p);
@@ -469,8 +472,8 @@ static inline uint64_t getTimerMaxScaledCount(ALT_GPT_TIMER_t timerId_p,
     if (timerId_p == ALT_GPT_CPU_GLOBAL_TMR)
     {
         clkSrc = ALT_CLK_MPU_PERIPH;
-        maxTimeStamp_l = (uint64_t) UINT32_MAX;
-        maxTimeStamp_h = (uint64_t) UINT32_MAX;
+        maxTimeStampLow = (UINT64)UINT32_MAX;
+        maxTimeStampHigh = (UINT64)UINT32_MAX;
     }
     else
     {
@@ -479,14 +482,14 @@ static inline uint64_t getTimerMaxScaledCount(ALT_GPT_TIMER_t timerId_p,
 
     if (alt_clk_freq_get(clkSrc, &freq) == ALT_E_SUCCESS)
     {
-        maxTimeStamp_l *= (preScaler + 1);
-        maxTimeStamp_h *= (preScaler + 1);
-        maxTimeStamp_l *= scalingFactor_p;
-        maxTimeStamp_h *= scalingFactor_p;
-        maxTimeStamp = (uint64_t) ((((maxTimeStamp_h << 32) & ~UINT32_MAX) |
-                                    maxTimeStamp_l) / freq);
+        maxTimeStampLow *= (preScaler + 1);
+        maxTimeStampHigh *= (preScaler + 1);
+        maxTimeStampLow *= scalingFactor_p;
+        maxTimeStampHigh *= scalingFactor_p;
+        maxTimeStamp = (UINT64)((((maxTimeStampHigh << 32) & ~UINT32_MAX) |
+                                  maxTimeStampLow) / freq);
 
-        maxScaledTime = (maxTimeStamp > UINT64_MAX) ? UINT64_MAX : (uint64_t) maxTimeStamp;
+        maxScaledTime = (maxTimeStamp > UINT64_MAX) ? UINT64_MAX : (UINT64) maxTimeStamp;
     }
 
 Exit:
