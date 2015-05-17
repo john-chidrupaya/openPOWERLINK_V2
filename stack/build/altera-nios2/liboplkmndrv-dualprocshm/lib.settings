@@ -56,28 +56,6 @@ ${DUALPROCSHM_COMMON_SOURCES} \
 
 CFG_LIB_CFLAGS=
 
-if [ -z "${CFG_DRV_BUS}" ]; then
-    CFG_LIB_SOURCES="\
-        ${CFG_LIB_SOURCES} \
-        ${DUALPROCSHM_DRIVER_SOURCES} \
-        "
-    CFG_LIB_CFLAGS=-D__INT_BUS__
-elif [ "${CFG_DRV_BUS}" == "INT BUS" ]; then
-    CFG_LIB_SOURCES="\
-        ${CFG_LIB_SOURCES} \
-        ${DUALPROCSHM_DRIVER_SOURCES} \
-        "
-    CFG_LIB_CFLAGS=-D__INT_BUS__
-elif [ "${CFG_DRV_BUS}" == "PCIE" ]; then
-    CFG_LIB_SOURCES="\
-        ${CFG_LIB_SOURCES} \
-        ${DUALPROCSHM_KERNEL_SOURCES} \
-        "
-    CFG_LIB_CFLAGS=-D__PCIE_BUS__
-else
-    echo "ERROR: ${CFG_DRV_BUS} interface for NIOS driver is not supported"
-    exit 1
-fi
 CFG_LIB_INCLUDES="\
 ${OPLK_BASE_DIR}/stack/proj/generic/lib${LIB_NAME} \
 ${STACK_INCLUDE_DIR} \
@@ -89,7 +67,7 @@ ${CONTRIB_SOURCE_DIR}/dualprocshm/include \
 "
 
 CFG_LIB_CFLAGS="\
-${CFG_LIB_CFLAGS}
+${CFG_LIB_CFLAGS} \
 ${CFG_PLATFORM_CFLAGS} \
 -DCONFIG_DUALPROCSHM_PCP=TRUE \
 "
