@@ -62,13 +62,13 @@ CFG_DRV_EPCQ=1
 
 # OPENMAC is present
 CFG_OPENMAC=1
-# HOSTINTERFACE is not present
-CFG_HOSTINTERFACE=0
+# Dualprocshm interface used
+CFG_DUALPROCSHM=1
 # Type of POWERLINK node supported by this platform
 CFG_NODE=MN
 
 # JTAG Cable
-CFG_JTAG_CABLE="USB-BlasterII [USB-1]"
+CFG_JTAG_CABLE="USB-BlasterII"
 
 CFG_DEVICE_ID=2
 

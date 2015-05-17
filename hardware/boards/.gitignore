@@ -19,6 +19,7 @@ incremental_db/
 *.rpt
 *.smsg
 *.sof
+*.rbf
 *.sopcinfo
 *.summary
 *.pof
