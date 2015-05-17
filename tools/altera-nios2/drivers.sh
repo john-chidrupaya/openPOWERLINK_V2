@@ -186,16 +186,9 @@ DRV_GEN_ARGS="\
 --set QUARTUS_PROJECT_DIR=${BOARD_PATH}/quartus \
 ${CFG_DRV_ARGS} \
 "
-# Determine the output path
-MAJOR_VER=$(quartus_sh -v |grep Version|cut -f2 -d' '| cut -f1 -d.)
-if [ "${MAJOR_VER}" == "14" ]; then
-    DRV_GEN_ARGS+="--set QUARTUS_SOF_DIR=\$(QUARTUS_PROJECT_DIR)/output_files "
-elif [ "${MAJOR_VER}" == "13" ]; then
-    DRV_GEN_ARGS+="--set QUARTUS_SOF_DIR=\$(QUARTUS_PROJECT_DIR) "
-else
-    echo "ERROR: Quartus version ${MAJOR_VER} not supported!"
-    exit 1
-fi
+
+# Set the bitstream output path
+DRV_GEN_ARGS+="--set QUARTUS_SOF_DIR=\$(QUARTUS_PROJECT_DIR) "
 
 # Get path to board includes
 BOARD_INCLUDE_PATH=$(readlink -f "${BOARD_PATH}/include")
