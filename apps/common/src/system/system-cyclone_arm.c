@@ -95,10 +95,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // local function prototypes
 //------------------------------------------------------------------------------
 
-static int initializeFpga(void);
-static int initializeTimer(void);
-static int cleanupTimer(void);
-static int initializeDriver(void);
+static INT initializeFpga(void);
+static INT initializeTimer(void);
+static INT cleanupTimer(void);
+static INT initializeDriver(void);
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -114,7 +114,7 @@ work correctly.
 \ingroup module_app_common
 */
 //------------------------------------------------------------------------------
-int system_init(void)
+INT system_init(void)
 {
     tOplkError          oplkRet = kErrorOk;
 
@@ -228,7 +228,7 @@ milliseconds have elapsed.
 \ingroup module_app_common
 */
 //------------------------------------------------------------------------------
-void system_msleep(unsigned int milliSeconds_p)
+void system_msleep(unsigned INT milliSeconds_p)
 {
     msleep(milliSeconds_p);
 }
@@ -250,9 +250,9 @@ configures the FPGA for operation
 \retval -1                  Failure
 */
 //------------------------------------------------------------------------------
-static int initializeFpga(void)
+static INT initializeFpga(void)
 {
-    int                 ret = 0;
+    INT                 ret = 0;
     ALT_STATUS_CODE     halRet = ALT_E_SUCCESS;
 
     /* initialize the FPGA control */
@@ -329,7 +329,7 @@ processor's memory and releases the processor out of reset.
 \retval -1                  Failure
 */
 //------------------------------------------------------------------------------
-static int initializeDriver(void)
+static INT initializeDriver(void)
 {
     ALT_STATUS_CODE     halRet = ALT_E_SUCCESS;
     /* Symbol name for the driver binary file contents linked in. */
@@ -337,7 +337,7 @@ static int initializeDriver(void)
     extern char         _binary_drv_daemon_bin_end;
     /* Use the above symbols to extract the driver binary information */
     const char *        driverBinary = &_binary_drv_daemon_bin_start;
-    const uint32_t      driverBinarySize = &_binary_drv_daemon_bin_end - &_binary_drv_daemon_bin_start;
+    const UINT32        driverBinarySize = &_binary_drv_daemon_bin_end - &_binary_drv_daemon_bin_start;
     char *              driverExecutableStartAddress = (char*)DDR3_EMIF_0_BASE;
 
     // Trace the driver image information.
@@ -389,9 +389,9 @@ the user stack generic timer
 \retval -1                  Failure
 */
 //------------------------------------------------------------------------------
-static int initializeTimer(void)
+static INT initializeTimer(void)
 {
-    int                 ret = 0;
+    INT                 ret = 0;
     ALT_STATUS_CODE     halRet = ALT_E_SUCCESS;
 
     // initialize timer, only the 64 bit global timer is used
@@ -486,9 +486,9 @@ the user stack generic timer.
 \retval -1                  Failure
 */
 //------------------------------------------------------------------------------
-static int cleanupTimer(void)
+static INT cleanupTimer(void)
 {
-    int                 ret = 0;
+    INT                 ret = 0;
     ALT_STATUS_CODE     halRet = ALT_E_SUCCESS;
 
     halRet = alt_globaltmr_stop();
