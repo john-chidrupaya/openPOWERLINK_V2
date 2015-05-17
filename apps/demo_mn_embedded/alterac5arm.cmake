@@ -92,10 +92,10 @@ ELSE()
 ENDIF()
 
 # Set driver object file binary
-get_filename_component(CFG_DRV_EXE_NAME ${CFG_DRV_EXE} NAME_WE)
-SET(DEMO_ARCH_SOURCES ${DEMO_ARCH_SOURCES} ${PROJECT_BINARY_DIR}/${CFG_DRV_EXE_NAME}.o)
+get_filename_component(CFG_DRV_BIN_NAME ${CFG_DRV_BIN} NAME_WE)
+SET(DEMO_ARCH_SOURCES ${DEMO_ARCH_SOURCES} ${PROJECT_BINARY_DIR}/${CFG_DRV_BIN_NAME}.o)
 SET_SOURCE_FILES_PROPERTIES(
-        ${PROJECT_BINARY_DIR}/${CFG_DRV_EXE_NAME}.o
+        ${PROJECT_BINARY_DIR}/${CFG_DRV_BIN_NAME}.o
         PROPERTIES
         EXTERNAL_OBJECT true # To say that this is actually an object file, so it should not be compiled, only linked
         GENERATED true       # To say that it is OK that the obj-files do not exist before build time
@@ -103,19 +103,19 @@ SET_SOURCE_FILES_PROPERTIES(
 
 ADD_CUSTOM_COMMAND(
         OUTPUT
-        ${PROJECT_BINARY_DIR}/${CFG_DRV_EXE_NAME}.o
-        COMMAND ${CMAKE_COMMAND} -E copy "${CFG_DRV_EXE}" "${PROJECT_BINARY_DIR}"
-        COMMAND arm-altera-eabi-objcopy --input-target binary --output-target elf32-little --alt-machine-code 40 ${CFG_DRV_EXE_NAME}.bin ${CFG_DRV_EXE_NAME}.o
-        DEPENDS ${CFG_DRV_EXE}
+        ${PROJECT_BINARY_DIR}/${CFG_DRV_BIN_NAME}.o
+        COMMAND ${CMAKE_COMMAND} -E copy "${CFG_DRV_BIN}" "${PROJECT_BINARY_DIR}"
+        COMMAND arm-altera-eabi-objcopy --input-target binary --output-target elf32-little --alt-machine-code 40 ${CFG_DRV_BIN_NAME}.bin ${CFG_DRV_BIN_NAME}.o
+        DEPENDS ${CFG_DRV_BIN}
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         )
 
 SET_DIRECTORY_PROPERTIES(PROPERTIES
-                         ADDITIONAL_MAKE_CLEAN_FILES "${PROJECT_BINARY_DIR}/${CFG_DRV_EXE_NAME}.bin;${PROJECT_BINARY_DIR}/${CFG_DRV_EXE_NAME}.o"
+                         ADDITIONAL_MAKE_CLEAN_FILES "${PROJECT_BINARY_DIR}/${CFG_DRV_BIN_NAME}.bin;${PROJECT_BINARY_DIR}/${CFG_DRV_BIN_NAME}.o"
                         )
 
-SET(ADD_CLEAN_FILES ${PROJECT_BINARY_DIR}/${CFG_DRV_EXE_NAME}.bin
-                    ${PROJECT_BINARY_DIR}/${CFG_DRV_EXE_NAME}.o
+SET(ADD_CLEAN_FILES ${PROJECT_BINARY_DIR}/${CFG_DRV_BIN_NAME}.bin
+                    ${PROJECT_BINARY_DIR}/${CFG_DRV_BIN_NAME}.o
    )
 # Set the platform specific include directories
 INCLUDE_DIRECTORIES(

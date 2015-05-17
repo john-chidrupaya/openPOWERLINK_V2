@@ -55,7 +55,7 @@ SET_PROPERTY(CACHE CFG_HW_LIB PROPERTY STRINGS ${HW_BOARD_DEMOS})
 SET(CFG_HW_LIB_DIR ${CFG_HW_LIB_PATH}/${CFG_HW_LIB})
 SET(CFG_DRV_BLD_PATH ${OPLK_ROOT_DIR}/drivers/altera-nios2/drv_daemon/build
     CACHE STRING "openPOWERLINK driver build path")
-SET(CFG_DRV_EXE ${CFG_DRV_BLD_PATH}/drv_daemon.bin
+SET(CFG_DRV_BIN ${CFG_DRV_BLD_PATH}/drv_daemon.bin
     CACHE STRING "openPOWERLINK driver executable")
 SET(CFG_FPGA_RBF ${CFG_DRV_BLD_PATH}/fpga.rbf
     CACHE STRING "Cylone V FPGA configuration(rbf) file")

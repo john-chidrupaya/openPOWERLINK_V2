@@ -1,5 +1,4 @@
 #!/bin/bash
-#!/bin/bash
 ################################################################################
 #
 # Build openPOWERLINK APP for Altera Cyclone V ARM
