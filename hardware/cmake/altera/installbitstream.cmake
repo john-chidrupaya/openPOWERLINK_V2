@@ -30,5 +30,6 @@
 ################################################################################
 
 MACRO(INSTALL_BITSTREAM EXAMPLE_ROOT BITS_DESTINATION SKIP_BITSTREAM)
-
+# For present Altera designs, bit stream is generated from NIOS build
+# tool chain. So no installation of bitstream is to be done here.
 ENDMACRO()
