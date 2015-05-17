@@ -109,7 +109,7 @@ BSP_GEN_ARGS="${CFG_DRV_BSP_TYPE} ${BSP_PATH} ${BOARD_PATH}/quartus \
 --set hal.sys_clk_timer ${CFG_DRV_SYS_TIMER_NAME} \
 "
 
-if [ -z "${CFG_DRV_USE_TCI_MEM}" ] || [ "${CFG_DRV_USE_TCI_MEM}" -eq "1" ];
+if [ -n "${CFG_DRV_TCI_MEM_NAME}" ];
 then
     BSP_GEN_ARGS+="--cmd add_section_mapping .tc_i_mem ${CFG_DRV_TCI_MEM_NAME} \
                    --set hal.linker.enable_alt_load_copy_exceptions false "
@@ -264,11 +264,8 @@ elif [ -n "${CFG_DRV_EPCQ}" ]; then
 fi
 
 # Add ELF to BIN makefile rules
-if [ "${CFG_DRV_GEN_BIN_EXE}" == 1 ];
-then
-    chmod +x ${OPLK_BASE_DIR}/tools/altera-nios2/add-app-makefile-bin
-    ${OPLK_BASE_DIR}/tools/altera-nios2/add-app-makefile-bin ${OUT_PATH}/Makefile
-fi
+chmod +x ${OPLK_BASE_DIR}/tools/altera-nios2/add-app-makefile-bin
+${OPLK_BASE_DIR}/tools/altera-nios2/add-app-makefile-bin ${OUT_PATH}/Makefile
 
 # Add SOF to RBF makefile rules
 chmod +x ${OPLK_BASE_DIR}/tools/altera-nios2/add-app-makefile-rbf

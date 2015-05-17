@@ -305,8 +305,7 @@ static INT initializeFpga(void)
     if (alt_addr_space_remap(ALT_ADDR_SPACE_MPU_ZERO_AT_BOOTROM,
                              ALT_ADDR_SPACE_NONMPU_ZERO_AT_OCRAM,
                              ALT_ADDR_SPACE_H2F_ACCESSIBLE,
-                             ALT_ADDR_SPACE_LWH2F_ACCESSIBLE) !=
-        ALT_E_SUCCESS)
+                             ALT_ADDR_SPACE_LWH2F_ACCESSIBLE) != ALT_E_SUCCESS)
     {
         DEBUG_LVL_ERROR_TRACE("FPGA address space remapping Failed!!\n");
         ret = -1;
@@ -478,8 +477,7 @@ Exit:
 /**
 \brief Uninitialize the timer module
 
-The function uninitializes the global timer and configures it to be used as
-the user stack generic timer.
+The function uninitializes the global timer.
 
 \return The function returns an integer
 \retval 0                   Success

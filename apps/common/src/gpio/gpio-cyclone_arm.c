@@ -187,37 +187,38 @@ The function initializes the GPIO module before being used.
 void gpio_init(void)
 {
     ALT_STATUS_CODE    halRet = ALT_E_SUCCESS;
-    int                 ret = 0;
 
     /* Initialize HPS GPIO */
 
     // Initialize GPIO module
-    if (alt_gpio_init() != ALT_E_SUCCESS)
+    halRet = alt_gpio_init();
+    if (halRet != ALT_E_SUCCESS)
     {
-        ret = -1;
-    }
-    else if (alt_gpio_group_config(cfgHpsGPO, ARRAY_COUNT(cfgHpsGPO)) != ALT_E_SUCCESS) // Setup GPIO LED
-    {
-        ret = -1;
-    }
-    else if (alt_gpio_port_data_write(ALT_GPIO_PORTB, HPS_LED_ALL_BIT_MASK,
-                                      HPS_LED_ALL_TURN_OFF) != ALT_E_SUCCESS) // clear the Leds
-    {
-        ret = -1;
-    }
-    else if (alt_gpio_group_config(cfgHpsGPI, ARRAY_COUNT(cfgHpsGPI)) != ALT_E_SUCCESS) // Setup GPIO PUSHBUTTON
-    {
-        ret = -1;
-    }
-    else if (alt_gpio_port_int_disable(ALT_GPIO_PORTC, HPS_PB_INT_ALL_BIT_MASK)
-             != ALT_E_SUCCESS)   // Enable GPIO interrupts
-    {
-        ret = -1;
+        goto Exit;
     }
 
-    if (ret != 0)
+    halRet = alt_gpio_group_config(cfgHpsGPO, ARRAY_COUNT(cfgHpsGPO));  // Setup GPIO LED
+    if (halRet != ALT_E_SUCCESS)
     {
-        DEBUG_LVL_ERROR_TRACE("GPIO ERR: Initialization Failed!!\n");
+        goto Exit;
+    }
+
+    halRet = alt_gpio_port_data_write(ALT_GPIO_PORTB, HPS_LED_ALL_BIT_MASK,
+                                      HPS_LED_ALL_TURN_OFF);    // clear the Leds
+    if (halRet != ALT_E_SUCCESS)
+    {
+        goto Exit;
+    }
+
+    halRet = alt_gpio_group_config(cfgHpsGPI, ARRAY_COUNT(cfgHpsGPI));  // Setup GPIO PUSHBUTTON
+    if (halRet != ALT_E_SUCCESS)
+    {
+        goto Exit;
+    }
+
+    halRet = alt_gpio_port_int_disable(ALT_GPIO_PORTC, HPS_PB_INT_ALL_BIT_MASK);    // Enable GPIO interrupts
+    if (halRet != ALT_E_SUCCESS)
+    {
         goto Exit;
     }
 
@@ -300,7 +301,7 @@ UINT8 gpio_getNodeid(void)
     fpgaSwStatus = IORD_ALTERA_AVALON_PIO_DATA(HOST_0_DIPSW_PIO_BASE);
 #endif
 
-    nodeId = (UINT8) ((FPGA_DIPSW_NET_VAL(fpgaSwStatus) << HOST_0_DIPSW_PIO_DATA_WIDTH) | HPS_DIPSW_NET_VAL(hpsSwStatus));
+    nodeId = (UINT8)((FPGA_DIPSW_NET_VAL(fpgaSwStatus) << HOST_0_DIPSW_PIO_DATA_WIDTH) | HPS_DIPSW_NET_VAL(hpsSwStatus));
 
     return nodeId;
 }
@@ -325,7 +326,7 @@ void gpio_setStatusLed(BOOL fOn_p)
 
     if (fOn_p)
     {
-        ledStatus &= (UINT32) (~HPS_LED_1_TURN_OFF & HPS_LED_ALL_BIT_MASK);
+        ledStatus &= (UINT32)(~HPS_LED_1_TURN_OFF & HPS_LED_ALL_BIT_MASK);
         halRet = alt_gpio_port_data_write(ALT_GPIO_PORTB, HPS_LED_ALL_BIT_MASK, ledStatus);
     }
     else
@@ -355,7 +356,7 @@ void gpio_setErrorLed(BOOL fOn_p)
 
     if (fOn_p)
     {
-        ledStatus &= (UINT32) (~HPS_LED_0_TURN_OFF & HPS_LED_ALL_BIT_MASK);
+        ledStatus &= (UINT32)(~HPS_LED_0_TURN_OFF & HPS_LED_ALL_BIT_MASK);
         halRet = alt_gpio_port_data_write(ALT_GPIO_PORTB, HPS_LED_ALL_BIT_MASK, ledStatus);
     }
     else
@@ -381,7 +382,7 @@ UINT8 gpio_getAppInput(void)
     UINT8    key;
 
 #ifdef HOST_0_BUTTON_PIO_BASE
-    key = (UINT8) IORD_ALTERA_AVALON_PIO_EDGE_CAP(HOST_0_BUTTON_PIO_BASE);
+    key = (UINT8)IORD_ALTERA_AVALON_PIO_EDGE_CAP(HOST_0_BUTTON_PIO_BASE);
     IOWR_ALTERA_AVALON_PIO_EDGE_CAP(HOST_0_BUTTON_PIO_BASE, FPGA_PB_ALL_BIT_MASK);
 #else
     key = 0;
