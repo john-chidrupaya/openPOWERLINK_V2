@@ -66,14 +66,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
-#define PHYCFG_88E1111_CTRL_REG                     0
-#define PHYCFG_88E1111_CTRL_REG_RESET               0x8000
-
-#define PHYCFG_88E1111_SPECCTRL_REG                 16
-#define PHYCFG_88E1111_SPECCTRL_MDIX_AUTO           0x0060
-
-#define PHYCFG_88E1111_EXTPHYST_REG                 27
-#define PHYCFG_88E1111_EXTPHYST_REG_HWCFG_MII       0x000F
 
 //------------------------------------------------------------------------------
 // local types
@@ -104,61 +96,7 @@ This function configures the available phys on the cyclone-V development board.
 //------------------------------------------------------------------------------
 int omethPhyCfgUser(OMETH_H pEth_p)
 {
-    int                 ret = 0;
-    int                 i;
-    int                 phyCount = pEth_p->phyCount;
-    unsigned short      regData;
-    unsigned short      regNumber;
-
-    //process all connected phys
-    for (i = 0; i < phyCount; i++)
-    {
-        // Set MII mode
-        regNumber = PHYCFG_88E1111_EXTPHYST_REG;
-        // Read extended phy specific status register
-        ret = omethPhyRead(pEth_p, i, regNumber, &regData);
-        if (ret != 0)
-            goto Exit;
-
-        // Set bits for MII mode
-        regData |= PHYCFG_88E1111_EXTPHYST_REG_HWCFG_MII;
-
-        // Write-back manipulated register content
-        omethPhyWrite(pEth_p, i, regNumber, regData);
-        if (ret != 0)
-            goto Exit;
-
-        // Enable auto-crossover
-        regNumber = PHYCFG_88E1111_SPECCTRL_REG;
-        // Read phy specific control register
-        ret = omethPhyRead(pEth_p, i, regNumber, &regData);
-        if (ret != 0)
-            goto Exit;
-
-        // Set bits for auto-crossover
-        regData |= PHYCFG_88E1111_SPECCTRL_MDIX_AUTO;
-
-        // Write-back manipulated register content
-        omethPhyWrite(pEth_p, i, regNumber, regData);
-        if (ret != 0)
-            goto Exit;
-
-        // Trigger SW reset (Note: phy link will be lost!)
-        regNumber = PHYCFG_88E1111_CTRL_REG;
-        // Read control register
-        ret = omethPhyRead(pEth_p, i, regNumber, &regData);
-        if (ret != 0)
-            goto Exit;
-
-        // Set sw reset
-        regData |= PHYCFG_88E1111_CTRL_REG_RESET;
-
-        // Write-back manipulated register content
-        omethPhyWrite(pEth_p, i, regNumber, regData);
-        if (ret != 0)
-            goto Exit;
-    }
-
-Exit:
-    return ret;
+    // No configuration required
+    (void*)pEth_p;
+    return 0;
 }
