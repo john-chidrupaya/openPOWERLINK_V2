@@ -98,7 +98,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define CACHE_ALIGNED_BYTE_CHECK    (ALT_CACHE_LINE_SIZE - 1)
 
 // cache handling
-#ifdef ENABLE_CACHE
+#ifdef ALTARM_CACHE_ENABLE
 #define DUALPROCSHM_FLUSH_DCACHE_RANGE(base, range)                                                                                                   \
     ({                                                                                                                                                \
          uint32_t tempBase = (uint32_t) (((uint32_t) base) & ~((uint32_t) CACHE_ALIGNED_BYTE_CHECK));                                                 \

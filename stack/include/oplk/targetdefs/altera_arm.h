@@ -77,7 +77,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PRINTF(...)
 #endif
 
-#define FPGA_BUS_WIDTH                              32
+#define FPGA_BUS_WIDTH                          32
 #define __IO_CALC_ADDRESS_NATIVE(base, offset) \
     (base + offset * (FPGA_BUS_WIDTH / 8))
 #define IORD16(base, offset)                    alt_read_word(base + offset * (FPGA_BUS_WIDTH / 8))
@@ -85,90 +85,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define IOWR16(base, offset, val)               alt_write_word(base + offset * (FPGA_BUS_WIDTH / 8), val)
 #define IOWR32(base, offset, val)               alt_write_word(base + offset * (FPGA_BUS_WIDTH / 8), val)
 
-#define IORD_32DIRECT(base, offset)             alt_read_word((unsigned int)base + (unsigned int)offset)
-#define IORD_16DIRECT(base, offset)             alt_read_hword((unsigned int)base + (unsigned int)offset)
-#define IORD_8DIRECT(base, offset)              alt_read_byte((unsigned int)base + (unsigned int)offset)
-
-#define IOWR_32DIRECT(base, offset, dword)      alt_write_word((unsigned int)base + (unsigned int)offset, dword)
-#define IOWR_16DIRECT(base, offset, word)       alt_write_hword((unsigned int)base + (unsigned int)offset, word)
-#define IOWR_8DIRECT(base, offset, byte)        alt_write_byte((unsigned int)base + (unsigned int)offset, byte)
-
-/* STATUS register */
-#define ALTERA_AVALON_TIMER_STATUS_REG              0
-#define IOADDR_ALTERA_AVALON_TIMER_STATUS(base) \
-    __IO_CALC_ADDRESS_NATIVE(base, ALTERA_AVALON_TIMER_STATUS_REG)
-#define IORD_ALTERA_AVALON_TIMER_STATUS(base) \
-    IORD16(base, ALTERA_AVALON_TIMER_STATUS_REG)
-#define IOWR_ALTERA_AVALON_TIMER_STATUS(base, data) \
-    IOWR16(base, ALTERA_AVALON_TIMER_STATUS_REG, data)
-#define ALTERA_AVALON_TIMER_STATUS_TO_MSK           (0x1)
-#define ALTERA_AVALON_TIMER_STATUS_TO_OFST          (0)
-#define ALTERA_AVALON_TIMER_STATUS_RUN_MSK          (0x2)
-#define ALTERA_AVALON_TIMER_STATUS_RUN_OFST         (1)
-
-/* CONTROL register */
-#define ALTERA_AVALON_TIMER_CONTROL_REG             1
-#define IOADDR_ALTERA_AVALON_TIMER_CONTROL(base) \
-    __IO_CALC_ADDRESS_NATIVE(base, ALTERA_AVALON_TIMER_CONTROL_REG)
-#define IORD_ALTERA_AVALON_TIMER_CONTROL(base) \
-    IORD16(base, ALTERA_AVALON_TIMER_CONTROL_REG)
-#define IOWR_ALTERA_AVALON_TIMER_CONTROL(base, data) \
-    IOWR16(base, ALTERA_AVALON_TIMER_CONTROL_REG, data)
-#define ALTERA_AVALON_TIMER_CONTROL_ITO_MSK         (0x1)
-#define ALTERA_AVALON_TIMER_CONTROL_ITO_OFST        (0)
-#define ALTERA_AVALON_TIMER_CONTROL_CONT_MSK        (0x2)
-#define ALTERA_AVALON_TIMER_CONTROL_CONT_OFST       (1)
-#define ALTERA_AVALON_TIMER_CONTROL_START_MSK       (0x4)
-#define ALTERA_AVALON_TIMER_CONTROL_START_OFST      (2)
-#define ALTERA_AVALON_TIMER_CONTROL_STOP_MSK        (0x8)
-#define ALTERA_AVALON_TIMER_CONTROL_STOP_OFST       (3)
-
-/* Period and SnapShot Register for COUNTER_SIZE = 32 */
-/*----------------------------------------------------*/
-/* PERIODL register */
-#define ALTERA_AVALON_TIMER_PERIODL_REG             2
-#define IOADDR_ALTERA_AVALON_TIMER_PERIODL(base) \
-    __IO_CALC_ADDRESS_NATIVE(base, ALTERA_AVALON_TIMER_PERIODL_REG)
-#define IORD_ALTERA_AVALON_TIMER_PERIODL(base) \
-    IORD16(base, ALTERA_AVALON_TIMER_PERIODL_REG)
-#define IOWR_ALTERA_AVALON_TIMER_PERIODL(base, data) \
-    IOWR16(base, ALTERA_AVALON_TIMER_PERIODL_REG, data)
-#define ALTERA_AVALON_TIMER_PERIODL_MSK             (0xFFFF)
-#define ALTERA_AVALON_TIMER_PERIODL_OFST            (0)
-
-/* PERIODH register */
-#define ALTERA_AVALON_TIMER_PERIODH_REG             3
-#define IOADDR_ALTERA_AVALON_TIMER_PERIODH(base) \
-    __IO_CALC_ADDRESS_NATIVE(base, ALTERA_AVALON_TIMER_PERIODH_REG)
-#define IORD_ALTERA_AVALON_TIMER_PERIODH(base) \
-    IORD16(base, ALTERA_AVALON_TIMER_PERIODH_REG)
-#define IOWR_ALTERA_AVALON_TIMER_PERIODH(base, data) \
-    IOWR16(base, ALTERA_AVALON_TIMER_PERIODH_REG, data)
-#define ALTERA_AVALON_TIMER_PERIODH_MSK             (0xFFFF)
-#define ALTERA_AVALON_TIMER_PERIODH_OFST            (0)
-
-/* SNAPL register */
-#define ALTERA_AVALON_TIMER_SNAPL_REG               4
-#define IOADDR_ALTERA_AVALON_TIMER_SNAPL(base) \
-    __IO_CALC_ADDRESS_NATIVE(base, ALTERA_AVALON_TIMER_SNAPL_REG)
-#define IORD_ALTERA_AVALON_TIMER_SNAPL(base) \
-    IORD16(base, ALTERA_AVALON_TIMER_SNAPL_REG)
-#define IOWR_ALTERA_AVALON_TIMER_SNAPL(base, data) \
-    IOWR16(base, ALTERA_AVALON_TIMER_SNAPL_REG, data)
-#define ALTERA_AVALON_TIMER_SNAPL_MSK               (0xFFFF)
-#define ALTERA_AVALON_TIMER_SNAPL_OFST              (0)
-
-/* SNAPH register */
-#define ALTERA_AVALON_TIMER_SNAPH_REG               5
-#define IOADDR_ALTERA_AVALON_TIMER_SNAPH(base) \
-    __IO_CALC_ADDRESS_NATIVE(base, ALTERA_AVALON_TIMER_SNAPH_REG)
-#define IORD_ALTERA_AVALON_TIMER_SNAPH(base) \
-    IORD16(base, ALTERA_AVALON_TIMER_SNAPH_REG)
-#define IOWR_ALTERA_AVALON_TIMER_SNAPH(base, data) \
-    IOWR16(base, ALTERA_AVALON_TIMER_SNAPH_REG, data)
-#define ALTERA_AVALON_TIMER_SNAPH_MSK               (0xFFFF)
-#define ALTERA_AVALON_TIMER_SNAPH_OFST              (0)
-
+/* GPIO register read write macros */
 #define IOADDR_ALTERA_AVALON_PIO_DATA(base)                 __IO_CALC_ADDRESS_NATIVE(base, 0)
 #define IORD_ALTERA_AVALON_PIO_DATA(base)                   IORD32(base, 0)
 #define IOWR_ALTERA_AVALON_PIO_DATA(base, data)             IOWR32(base, 0, data)
@@ -193,6 +110,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define IORD_ALTERA_AVALON_PIO_CLEAR_BITS(base)             IORD32(base, 5)
 #define IOWR_ALTERA_AVALON_PIO_CLEAR_BITS(base, data)       IOWR32(base, 5, data)
 
+// Target IO functions
+// - Write
+#define OPLK_IO_WR32(base, offset, dword)   alt_write_word((unsigned int)base + (unsigned int)offset, dword)
+#define OPLK_IO_WR16(base, offset, word)    alt_write_hword((unsigned int)base + (unsigned int)offset, word)
+#define OPLK_IO_WR8(base, offset, byte)     alt_write_byte((unsigned int)base + (unsigned int)offset, byte)
+
+// - Read
+#define OPLK_IO_RD32(base, offset)          alt_read_word((unsigned int)base + (unsigned int)offset)
+#define OPLK_IO_RD16(base, offset)          alt_read_hword((unsigned int)base + (unsigned int)offset)
+#define OPLK_IO_RD8(base, offset)           alt_read_byte((unsigned int)base + (unsigned int)offset)
+
+// Target data cache functions
+#define OPLK_DCACHE_FLUSH(addr, len)        ((void)0)
+#define OPLK_DCACHE_INVALIDATE(addr, len)   ((void)0)
+
+// Target memory barrier function
+#define OPLK_MEMBAR()
+
 /* NOTE:
  * ARM does not support atomic instructions, hence, pseudo atomic
  * macro is applied with spin lock.
@@ -212,7 +147,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define CACHE_ALIGNED_BYTE_CHECK    (ALT_CACHE_LINE_SIZE - 1)
 
-#ifdef ENABLE_CACHE
+#ifdef ALTARM_CACHE_ENABLE
 #define OPLK_DCACHE_FLUSH(base, range)                                                                                                                \
     ({                                                                                                                                                \
          uint32_t tempBase = (uint32_t) (((uint32_t) base) & ~((uint32_t) CACHE_ALIGNED_BYTE_CHECK));                                                 \

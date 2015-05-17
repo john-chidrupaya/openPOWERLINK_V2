@@ -177,7 +177,7 @@ tOplkError target_init(void)
     tOplkError          oplkRet = kErrorOk;
     ALT_STATUS_CODE     halRet = ALT_E_SUCCESS;
 
-#ifdef ENABLE_CACHE
+#ifdef ALTARM_CACHE_ENABLE
     // Enable Cache
     halRet = alt_cache_system_enable();
 #else
