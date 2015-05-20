@@ -116,6 +116,14 @@ then
     echo "INFO: tc_i_mem is used by the system!"
 fi
 
+if [ -z "${CFG_DRV_DEF_MEM_NAME}" ];
+then
+    BSP_GEN_ARGS+=""
+else
+    BSP_GEN_ARGS+="--default_sections_mapping ${CFG_DRV_DEF_MEM_NAME} "
+    echo "INFO: The default memory is changed to ${CFG_DRV_DEF_MEM_NAME}"
+fi
+
 if [ -n "${CFG_DRV_MAX_HEAP_BYTES}" ];
 then
     BSP_GEN_ARGS+="--set hal.make.bsp_cflags_user_flags -DALT_MAX_HEAP_BYTES=${CFG_DRV_MAX_HEAP_BYTES} "
