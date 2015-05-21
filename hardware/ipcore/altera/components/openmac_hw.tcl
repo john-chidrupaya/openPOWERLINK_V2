@@ -227,11 +227,13 @@ proc fileset_callback { entityName } {
     set path_lib        lib/src
     set path_openmac    openmac/src
     set path_fifo       fifo/src
+    set path_memory     memory/src
 
     add_fileset_file "global.vhd"                     VHDL PATH "${dir_common}/${path_lib}/global.vhd"
     add_fileset_file "addrDecodeRtl.vhd"              VHDL PATH "${dir_common}/${path_lib}/addrDecodeRtl.vhd"
     add_fileset_file "cntRtl.vhd"                     VHDL PATH "${dir_common}/${path_lib}/cntRtl.vhd"
     add_fileset_file "dpRam-e.vhd"                    VHDL PATH "${dir_common}/${path_lib}/dpRam-e.vhd"
+    add_fileset_file "dpRamOpenmac-e.vhd"             VHDL PATH "${dir_common}/${path_memory}/dpRamOpenmac-e.vhd"
     add_fileset_file "dpRamSplx-e.vhd"                VHDL PATH "${dir_common}/${path_lib}/dpRamSplx-e.vhd"
     add_fileset_file "edgedetectorRtl.vhd"            VHDL PATH "${dir_common}/${path_lib}/edgedetectorRtl.vhd"
     add_fileset_file "synchronizerRtl.vhd"            VHDL PATH "${dir_common}/${path_lib}/synchronizerRtl.vhd"
@@ -250,6 +252,7 @@ proc fileset_callback { entityName } {
     add_fileset_file "openmac-rtl-ea.vhd"             VHDL PATH "${dir_common}/${path_openmac}/openmac-rtl-ea.vhd"
     add_fileset_file "openmacTop-rtl-ea.vhd"          VHDL PATH "${dir_common}/${path_openmac}/openmacTop-rtl-ea.vhd"
     add_fileset_file "dpRam-rtl-a.vhd"                VHDL PATH "${dir_altera}/${path_lib}/dpRam-rtl-a.vhd"
+    add_fileset_file "dpRamOpenmac-rtl-a.vhd"         VHDL PATH "${dir_altera}/${path_memory}/dpRamOpenmac-rtl-a.vhd"
     add_fileset_file "dpRamSplx-rtl-a.vhd"            VHDL PATH "${dir_altera}/${path_lib}/dpRamSplx-rtl-a.vhd"
     add_fileset_file "asyncFifo-syn-a.vhd"            VHDL PATH "${dir_altera}/${path_fifo}/asyncFifo-syn-a.vhd"
     add_fileset_file "alteraOpenmacTop-rtl-ea.vhd"    VHDL PATH "${dir_altera}/${path_openmac}/alteraOpenmacTop-rtl-ea.vhd"

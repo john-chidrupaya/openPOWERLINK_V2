@@ -587,7 +587,7 @@ gnTxTime:    if not gTimerEnable generate
 end generate;
 
     --! This DPRAM holds the Tx descriptor accessible by the host and the DMA.
-    TXRAM : entity work.dpRam
+    TXRAM : entity work.dpRamOpenmac
         generic map (
             gWordWidth      => iWritedata'length,
             gNumberOfWords  => 256,
@@ -1185,7 +1185,7 @@ ngRxTime:    if not gTimerEnable generate
 end generate;
 
     --! This DPRAM holds the Rx descriptor accessible by the host and the DMA.
-    RXRAM : entity work.dpRam
+    RXRAM : entity work.dpRamOpenmac
         generic map (
             gWordWidth      => iWritedata'length,
             gNumberOfWords  => 256,
