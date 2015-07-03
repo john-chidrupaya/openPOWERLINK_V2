@@ -208,7 +208,7 @@ static int __init powerlinkInit(void)
 
     if ((err = alloc_chrdev_region(&plkDev_g, plkMinor_g, plkNrDevs_g, PLK_DRV_NAME)) < 0)
     {
-        DEBUG_LVL_ERROR_TRACE ("PLK: Failing allocating major number\n");
+        DEBUG_LVL_ERROR_TRACE("PLK: Failing allocating major number\n");
         return err;
     }
 
@@ -525,7 +525,7 @@ static void powerlinkVmaClose(struct vm_area_struct* vma)
 \brief  Execute control command ioctl
 
 The function implements the calling of the executeCmd function in the control
-module using the ioctl interface..
+module using the ioctl interface.
 
 \ingroup module_driver_linux_kernel
 */
@@ -555,7 +555,7 @@ static int executeCmd(unsigned long arg)
 \brief  Store init param ioctl
 
 The function implements the calling of the storeInitParam function in the
-control module using the ioctl interface..
+control module using the ioctl interface.
 
 \ingroup module_driver_linux_kernel
 */
@@ -577,7 +577,7 @@ static int storeInitParam(unsigned long arg)
 \brief  Read init param ioctl
 
 The function implements the calling of the readInitParam function in the control
-module using the ioctl interface..
+module using the ioctl interface.
 
 \ingroup module_driver_linux_kernel
 */
@@ -598,7 +598,7 @@ static int readInitParam(unsigned long arg)
 \brief  Get status ioctl
 
 The function implements the calling of the getStatus function in the control
-module using the ioctl interface..
+module using the ioctl interface.
 
 \ingroup module_driver_linux_kernel
 */
@@ -700,7 +700,7 @@ static int writeErrorObject(unsigned long arg)
 /**
 \brief  Read error object ioctl
 
-The function implements the ioctl for reading error objects
+The function implements the ioctl for reading error objects.
 
 \ingroup module_driver_linux_kernel
 */
