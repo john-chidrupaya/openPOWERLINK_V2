@@ -3,7 +3,7 @@
 # CMake script for finding the openPOWERLINK library
 #
 # Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
-# Copyright (c) 2014, Kalycito Infotech Private Limited
+# Copyright (c) 2015, Kalycito Infotech Private Limited
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,8 @@ MACRO(FIND_OPLK_LIBRARY OPLK_NODE_TYPE)
             SET(OPLKLIB_NAME oplk${OPLK_NODE_TYPE}app-userintf)
         ELSEIF (CFG_KERNEL_STACK_KERNEL_MODULE)
             SET(OPLKLIB_NAME oplk${OPLK_NODE_TYPE}app-kernelintf)
+        ELSEIF (CFG_KERNEL_STACK_PCIE_INTF)
+            SET(OPLKLIB_NAME oplk${OPLK_NODE_TYPE}app-kernelpcie)
         ENDIF (CFG_KERNEL_STACK_DIRECTLINK)
 
     ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -83,7 +85,12 @@ MACRO(FIND_OPLK_LIBRARY OPLK_NODE_TYPE)
     SET(OPLKLIB_DEBUG_NAME "${OPLKLIB_NAME}_d")
 
     # Set oplk library directory
+<<<<<<< HEAD
     SET(OPLKLIB_DIR ${OPLK_BASE_DIR}/stack/lib/${SYSTEM_NAME_DIR}/${SYSTEM_PROCESSOR_DIR})
+=======
+    SET(OPLKLIB_DIR ${OPLK_ROOT_DIR}/stack/lib/${SYSTEM_NAME_DIR}/${SYSTEM_PROCESSOR_DIR})
+    INCLUDE_DIRECTORIES(${OPLKLIB_DIR}/${OPLKLIB_NAME})
+>>>>>>> 4be8727... [TASK] Add demo host application for Linux PCIe interface
 
     IF((CMAKE_GENERATOR MATCHES "Visual Studio") OR (CMAKE_BUILD_TYPE STREQUAL "Release"))
         # Search for release library
