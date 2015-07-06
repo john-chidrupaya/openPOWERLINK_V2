@@ -1,15 +1,14 @@
 /**
 ********************************************************************************
-\file   dualprocshm-winpcie.c
+\file   dualprocshm-linuxpci.c
 
-\brief  Dual processor library - Windows PCIe
+\brief  Dual Processor Library Support File - Linux PCIe
 
-This file provides specific function definitions to support the PCIe interface
-using dual processor library.
+This file provides specific function definitions to support PCIe interface on
+Linux, using dual processor library.
 
 \ingroup module_dualprocshm
 *******************************************************************************/
-
 /*------------------------------------------------------------------------------
 Copyright (c) 2015 Kalycito Infotech Private Limited
 All rights reserved.
@@ -41,9 +40,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // includes
 //------------------------------------------------------------------------------
 
-#include <dualprocshm-target.h>
-
-#include <ndis-intf.h>
+#include <dualprocshm.h>
+#include <common/target.h>
 
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
@@ -52,6 +50,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
+#define DEFAULT_LOCK_ID             0x00    ///< Default lock Id
 
 //------------------------------------------------------------------------------
 // module global vars
@@ -72,12 +71,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
 //============================================================================//
+
 //------------------------------------------------------------------------------
 /**
 \brief  Get common memory address for platform
 
-Target specific routine to retrieve the base address of the common memory shared
-between the two processors.
+Target specific routine to retrieve the base address of common memory between
+two processors.
 
 \param  pSize_p      Minimum size of the common memory on input, returns the
                      actual size of common memory as output.
@@ -94,7 +94,7 @@ UINT8* dualprocshm_getCommonMemAddr(UINT16* pSize_p)
     if (*pSize_p > MAX_COMMON_MEM_SIZE )
         return NULL;
 
-    pAddr = (UINT8*)ndis_getBarAddr(OPLK_PCIEBAR_COMM_MEM);
+    pAddr = (UINT8*)pcieDrv_getBarAddr(OPLK_PCIEBAR_COMM_MEM);
 
     if (pAddr == NULL)
         return NULL;
@@ -122,13 +122,12 @@ void dualprocshm_releaseCommonMemAddr(UINT16 pSize_p)
 
 //------------------------------------------------------------------------------
 /**
-\brief  Get shared memory base address and size
+\brief  Get shared memory information for platform
 
-Target specific routine to retrieve the base address of the shared memory region
-between two processors.
+Target specific routine to retrieve the shared memory base and size.
 
-\param  pSize_p     Pointer to the minimum size of the shared memory,
-                    returns the actual size of shared memory.
+\param  pSize_p      Minimum size of the shared memory, returns the
+                     actual size of shared memory.
 
 \return Pointer to base address of shared memory.
 
@@ -138,7 +137,7 @@ between two processors.
 UINT8*  dualprocshm_getSharedMemInst(UINT32* pSize_p)
 {
     UINT8*   pAddr;
-    ULONG    shmLength = ndis_getBarLength(OPLK_PCIEBAR_SHM);
+    ULONG    shmLength = pcieDrv_getBarLength(OPLK_PCIEBAR_SHM);
 
     if (*pSize_p > shmLength)
     {
@@ -147,8 +146,7 @@ UINT8*  dualprocshm_getSharedMemInst(UINT32* pSize_p)
         return NULL;
     }
 
-    pAddr = (UINT8*)(ndis_getBarAddr(OPLK_PCIEBAR_SHM));
-
+    pAddr = (UINT8*)(pcieDrv_getBarAddr(OPLK_PCIEBAR_SHM));
     *pSize_p = shmLength;
 
     return pAddr;
@@ -168,7 +166,7 @@ dynamic mapping table.
 //------------------------------------------------------------------------------
 UINT8* dualprocshm_getDynMapTableAddr(void)
 {
-    UINT8*     pAddr = (UINT8*)ndis_getBarAddr(OPLK_PCIEBAR_COMM_MEM);
+    UINT8*     pAddr = (UINT8*)pcieDrv_getBarAddr(OPLK_PCIEBAR_COMM_MEM);
 
     if (pAddr == NULL)
         return NULL;
@@ -207,7 +205,7 @@ interrupt synchronization registers.
 //------------------------------------------------------------------------------
 UINT8* dualprocshm_getIntrMemAddr(void)
 {
-    UINT8*     pAddr = (UINT8*)ndis_getBarAddr(OPLK_PCIEBAR_COMM_MEM);
+    UINT8*     pAddr = (UINT8*)pcieDrv_getBarAddr(OPLK_PCIEBAR_COMM_MEM);
 
     if (pAddr == NULL)
         return NULL;
@@ -219,9 +217,9 @@ UINT8* dualprocshm_getIntrMemAddr(void)
 
 //------------------------------------------------------------------------------
 /**
-\brief  Free interrupt synchronization address
+\brief  Free interrupt synchronization base address
 
-Target specific routine to free the address used for storing
+Target specific routine to free the base address used for storing
 interrupt synchronization registers.
 
 \ingroup module_dualprocshm
@@ -238,9 +236,9 @@ void dualprocshm_releaseIntrMemAddr()
 
 Target specific memory read routine.
 
-\param  pBase_p    Address to be read
-\param  size_p     No of bytes to be read
-\param  pData_p    Pointer to receive the read data
+\param  pBase_p    Address to read data from.
+\param  size_p     Number of bytes to be read.
+\param  pData_p    Pointer to store the read data.
 
 \ingroup module_dualprocshm
  */
@@ -264,9 +262,9 @@ void dualprocshm_targetReadData(UINT8* pBase_p, UINT16 size_p, UINT8* pData_p)
 
 Target specific routine used to write data to the specified memory address.
 
-\param  pBase_p      Address to be written
-\param  size_p       No of bytes to write
-\param  pData_p      Pointer to memory containing data to written
+\param  pBase_p      Address to write data to.
+\param  size_p       Number of bytes to be written.
+\param  pData_p      Pointer to memory containing data to be written.
 
 \ingroup module_dualprocshm
  */
@@ -288,82 +286,64 @@ void dualprocshm_targetWriteData(UINT8* pBase_p, UINT16 size_p, UINT8* pData_p)
 /**
 \brief  Target specific memory lock routine(acquire)
 
-This routine implements a target specific locking mechanism using the shared
-memory between two processors/processes. The caller needs to pass the base
-address and processor instance of the calling processor.
+This routine provides support for a token based lock using the common memory.
+The caller needs to pass the base address and the token for locking a resource
+such as memory buffers
 
-The locking is achieved using Peterson's algorithm
-\ref https://en.wikipedia.org/wiki/Peterson's_algorithm
-
-\param  pBase_p           Base address of the lock memory
-\param  procInstance_p    Processor instance of the calling processor
+\param  pBase_p         Base address of the lock memory
+\param  lockToken_p     Token to be used for locking
 
 \ingroup module_dualprocshm
  */
 //------------------------------------------------------------------------------
-void dualprocshm_targetAcquireLock(tDualprocLock* pBase_p, tDualProcInstance procInstance_p)
+void dualprocshm_targetAcquireLock(UINT8* pBase_p, UINT8 lockToken_p)
 {
-    tDualprocLock*      pLock = (tDualprocLock*)pBase_p;
-    tDualProcInstance   otherProcInstance;
+    UINT8    lock = 0;
 
-    if (pLock == NULL)
-        return;
-
-    switch (procInstance_p)
+    if (pBase_p == NULL)
     {
-        case kDualProcFirst:
-            otherProcInstance = kDualProcSecond;
-            break;
-
-        case kDualProcSecond:
-            otherProcInstance = kDualProcFirst;
-            break;
-
-        default:
-            TRACE("Invalid processor instance\n");
-            return;
+        TRACE("%s Invalid parameters\n", __FUNCTION__);
+        return;
     }
 
-    DUALPROCSHM_INVALIDATE_DCACHE_RANGE(pLock, sizeof(tDualprocLock));
-
-    DPSHM_WRITE8(&pLock->afFlag[procInstance_p], 1);
-    DUALPROCSHM_FLUSH_DCACHE_RANGE(&pLock->afFlag[procInstance_p],
-                                   sizeof(pLock->afFlag[procInstance_p]));
-
-    DPSHM_WRITE8(&pLock->turn, otherProcInstance);
-    DUALPROCSHM_FLUSH_DCACHE_RANGE(&pLock->turn, sizeof(pLock->turn));
-
-    DPSHM_DMB();
-
+    // spin till the passed token is written into memory
     do
     {
-        DUALPROCSHM_INVALIDATE_DCACHE_RANGE(pLock, sizeof(tDualprocLock));
-    } while (DPSHM_READ8(&pLock->afFlag[otherProcInstance]) &&
-             (DPSHM_READ8(&pLock->turn) == otherProcInstance));
+        lock = DPSHM_READ8(pBase_p);
+        rmb();
+
+        if (lock == DEFAULT_LOCK_ID)
+        {
+            DPSHM_WRITE8(pBase_p, lockToken_p);
+            wmb();
+            continue;
+        }
+    } while (lock != lockToken_p);
 }
 
 //------------------------------------------------------------------------------
 /**
 \brief  Target specific memory lock routine(release)
 
-This routine is used to release a lock acquired at a specified address.
+This routine is used to release a lock acquired before at a address specified
 
-\param  pBase_p           Base address of the lock memory
-\param  procInstance_p    Processor instance of the calling processor
+\param  pBase_p         Base address of the lock memory
 
 \ingroup module_dualprocshm
  */
 //------------------------------------------------------------------------------
-void dualprocshm_targetReleaseLock(tDualprocLock* pBase_p, tDualProcInstance procInstance_p)
+void dualprocshm_targetReleaseLock(UINT8* pBase_p)
 {
-    tDualprocLock*  pLock = (tDualprocLock*)pBase_p;
+    UINT8    defaultlock = DEFAULT_LOCK_ID;
 
-    if (pLock == NULL)
+    if (pBase_p == NULL)
+    {
+        TRACE("%s Invalid parameters\n", __FUNCTION__);
         return;
+    }
 
-    DPSHM_WRITE8(&pLock->afFlag[procInstance_p], 0);
-    DUALPROCSHM_FLUSH_DCACHE_RANGE(&pLock->afFlag[procInstance_p],
-                                   sizeof(pLock->afFlag[procInstance_p]));
+    DPSHM_WRITE8(pBase_p, defaultlock);
+    wmb();
 }
 
 //------------------------------------------------------------------------------
@@ -371,10 +351,10 @@ void dualprocshm_targetReleaseLock(tDualprocLock* pBase_p, tDualProcInstance pro
 \brief Register synchronization interrupt handler
 
 The function registers the ISR for the target specific synchronization interrupt
-used by the application for PDO and event synchronization.
+used by the application for synchronization.
 
-\param  callback_p              Interrupt handler
-\param  pArg_p                  Argument to be passed while calling the handler
+\param  callback_p              Interrupt handler.
+\param  pArg_p                  Argument to be passed when calling the handler.
 
 \ingroup module_dualprocshm
 */
@@ -410,3 +390,4 @@ void dualprocshm_enableSyncIrq(BOOL fEnable_p)
 /// \{
 
 /// \}
+
