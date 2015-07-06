@@ -68,6 +68,18 @@ Data type for the enumerator \ref eMemMapReturn.
 */
 typedef UINT32 tMemMapReturn;
 
+/**
+\brief Structure holding the memory parameters
+
+The structure holds the kernel pointer and the mapped user memory pointer.
+*/
+typedef struct
+{
+    UINT32      memSize;
+    BYTE*       pKernelBuf;
+    void*       pUserBuf;
+} tMemmap;
+
 //------------------------------------------------------------------------------
 // function prototypes
 //------------------------------------------------------------------------------
