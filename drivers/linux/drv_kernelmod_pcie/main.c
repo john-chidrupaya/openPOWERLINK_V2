@@ -174,7 +174,7 @@ static int          getEventForUser(unsigned long arg);
 static int          postEventFromUser(unsigned long arg);
 
 static int          mapMemoryForUserIoctl(unsigned long arg_p);
-static int          mapMemoryForUserMmap(BYTE** ppUserBuf_p, ULONGLONG* pKernelBuf_p);
+//static int          mapMemoryForUserMmap(BYTE** ppUserBuf_p, ULONGLONG* pKernelBuf_p);
 //TODO Remove this. This is the signature for older(< 2.6.19) kernels' <.nopage> implementation
 //struct page*        powerlinkNoPage(struct vm_area_struct *vma, unsigned long address, int *type);
 static int          powerlinkNoPage(struct vm_area_struct*vma, struct vm_fault*vmf);
@@ -351,7 +351,7 @@ static int powerlinkNoPage(struct vm_area_struct*vma, struct vm_fault*vmf)
     unsigned long       pfn;
 
     printk("%s() --> vma_start: 0x%X, vma_end: 0x%X, vma_pgoff: 0x%X, vmf_pgoff: 0x%X, vmf_page: 0x%X\n",
-           __func__, vma->vm_start, vma->vm_end, vma->vm_pgoff, vmf->pgoff, vmf->page);
+           __func__, (UINT)vma->vm_start, (UINT)vma->vm_end, (UINT)vma->vm_pgoff, (UINT)vmf->pgoff, (UINT)vmf->page);
     pfn = virt_to_phys(instance_l.pPdoMem);
     page = virt_to_page(instance_l.pPdoMem);
     vmf->page = page + (vmf->pgoff << PAGE_SHIFT);
@@ -497,6 +497,7 @@ static int  powerlinkIoctl(struct inode* dev, struct file* filp,
         case PLK_CMD_PDO_SYNC:
             if (instance_l.fSyncEnabled == FALSE)
             {
+                //TODO Solve the callback type mismatch warning and replace the pdo module if necessary.
                 pcieDrv_regSyncHandler(pdokcal_sendSyncEvent);
                 pcieDrv_enableSync(TRUE);
             }
@@ -552,7 +553,6 @@ static int powerlinkMmap(struct file* filp, struct vm_area_struct* vma)
     tOplkError      ret = kErrorOk;
     tPdoMemRegion*  pPdoMem_l = NULL;
     ULONG           pfn = 0;
-    int             i = 0;
 
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
                            __func__, vma->vm_start, vma->vm_end, vma->vm_pgoff);
@@ -656,7 +656,6 @@ This function waits for events to the user.
 //------------------------------------------------------------------------------
 int getEventForUser(ULONG arg)
 {
-    tOplkError      error;
     int             ret;
     size_t          readSize;
     signed long     timeout = 10 * HZ / 1000;   // 10ms timeout
@@ -722,7 +721,6 @@ int postEventFromUser(ULONG arg)
     tOplkError      ret = kErrorOk;
     tEvent          event;
     BYTE*           pArg = NULL;
-    int             order = 0;
 
     if (copy_from_user(&event, (const void __user*)arg, sizeof(tEvent)))
         return -EFAULT;
@@ -737,14 +735,14 @@ int postEventFromUser(ULONG arg)
             return -EIO;
 
         //TRACE("%s() allocated %d Bytes at %p\n", __func__, event.eventArgSize, pArg);
-        if (copy_from_user(pArg, (const void __user*)event.pEventArg, event.eventArgSize))
+        if (copy_from_user(pArg, (const void __user*)event.eventArg.pEventArg, event.eventArgSize))
         {
             //free_pages((ULONG)pArg, order);
             OPLK_FREE(pArg);
             return -EFAULT;
         }
 
-        event.pEventArg = (ULONGLONG)pArg;
+        event.eventArg.pEventArg = (void*)pArg;
     }
 
     switch (event.eventSink)
@@ -804,8 +802,6 @@ module using the ioctl interface.
 static int executeCmd(unsigned long arg)
 {
     tCtrlCmd    ctrlCmd;
-    UINT16      ret;
-    UINT16      status;
 
     if (copy_from_user(&ctrlCmd, (const void __user*)arg, sizeof(tCtrlCmd)))
         return -EFAULT;
@@ -912,7 +908,6 @@ static int sendAsyncFrame(unsigned long arg)
 {
     BYTE*                   pBuf;
     tIoctlDllCalAsync       asyncFrameInfo;
-    tFrameInfo              frameInfo;
     int                     order;
 
     order = get_order(C_DLL_MAX_ASYNC_MTU);
@@ -933,7 +928,7 @@ static int sendAsyncFrame(unsigned long arg)
     //TRACE("%s() Received frame size:%d\n", __func__, asyncFrame.size);
 
     asyncFrameInfo.pData = pBuf;
-    drv_sendAsyncFrame(&asyncFrameInfo);
+    drv_sendAsyncFrame((unsigned char*)&asyncFrameInfo);
 
     free_pages((ULONG)pBuf, order);
 
@@ -952,7 +947,6 @@ The function implements the ioctl for writing an error object.
 static int writeErrorObject(unsigned long arg)
 {
     tErrHndIoctl        writeObject;
-    tErrHndObjects*     errorObjects;
 
     if (copy_from_user(&writeObject, (const void __user*)arg, sizeof(tErrHndIoctl)))
         return -EFAULT;
@@ -974,7 +968,6 @@ The function implements the ioctl for reading error objects.
 static int readErrorObject(unsigned long arg)
 {
     tErrHndIoctl        readObject;
-    tErrHndObjects*     errorObjects;
 
     if (copy_from_user(&readObject, (const void __user*)arg, sizeof(tErrHndIoctl)))
         return -EFAULT;
@@ -1038,37 +1031,37 @@ static int mapMemoryForUserIoctl(unsigned long arg_p)
     return ret;
 }
 
-//------------------------------------------------------------------------------
-/**
-\brief  Map PCP memory into user memory
-
-The function maps the PCP memory into user memory
-//FIXME Remove this function after mmap finalization.
-
-\ingroup module_driver_linux_kernel
-*/
-//------------------------------------------------------------------------------
-static int mapMemoryForUserMmap(BYTE** ppUserBuf_p, ULONGLONG* pKernelBuf_p)
-{
-    void*           pShmMemLocal = NULL;
-    ULONGLONG       pShmMemRemote = NULL;
-    int             ret = 0;
-
-    drv_mapKernelMem((UINT8**)&pShmMemRemote, (UINT8**)&pShmMemLocal);
-
-    if (*pKernelBuf_p <= pShmMemRemote)
-    {
-        *ppUserBuf_p = NULL;
-        ret = -EFAULT;
-    }
-    else
-    {
-        *pKernelBuf_p = *pKernelBuf_p - pShmMemRemote; // change the actual offset of vm struct
-        *ppUserBuf_p = (void*)(*pKernelBuf_p + (ULONGLONG)pShmMemLocal);
-        ret = 0;
-    }
-
-    return ret;
-}
+////------------------------------------------------------------------------------
+///**
+//\brief  Map PCP memory into user memory
+//
+//The function maps the PCP memory into user memory
+////FIXME Remove this function after mmap finalization.
+//
+//\ingroup module_driver_linux_kernel
+//*/
+////------------------------------------------------------------------------------
+//static int mapMemoryForUserMmap(BYTE** ppUserBuf_p, ULONGLONG* pKernelBuf_p)
+//{
+//    void*           pShmMemLocal = NULL;
+//    ULONGLONG       pShmMemRemote = (ULONGLONG)NULL;
+//    int             ret = 0;
+//
+//    drv_mapKernelMem((UINT8**)&pShmMemRemote, (UINT8**)&pShmMemLocal);
+//
+//    if (*pKernelBuf_p <= (ULONG)pShmMemRemote)
+//    {
+//        *ppUserBuf_p = NULL;
+//        ret = -EFAULT;
+//    }
+//    else
+//    {
+//        *pKernelBuf_p = *pKernelBuf_p - pShmMemRemote; // change the actual offset of vm struct
+//        *ppUserBuf_p = (void*)(*pKernelBuf_p + (ULONGLONG)pShmMemLocal);
+//        ret = 0;
+//    }
+//
+//    return ret;
+//}
 
 ///\}

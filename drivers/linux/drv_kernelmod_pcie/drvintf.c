@@ -160,7 +160,6 @@ copying it into the common control structure.
 void drv_executeCmd(tCtrlCmd* pCtrlCmd_p)
 {
     tOplkError      ret;
-    UINT16          status;
     UINT16          cmd = pCtrlCmd_p->cmd;
     int             timeout;
 
@@ -518,9 +517,6 @@ void drv_postEvent(void* pEvent_p)
 {
     tOplkError          ret = kErrorOk;
     tCircBufError       circError;
-    BYTE                event[sizeof(tEvent) + MAX_EVENT_ARG_SIZE];
-    char*               pArg = NULL;
-    size_t*             pSize_p;
 
     tCircBufInstance*   pCircBufInstance = drvIntfInstance_l.eventQueueInst[kEventQueueU2K];
 
@@ -534,7 +530,7 @@ void drv_postEvent(void* pEvent_p)
     else
     {
         circError = circbuf_writeMultipleData(pCircBufInstance, pEvent_p, sizeof(tEvent),
-                                              (void*)((tEvent*)pEvent_p)->pEventArg, ((tEvent*)pEvent_p)->eventArgSize);
+                                              ((tEvent*)pEvent_p)->eventArg.pEventArg, ((tEvent*)pEvent_p)->eventArgSize);
     }
 
     if (circError != kCircBufOk)
@@ -741,22 +737,44 @@ tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p)
 {
     tDualprocReturn             dualRet;
     tMemInfo*                   pKernel2UserMemInfo = &drvIntfInstance_l.kernel2UserMem;
-    tDualprocSharedMemInst      sharedMemInst;
+    tDualprocSharedMemInst      localProcSharedMemInst;
+    tDualprocSharedMemInst      remoteProcSharedMemInst;
+    tDualProcInstance           localProcInst;
+    tDualProcInstance           remoteProcInst;
 
     if (ppKernelMem_p == NULL || ppUserMem_p == NULL)
         return kErrorNoResource;
 
-    dualRet = dualprocshm_getSharedMemInfo(drvIntfInstance_l.dualProcDrvInst, &sharedMemInst);
 
-    if (dualRet != kDualprocSuccessful || sharedMemInst.pLocalBase == NULL)
+    localProcInst = dualprocshm_getLocalProcInst();
+    remoteProcInst = dualprocshm_getRemoteProcInst();
+
+
+    //TODO Check for a valid DPSHM handle initialisation
+    // read the local processor's shared memory base address
+    dualRet = dualprocshm_getSharedMemInfo(drvIntfInstance_l.dualProcDrvInst,
+                                           localProcInst, &localProcSharedMemInst);
+
+    if (dualRet != kDualprocSuccessful || localProcSharedMemInst.baseAddr == (UINT64)NULL)
     {
         DEBUG_LVL_ERROR_TRACE("%s() Unable to map kernel memory error %x\n",
                               __func__, dualRet);
         return kErrorNoResource;
     }
 
-    pKernel2UserMemInfo->pKernelVa = sharedMemInst.pLocalBase;
-    pKernel2UserMemInfo->memSize = sharedMemInst.span;
+    //TODO Avoid multiple calls to the same function for base addresses
+    dualRet = dualprocshm_getSharedMemInfo(drvIntfInstance_l.dualProcDrvInst,
+                                           localProcInst, &remoteProcSharedMemInst);
+
+    if (dualRet != kDualprocSuccessful || remoteProcSharedMemInst.baseAddr == (UINT64)NULL)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s() Unable to map kernel memory error %x\n",
+                              __func__, dualRet);
+        return kErrorNoResource;
+    }
+
+    pKernel2UserMemInfo->pKernelVa = (void*)localProcSharedMemInst.baseAddr;
+    pKernel2UserMemInfo->memSize = remoteProcSharedMemInst.span;
 
     if (mapMemory(pKernel2UserMemInfo) != kErrorOk)
     {
@@ -765,7 +783,7 @@ tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p)
     }
 
     *ppUserMem_p = pKernel2UserMemInfo->pUserVa;
-    *ppKernelMem_p = (UINT8*)sharedMemInst.remoteBase;
+    *ppKernelMem_p = (UINT8*)remoteProcSharedMemInst.baseAddr;
 
     return kErrorOk;
 }
