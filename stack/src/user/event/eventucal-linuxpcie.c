@@ -385,7 +385,7 @@ static void* eventKThread(void* arg_p)
                     pEvent->eventType, debugstr_getEventTypeStr(pEvent->eventType),
                     pEvent->eventSink, debugstr_getEventSinkStr(pEvent->eventSink));*/
             if (pEvent->eventArgSize != 0)
-                pEvent->pEventArg = (char*)pEvent + sizeof(tEvent);
+                pEvent->eventArg.pEventArg = (char*)pEvent + sizeof(tEvent);
 
             ret = eventu_process(pEvent);
         }
@@ -411,13 +411,7 @@ This function implements the event thread.
 //------------------------------------------------------------------------------
 static void* eventUThread(void* arg_p)
 {
-    tEvent*     pEvent;
-    int         ret;
-    char        eventBuf[sizeof(tEvent) + MAX_EVENT_ARG_SIZE];
-
     UNUSED_PARAMETER(arg_p);
-
-    pEvent = (tEvent*)eventBuf;
 
     while (!instance_l.fStopUserThread)
     {

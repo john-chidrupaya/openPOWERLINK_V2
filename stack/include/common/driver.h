@@ -136,7 +136,7 @@ typedef struct
 #include <common/driver-linux.h>
 #endif
 
-#else if (TARGET_SYSTEM == _WIN32_)
+#elif (TARGET_SYSTEM == _WIN32_)
 #include <common/driver-windows.h>
 #endif
 

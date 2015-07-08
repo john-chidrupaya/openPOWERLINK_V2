@@ -134,7 +134,6 @@ lock is freed.
 INT target_lock(void)
 {
     OPLK_LOCK_T     val;
-    UINT32          acqWaitCount = 0;
 
     if (pLock_l == NULL)
         return -1;

@@ -44,6 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <common/memmap.h>
 #include <oplk/targetsystem.h>
 #include <common/driver.h>
+#include <user/ctrlucal.h>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -83,7 +84,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // local vars
 //------------------------------------------------------------------------------
-static int fd_l;
+static INT fd_l;
 static BYTE aAsyncFrameSwapBuf_l[C_DLL_MAX_ASYNC_MTU];
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -123,7 +124,7 @@ The function shuts down the memory mapping service.
 //------------------------------------------------------------------------------
 tMemMapReturn memmap_shutdown(void)
 {
-    fd_l = NULL;
+    fd_l = (INT)NULL;
     return kMemMapOk;
 }
 
@@ -134,20 +135,21 @@ tMemMapReturn memmap_shutdown(void)
 The function maps a kernel buffer address.
 
 \param  pKernelBuffer_p     The pointer to the kernel buffer.
+\param  bufferSize_p        The size of the kernel buffer.
 
 \return The functions returns the pointer to the mapped kernel buffer.
 
 \ingroup module_lib_memmap
 */
 //------------------------------------------------------------------------------
-void* memmap_mapKernelBuffer(void* pKernelBuffer_p)
+void* memmap_mapKernelBuffer(void* pKernelBuffer_p, UINT bufferSize_p)
 {
     int         ret = 0;
     tMemmap     memmap;
 
-    memmap.pKernelBuf = (size_t)pKernelBuffer_p;
+    memmap.pKernelBuf = pKernelBuffer_p;
     memmap.pUserBuf = aAsyncFrameSwapBuf_l;
-    memmap.memSize = C_DLL_MAX_ASYNC_MTU;
+    memmap.memSize = bufferSize_p;
 
     if ((ret = ioctl(fd_l, PLK_CMD_MEMMAP_MAP_MEM, &memmap)) != 0)
     {
