@@ -37,6 +37,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef _INC_dualprocshm_pcie_H_
 #define _INC_dualprocshm_pcie_H_
 
+
+#define OPLK_OPTIMIZE               TRUE                        ///< No optimization for the dualprocessor library for openPOWERLINK stack
+
 #if defined(_KERNEL_MODE)
 
 #include <dualprocshm-winkernel.h>

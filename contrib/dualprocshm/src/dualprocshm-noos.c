@@ -599,7 +599,7 @@ tDualprocReturn dualprocshm_readDataCommon(tDualprocDrvInstance pInstance_p,
     if ((pReadBase + size_p) > (pCommMemBase + pDrvInst->config.commonMemSize))
         return kDualprocBufferError;
 
-    dualprocshm_targetReadData(pReadBase, (UINT16)size_p, pData_p);
+    dualprocshm_targetReadData(pReadBase, (UINT16) size_p, pData_p);
 
     return kDualprocSuccessful;
 }
