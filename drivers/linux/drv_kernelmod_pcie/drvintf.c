@@ -86,6 +86,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // const defines
 //------------------------------------------------------------------------------
 #define CMD_TIMEOUT_CNT                 500 // Loop count for command timeout in units of 10ms
+#define DPSHM_ENABLE_TIMEOUT_SEC        10      // wait for dpshm interface enable time out
 //------------------------------------------------------------------------------
 // local types
 //------------------------------------------------------------------------------
@@ -440,6 +441,7 @@ tOplkError drv_initDualProcDrv(void)
 {
     tDualprocReturn     dualRet;
     tDualprocConfig     dualProcConfig;
+    INT                 loopCount = 0;
 
     TRACE(" Initialize Driver interface...\n");
     //TODO Change this to the init function for the interface and add check for
@@ -457,6 +459,21 @@ tOplkError drv_initDualProcDrv(void)
         DEBUG_LVL_ERROR_TRACE(" %s(): Could not create dual processor driver instance (0x%X)\n",
                               __func__, dualRet);
         dualprocshm_delete(drvIntfInstance_l.dualProcDrvInst);
+        return kErrorNoResource;
+    }
+
+    for (loopCount = 0; loopCount <= DPSHM_ENABLE_TIMEOUT_SEC; loopCount++)
+    {
+        msleep(1000U);
+        dualRet = dualprocshm_checkShmIntfState(instance_l.dualProcDrvInst);
+        if (dualRet != kDualprocshmIntfDisabled)
+            break;
+    }
+
+    if (dualRet != kDualprocshmIntfEnabled)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s dualprocshm  interface is not enabled (0x%X)\n",
+                              __func__, dualRet);
         return kErrorNoResource;
     }
 
