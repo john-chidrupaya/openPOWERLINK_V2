@@ -465,7 +465,7 @@ tOplkError drv_initDualProcDrv(void)
     for (loopCount = 0; loopCount <= DPSHM_ENABLE_TIMEOUT_SEC; loopCount++)
     {
         msleep(1000U);
-        dualRet = dualprocshm_checkShmIntfState(instance_l.dualProcDrvInst);
+        dualRet = dualprocshm_checkShmIntfState(drvIntfInstance_l.dualProcDrvInst);
         if (dualRet != kDualprocshmIntfDisabled)
             break;
     }
