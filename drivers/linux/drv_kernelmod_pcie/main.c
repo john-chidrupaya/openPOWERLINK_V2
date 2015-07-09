@@ -994,6 +994,7 @@ static int mapMemoryForUserIoctl(unsigned long arg_p)
     tMemmap         memMapParams;
     int             ret = 0;
     tOplkError      retVal = kErrorOk;
+    void*           mappedUserBuf = NULL;
 
     //FIXME Rework this function to return the ioremapped PCP memory offset alone,
     // so that mmap() can be called from user layer using the offset. This will avoid
@@ -1005,28 +1006,27 @@ static int mapMemoryForUserIoctl(unsigned long arg_p)
     if (retVal != kErrorOk)
     {
         DEBUG_LVL_ERROR_TRACE("%s() --> Error: Unable to locate shared memory region\n");
-        memMapParams.pUserBuf = NULL;
+        //memMapParams.pUserBuf = NULL; // Not needed, let user free its own memory; just return error.
         ret = -EFAULT;
     }
     else if (memMapParams.pKernelBuf <= instance_l.pShmMemRemote)
     {
         DEBUG_LVL_ERROR_TRACE("%s() --> Error: PCP buffer pointer lies outside the shared memory region\n");
-        memMapParams.pUserBuf = NULL;
+        //memMapParams.pUserBuf = NULL;
         ret = -EFAULT;
     }
     else
     {
-        memMapParams.pUserBuf = (void*)(((UINT32)memMapParams.pKernelBuf - (ULONG)instance_l.pShmMemRemote) +
-                                        (ULONG)instance_l.pShmMemLocal);
+        mappedUserBuf = (void*)(((UINT32)memMapParams.pKernelBuf - (ULONG)instance_l.pShmMemRemote) +
+                                (ULONG)instance_l.pShmMemLocal);
         DEBUG_INTF("LA: 0x%lX, RA: 0x%lX, KA: 0x%lX, UA: 0x%lX\n",
                    (ULONG)instance_l.pShmMemLocal, (ULONG)instance_l.pShmMemRemote,
-                   (ULONG)memMapParams.pKernelBuf, (ULONG)memMapParams.pUserBuf);
-        OPLK_MEMCPY(aAsyncFrameSwapBuf_l, memMapParams.pUserBuf, sizeof(aAsyncFrameSwapBuf_l));
-        memMapParams.pUserBuf = aAsyncFrameSwapBuf_l;
+                   (ULONG)memMapParams.pKernelBuf, (ULONG)mappedUserBuf);
+        OPLK_MEMCPY(aAsyncFrameSwapBuf_l, mappedUserBuf, sizeof(aAsyncFrameSwapBuf_l));
         ret = 0;
     }
 
-    copy_to_user((void __user*)arg_p, &memMapParams, offsetof(tMemmap, pUserBuf) + sizeof(aAsyncFrameSwapBuf_l));
+    copy_to_user((void __user*)memMapParams.pUserBuf, aAsyncFrameSwapBuf_l, sizeof(aAsyncFrameSwapBuf_l));
 
     return ret;
 }
