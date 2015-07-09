@@ -764,7 +764,7 @@ tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p)
 
     //TODO Avoid multiple calls to the same function for base addresses
     dualRet = dualprocshm_getSharedMemInfo(drvIntfInstance_l.dualProcDrvInst,
-                                           localProcInst, &remoteProcSharedMemInst);
+                                           remoteProcInst, &remoteProcSharedMemInst);
 
     if (dualRet != kDualprocSuccessful || remoteProcSharedMemInst.baseAddr == (UINT64)NULL)
     {
