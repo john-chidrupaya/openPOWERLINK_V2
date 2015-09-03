@@ -313,6 +313,12 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
     if ((ret = initObd(&ctrlInstance_l.initParam)) != kErrorOk)
         goto Exit;
 
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+    //TODO @J // register store/restore callback function
+              // initialize target-specific EplTgtObdArc module
+              // Read signatures of diff OD parts
+#endif
+
 #if defined(CONFIG_INCLUDE_NMT_MN)
     ret = linkDomainObjects(linkObjectRequestsMn, tabentries(linkObjectRequestsMn));
 #endif
@@ -491,6 +497,12 @@ tOplkError ctrlu_shutdownStack(void)
     /* shutdown kernel stack */
     ret = ctrlucal_executeCmd(kCtrlCleanupStack, &retVal);
     DEBUG_LVL_CTRL_TRACE("shoutdown kernel modules():  0x%X\n", ret);
+
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+    //TODO @J // De-register store/restore callback function
+              // shutdown target-specific EplTgtObdArc module
+              // Write signatures of diff OD parts???
+#endif
 
 #if (CONFIG_OBD_USE_LOAD_CONCISEDCF != FALSE)
     obdcdc_exit();
@@ -819,6 +831,21 @@ tOplkError ctrlu_cbObdAccess(tObdCbParam MEM* pParam_p)
             break;
 #endif
 
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+        //TODO @J callbacks for Obd Access
+        case 0x1010:    // NMT_StoreParam_REC
+        {
+            // Store call back
+            break;
+        }
+
+        case 0x1011:    // NMT_RestoreDefParam_REC
+        {
+            // Restore call back
+            break;
+        }
+#endif
+
         default:
             break;
     }
@@ -1041,6 +1068,9 @@ static tOplkError cbNmtStateChange(tEventNmtStateChange nmtStateChange_p)
             if (ret != kErrorOk)
                 return ret;
 
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+            //TODO @J check if non-volatile memory of OD archive is valid
+#endif
             // $$$ d.k.: update OD only if OD was not loaded from non-volatile memory
             ret = updateObd(&ctrlInstance_l.initParam);
             if (ret != kErrorOk)
@@ -2004,5 +2034,334 @@ UINT32 getRequiredKernelFeatures(void)
 
     return requiredKernelFeatures;
 }
+
+#if (EPL_OBD_USE_STORE_RESTORE != FALSE)
+// ----------------------------------------------------------------------------
+//
+// Function:    EplApiCbStore()
+//
+// Description: callback function, called by OBD module, that notifies of
+//              access to object 0x1010
+//              Writing will only done if following conditions are meet:
+//              - The signature 'save' is correct.
+//              - The selected part of OD supports the writing to non-volatile
+//                memory by command. If the device does not support saving
+//                parameters then abort transfer with abort code 0x08000020.
+//                If device supports only autonomously writing then abort
+//                transfer with abort code 0x08000021.
+//              - The memory device is ready for writing or the device is in
+//                the right state for writing. If this condition not fullfilled
+//                abort transfer (0x08000022).
+//
+// Parameters:  pParam_p               = address to calling parameters
+//
+// Returns:     tEplKernel             = error code
+//
+// ----------------------------------------------------------------------------
+static tEplKernel PUBLIC EplApiCbStore(tEplObdCbParam MEM* pParam_p)
+{
+tEplKernel          Ret         = kEplSuccessful;
+tEplObdPart         ObdPart     = kEplObdPartNo;
+DWORD               dwCap       = 0;
+
+    if ((pParam_p->m_uiSubIndex == 0)
+        || ((pParam_p->m_ObdEvent != kEplObdEvPreWrite)
+            && (pParam_p->m_ObdEvent != kEplObdEvPostRead)))
+    {
+        goto Exit;
+    }
+
+    Ret = EplTgtObdArcGetCapabilities(pParam_p->m_uiIndex, pParam_p->m_uiSubIndex,
+                                      &ObdPart, &dwCap);
+    if (Ret != kEplSuccessful)
+    {
+        pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
+        goto Exit;
+    }
+
+    // function is called before writing to OD
+    if (pParam_p->m_ObdEvent == kEplObdEvPreWrite)
+    {
+        // check if signature "save" will be written to object 0x1010
+        if (*((DWORD GENERIC*) pParam_p->m_pArg) != 0x65766173L)
+        {
+            // abort SDO because wrong signature
+            pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_OR_STORED;
+            Ret = kEplWrongSignature;
+            goto Exit;
+        }
+
+        // Does device support saving by command?
+        if ((dwCap & EPL_OBD_STORE_ON_COMMAND) == 0)
+        {
+            // device does not support saving parameters or not by command
+            if ((dwCap & EPL_OBD_STORE_AUTONOMOUSLY) != 0)
+            {
+                // Device saves parameters autonomously.
+                pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_DUE_LOCAL_CONTROL;
+            }
+            else
+            {
+                // Device does not support saving parameters.
+                pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_OR_STORED;
+            }
+
+            Ret = kEplStoreInvalidState;
+            goto Exit;
+        }
+
+        // read all storable objects of selected OD part and store the
+        // current object values to non-volatile memory
+        Ret = EplObdAccessOdPart(ObdPart, kEplObdDirStore);
+        if (Ret != kEplSuccessful)
+        {
+            // abort SDO because access failed
+            pParam_p->m_dwAbortCode = EPL_SDOAC_ACCESS_FAILED_DUE_HW_ERROR;
+            goto Exit;
+        }
+    }
+
+    // function is called after reading from OD
+    else if (pParam_p->m_ObdEvent == kEplObdEvPostRead)
+    {
+        // WARNING: This does not work on big endian machines!
+        //          The SDO adoptable object handling feature provides a clean
+        //          way to implement it.
+        *((DWORD GENERIC*) pParam_p->m_pArg) = dwCap;
+    }
+
+Exit:
+    return Ret;
+}
+
+// ----------------------------------------------------------------------------
+//
+// Function:    EplApiCbRestore()
+//
+// Description: callback function, called by OBD module, that notifies of
+//              access to object 0x1011
+//              Reseting default parameters will only be done if following
+//              conditions are meet:
+//              - The signature 'load' is correct.
+//              - The selected part of OD supports the restoring parameters
+//                by command. If the device does not support restoring
+//                parameters then abort transfer with abort code 0x08000020.
+//              - The memory device is ready for restoring or the device is in
+//                the right state for restoring. If this condition not fullfilled
+//                abort transfer (0x08000022).
+//              - Restoring is done by declaring the stored parameters as invalid.
+//                The function does not load the default parameters. This is only done
+//                by command reset node or reset communication or power-on.
+//
+// Parameters:  pParam_p               = address to calling parameters
+//
+// Returns:     tEplKernel             = error code
+//
+// ----------------------------------------------------------------------------
+static tEplKernel PUBLIC EplApiCbRestore(tEplObdCbParam MEM* pParam_p)
+{
+tEplKernel          Ret         = kEplSuccessful;
+tEplObdPart         ObdPart     = kEplObdPartNo;
+DWORD               dwCap       = 0;
+
+    if ((pParam_p->m_uiSubIndex == 0)
+        || ((pParam_p->m_ObdEvent != kEplObdEvPreWrite)
+            && (pParam_p->m_ObdEvent != kEplObdEvPostRead)))
+    {
+        goto Exit;
+    }
+
+    Ret = EplTgtObdArcGetCapabilities(pParam_p->m_uiIndex, pParam_p->m_uiSubIndex,
+                                      &ObdPart, &dwCap);
+    if (Ret != kEplSuccessful)
+    {
+        pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
+        goto Exit;
+    }
+
+    // was this function was called before writing to OD
+    if (pParam_p->m_ObdEvent == kEplObdEvPreWrite)
+    {
+        // check if signature "load" will be written to object 0x1010 subindex X
+        if (*((DWORD GENERIC*) pParam_p->m_pArg) != 0x64616F6CL)
+        {
+            // abort SDO
+            pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_OR_STORED;
+            Ret = kEplWrongSignature;
+            goto Exit;
+        }
+
+        // Does device support saving by command?
+        if ((dwCap & EPL_OBD_STORE_ON_COMMAND) == 0)
+        {
+            // Device does not support saving parameters.
+            pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_OR_STORED;
+
+            Ret = kEplStoreInvalidState;
+            goto Exit;
+        }
+
+        Ret = EplObdAccessOdPart(ObdPart, kEplObdDirRestore);
+        if (Ret != kEplSuccessful)
+        {
+            // abort SDO
+            pParam_p->m_dwAbortCode = EPL_SDOAC_ACCESS_FAILED_DUE_HW_ERROR;
+            goto Exit;
+        }
+    }
+
+    // function is called after reading from OD
+    else if (pParam_p->m_ObdEvent == kEplObdEvPostRead)
+    {
+        // WARNING: This does not work on big endian machines!
+        //          The SDO adoptable object handling feature provides a clean
+        //          way to implement it.
+        *((DWORD GENERIC*) pParam_p->m_pArg) = dwCap;
+    }
+
+Exit:
+    return Ret;
+}
+
+// ----------------------------------------------------------------------------
+//
+// Function:    EplApiCbStoreLoadObject()
+//
+// Description: callback function, called by OBD module, that notifies of
+//              commands STORE or LOAD
+//              The function is called with the selected OD part:
+//              ODPart = kObdPartGen: 0x1000-0x1FFF
+//                     = kObdPartMan: 0x2000-0x5FFF
+//                     = kObdPartDev: 0x6000-0x9FFF
+//              For each part the function creates an archiv an saves
+//              the parameters. Following command sequence is used:
+//              1. kEplObdCommOpenWrite(Read)  --> create archiv (set last archiv invalid)
+//              2. kEplObdCommWrite(Read)Obj   --> write data to archiv
+//              3. kEplObdCommCloseWrite(Read) --> close archiv (set archiv valid)
+//
+// Parameters:  pData_p                = address to object data in OD
+//              ObjSize_p              = size of this object
+//              Direction_p            = direction (STORE to medium or LOAD from medium)
+//
+// Returns:     tEplKernel             = error code
+//
+// ----------------------------------------------------------------------------
+static tEplKernel PUBLIC EplApiCbStoreLoadObject(
+    tEplObdCbStoreParam MEM* pCbStoreParam_p)
+{
+tEplKernel      Ret     = kEplSuccessful;
+tEplObdPart     OdPart  = pCbStoreParam_p->m_bCurrentOdPart; // only one bit is set!
+BOOL            fValid;
+
+    // which event is notified
+    switch (pCbStoreParam_p->m_bCommand)
+    {
+        //-------------------------------------------------
+        case kEplObdCommOpenWrite:
+        {
+            // create archiv to write all objects of this OD part
+            Ret = EplTgtObdArcCreate(OdPart);
+            break;
+        }
+
+        //-------------------------------------------------
+        case kEplObdCommWriteObj:
+        {
+            // store value from pData_p (with size ObjSize_p) to memory medium
+            Ret = EplTgtObdArcStore(OdPart,
+                                (BYTE GENERIC*) pCbStoreParam_p->m_pData,
+                                pCbStoreParam_p->m_ObjSize);
+            break;
+        }
+
+        //-------------------------------------------------
+        case kEplObdCommCloseRead:
+        case kEplObdCommCloseWrite:
+        {
+            Ret = EplTgtObdArcClose(OdPart);
+            break;
+        }
+
+        //-------------------------------------------------
+        case kEplObdCommOpenRead:
+        {
+            // at first open the stream for reading (then check for valid stream)
+            Ret = EplTgtObdArcOpen(OdPart);
+            if (Ret != kEplSuccessful)
+            {
+                goto Exit;
+            }
+
+            // check signature for data valid on medium for this OD part
+            fValid = EplTgtObdArcCheckValid(OdPart);
+            if (fValid == FALSE)
+            {
+                EplTgtObdArcClose(OdPart);
+
+                Ret = kEplStoreInvalidState;
+                goto Exit;
+            }
+            break;
+        }
+
+        //-------------------------------------------------
+        case kEplObdCommReadObj:
+        {
+            Ret = EplTgtObdArcRestore(OdPart,
+                                    (BYTE GENERIC*) pCbStoreParam_p->m_pData,
+                                    pCbStoreParam_p->m_ObjSize);
+            break;
+        }
+
+        //-------------------------------------------------
+        case kEplObdCommClear:
+        {
+            Ret = EplTgtObdArcDelete(OdPart);
+            break;
+        }
+    }
+
+Exit:
+    return Ret;
+}
+
+// ----------------------------------------------------------------------------
+//
+// Function:    EplApiStoreCheckArchiveState()
+//
+// Description: checks if the specified OD archive part in non-volatile memory
+//              is valid.
+//
+// Parameters:  ObdPart_p               = OD part
+//
+// Returns:     tEplKernel              = error code
+//
+// ----------------------------------------------------------------------------
+static tEplKernel PUBLIC EplApiStoreCheckArchiveState(
+    tEplObdPart     ObdPart_p)
+{
+tEplKernel      Ret     = kEplSuccessful;
+BOOL            fValid;
+
+    // at first open the stream for reading (then check for valid stream)
+    Ret = EplTgtObdArcOpen(ObdPart_p);
+    if (Ret != kEplSuccessful)
+    {
+        goto Exit;
+    }
+
+    // check signature for data valid on medium for this OD part
+    fValid = EplTgtObdArcCheckValid(ObdPart_p);
+    if (fValid == FALSE)
+    {
+        Ret = kEplStoreInvalidState;
+    }
+
+    EplTgtObdArcClose(ObdPart_p);
+
+Exit:
+    return Ret;
+}
+#endif
 
 /// \}
