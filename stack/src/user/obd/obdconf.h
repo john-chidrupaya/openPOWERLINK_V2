@@ -77,9 +77,9 @@
 //---------------------------------------------------------------------------
 
 // storage read access parameters for objects 0x1010 and 0x1011 (see EPSG 301)
-#define EPL_OBD_STORE_UNSUPPORTED   0x00000000L
-#define EPL_OBD_STORE_ON_COMMAND    0x00000001L
-#define EPL_OBD_STORE_AUTONOMOUSLY  0x00000002L
+#define OBD_STORE_UNSUPPORTED   0x00000000L
+#define OBD_STORE_ON_COMMAND    0x00000001L
+#define OBD_STORE_AUTONOMOUSLY  0x00000002L
 
 
 //---------------------------------------------------------------------------
@@ -90,219 +90,19 @@
 //---------------------------------------------------------------------------
 // function prototypes
 //---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-//
-// Function:     EplTgtObdArcInit()
-//
-// Description:  initializes functionality for STORE, RESTORE and LOAD
-//               for OD values in other memory media, initializes
-//               interface to non-volatile memory
-//
-// Parameters:   void
-//
-// Returns:      tOplkError             = error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcInit (void);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:     EplTgtObdArcShutdown()
-//
-// Description:  disable interface to non-volatile memory
-//
-// Parameters:   void
-//
-// Returns:      tOplkError             = error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcShutdown (void);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcCreate()
-//
-// Description: Function creates an archive for the selected OD part. An
-//              existing archive is set invalid.
-//
-// Parameters:  CurrentOdPart_p         = selected OD-part
-//
-// Returns:     tOplkError              = error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcCreate (
-    tEplObdPart CurrentOdPart_p);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcDelete()
-//
-// Description: Function sets an archive invalid.
-//
-// Parameters:  CurrentOdPart_p         = selected OD-part
-//
-// Returns:     tOplkError              = error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcDelete (
-    tEplObdPart CurrentOdPart_p);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcOpen()
-//
-// Description: Function opens an existing archive for reading.
-//
-// Parameters:  CurrentOdPart_p         = selected OD-part
-//
-// Returns:     tOplkError              = error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcOpen (
-    tEplObdPart CurrentOdPart_p);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcClose()
-//
-// Description: Function closes an archive for the selected OD part by
-//              setting a valid signature.
-//
-// Parameters:  CurrentOdPart_p         = selected OD-part
-//
-// Returns:     tOplkError              = error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcClose (
-    tEplObdPart CurrentOdPart_p);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcStore()
-//
-// Description: Function saves the parameter of the select part into
-//              non-volatile memory.
-//
-// Parameters:  CurrentOdPart_p         = selected OD-part
-//              pbData                  = pointer to source data
-//              dwSize_p                = number of bytes
-//
-// Returns:     tOplkError              = error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcStore (
-    tEplObdPart CurrentOdPart_p, BYTE GENERIC *pbData, DWORD dwSize_p);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcRestore()
-//
-// Description: Function reads the parameter from memory and stores the
-//              value into the selected OD part.
-//
-// Parameters:  CurrentOdPart_p         = selected OD-part
-//              pbData                  = pointer to destination data
-//              dwSize_p                = number of bytes
-//
-// Returns:     tOplkError              = error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcRestore (
-    tEplObdPart CurrentOdPart_p, BYTE GENERIC *pbData, DWORD dwSize_p);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcGetCapabilities()
-//
-// Description: The function returns the storage capabilities corresponding
-//              to the specified object index and sub-index.
-//              Additionally it returns the OD part corresponding to the
-//              specified sub-index.
-//
-// Parameters:  uiIndex_p           = [IN] identifies command (0x1010 = save, 0x1011 = restore)
-//              uiSubIndex_p        = [IN] identifies OD part
-//              pOdPart_p           = [OUT] pointer to OD part
-//              pdwCap_p            = [OUT] pointer to capabilities bit-field
-//                  EPL_OBD_STORE_UNSUPPORTED  = 0x00000000 - Device does not save parameters.
-//                  EPL_OBD_STORE_ON_COMMAND   = 0x00000001 - Device saves parameters on command.
-//                  EPL_OBD_STORE_AUTONOMOUSLY = 0x00000002 - Device saves parameters autonomously.
-//
-// Returns:     tOplkError              = error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcGetCapabilities (
-    unsigned int uiIndex_p, unsigned int uiSubIndex_p,
-    tEplObdPart* pOdPart_p, DWORD* pdwCap_p);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcCheckValid()
-//
-// Description: Function checks up if signature of selected OD
-//              part is valid. EplTgtObdArcOpen() has to be called before.
-//
-// Parameters:  CurrentOdPart_p         = selected OD-part
-//
-// Returns:     FALSE  -> signature is invalid
-//              TRUE   -> signature is valid
-//
-//---------------------------------------------------------------------------
-
-BOOL EplTgtObdArcCheckValid (
-    tEplObdPart CurrentOdPart_p);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcSetBackupPath()
-//
-// Description: Function set the file path for backup archive.
-//
-// Parameters:  pszBackupPath_p        = selected OD-part
-//
-// Returns:     tOplkError -> error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcSetBackupPath (
-    const char* pszBackupPath_p);
-
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcSetSignature()
-//
-// Description: Function sets the OD signature for backup archive.
-//
-// Parameters:  CurrentOdPart_p         = selected OD-part
-//              dwSignature_p           = OD signature
-//
-// Returns:     tOplkError  -> error code
-//
-//---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcSetSignature (
-    tEplObdPart CurrentOdPart_p, DWORD dwSignature_p);
-
+tOplkError obdconf_init(void);
+tOplkError obdconf_exit(void);
+tOplkError obdconf_createPart(tObdPart odPart_p);
+tOplkError obdconf_deletePart (tObdPart odPart_p);
+tOplkError obdconf_openPart(tObdPart odPart_p);
+tOplkError obdconf_closePart(tObdPart odPart_p);
+tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p);
+tOplkError obdconf_restorePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p);
+tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
+                                         tObdPart* pOdPart_p, UINT32* pDevCap_p);
+BOOL obdconf_verifyPartSignature(tObdPart odPart_p);
+tOplkError obdconf_setBackupArchivePath(const char* pBackupPath_p);
+tOplkError obdconf_setPartSignature(tObdPart odPart_p, UINT32 signature_p);
 
 #endif  // #ifndef _EPLTGTOBDARC_H_
 

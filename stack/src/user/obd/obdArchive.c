@@ -119,11 +119,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // const defines
 //------------------------------------------------------------------------------
 #ifndef EPLTGTOBDARC_FILENAME_PREFIX
-    #define EPLTGTOBDARC_FILENAME_PREFIX        "oplkOd"
+    #define OBD_ARCHIVE_FILENAME_PREFIX        "oplkOd"
 #endif
 
 #ifndef EPLTGTOBDARC_FILENAME_EXTENSION
-    #define EPLTGTOBDARC_FILENAME_EXTENSION     ".bin"
+    #define OBD_ARCHIVE_FILENAME_EXTENSION     ".bin"
 #endif
 
 //------------------------------------------------------------------------------
@@ -134,12 +134,11 @@ typedef struct
     INT         hBkupArchiveFile;
     char*       pBackupPath;
     BOOL        fOpenForWrite;
-    UINT32      odSigPartDev;
-    UINT32      odSigPartGen;
-    UINT32      odSigPartMan;
+    UINT32      odSignPartDev;
+    UINT32      odSignPartGen;
+    UINT32      odSignPartMan;
     UINT16      odDataCrc;
-}
-tObdConfInstance;
+}tObdConfInstance;
 
 //------------------------------------------------------------------------------
 // local vars
@@ -150,57 +149,55 @@ static tObdConfInstance aObdConfInstance_l[1];
 //------------------------------------------------------------------------------
 // local function prototypes
 //------------------------------------------------------------------------------
-static tOplkError EplTgtObdArcGetFilePath( tObdPart odPart_p,
-    char* pszBkupPath_p, char* pszFilePathName_p);
+static tOplkError getFilePath(tObdPart odPart_p, char* pBkupPath_p,
+                              char* pFilePathName_p);
 
 /***************************************************************************/
-/*                                                                         */
-/*                                                                         */
 /*          C L A S S  <Store/Load>                                        */
-/*                                                                         */
-/*                                                                         */
 /***************************************************************************/
-//
-//  Description:
-//
-//  File XXX%d_Com.bin:
-//          +----------------------+
-//  0x0000  | target signature     | (4 byte)
-//          +----------------------+
-//  0x0004  | OD signature of part | (4 byte)
-//          |  0x1000 - 0x1FFF     |
-//          +----------------------+
-//  0x0008  | all OD data of part  | (n byte)
-//          |  0x1000 - 0x1FFF     |
-//          +----------------------+
-//  0xNNNN  | OD data CRC          | (2 byte)
-//          +----------------------+
-//
-//  File XXX%d_Man.bin:
-//          +----------------------+
-//  0x0000  | target signature     | (4 byte)
-//          +----------------------+
-//  0x0004  | OD signature of part | (4 byte)
-//          |  0x2000 - 0x5FFF     |
-//          +----------------------+
-//  0x0008  | all OD data of part  | (n byte)
-//          |  0x2000 - 0x5FFF     |
-//          +----------------------+
-//  0xNNNN  | OD data CRC          | (2 byte)
-//          +----------------------+
-//
-//  File XXX%d_Dev.bin:
-//          +----------------------+
-//  0x0000  | target signature     | (4 byte)
-//          +----------------------+
-//  0x0004  | OD signature of part | (4 byte)
-//          |  0x6000 - 0x9FFF     |
-//          +----------------------+
-//  0x0008  | all OD data of part  | (n byte)
-//          |  0x6000 - 0x9FFF     |
-//          +----------------------+
-//  0xNNNN  | OD data CRC          | (2 byte)
-//          +----------------------+
+/**
+  Description:
+
+  File XXX%d_Com.bin:
+          +----------------------+
+  0x0000  | target signature     | (4 byte)
+          +----------------------+
+  0x0004  | OD signature of part | (4 byte)
+          |  0x1000 - 0x1FFF     |
+          +----------------------+
+  0x0008  | all OD data of part  | (n byte)
+          |  0x1000 - 0x1FFF     |
+          +----------------------+
+  0xNNNN  | OD data CRC          | (2 byte)
+          +----------------------+
+
+  File XXX%d_Man.bin:
+          +----------------------+
+  0x0000  | target signature     | (4 byte)
+          +----------------------+
+  0x0004  | OD signature of part | (4 byte)
+          |  0x2000 - 0x5FFF     |
+          +----------------------+
+  0x0008  | all OD data of part  | (n byte)
+          |  0x2000 - 0x5FFF     |
+          +----------------------+
+  0xNNNN  | OD data CRC          | (2 byte)
+          +----------------------+
+
+  File XXX%d_Dev.bin:
+          +----------------------+
+  0x0000  | target signature     | (4 byte)
+          +----------------------+
+  0x0004  | OD signature of part | (4 byte)
+          |  0x6000 - 0x9FFF     |
+          +----------------------+
+  0x0008  | all OD data of part  | (n byte)
+          |  0x6000 - 0x9FFF     |
+          +----------------------+
+  0xNNNN  | OD data CRC          | (2 byte)
+          +----------------------+
+*/
+
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
 //============================================================================//
@@ -298,7 +295,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     pInstEntry = &aObdConfInstance_l[0];
 
     // get the file path for current OD part and instance
-    ret = EplTgtObdArcGetFilePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
+    ret = getFilePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
     {
         goto Exit;
@@ -315,15 +312,15 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     switch (odPart_p)
     {
         case kObdPartGen:
-            odSignature = pInstEntry->odSigPartGen;
+            odSignature = pInstEntry->odSignPartGen;
             break;
 
         case kObdPartMan:
-            odSignature = pInstEntry->odSigPartMan;
+            odSignature = pInstEntry->odSignPartMan;
             break;
 
         case kObdPartDev:
-            odSignature = pInstEntry->odSigPartDev;
+            odSignature = pInstEntry->odSignPartDev;
             break;
 
         default:
@@ -336,27 +333,36 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     pInstEntry->hBkupArchiveFile = open(aFilePath, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666); //TODO@J Move to target source
     if (pInstEntry->hBkupArchiveFile < 0)
     {
-        pInstEntry->hBkupArchiveFile = (-1);
+        pInstEntry->hBkupArchiveFile = -1;
         goto Exit;
     }
 
     // write target signature and calculate CRC for it
-    pInstEntry->odDataCrc = CALCULATE_CRC16(0, (UINT8 GENERIC*) &obdConfSignature_l, sizeof (obdConfSignature_l));
-    writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8 FAR*) &obdConfSignature_l, sizeof (obdConfSignature_l));
+    pInstEntry->odDataCrc = CALCULATE_CRC16(0,
+                                            (UINT8*)&obdConfSignature_l,
+                                            sizeof(obdConfSignature_l));
+    writeCount = write(pInstEntry->hBkupArchiveFile,
+                       (UINT8*)&obdConfSignature_l,
+                       sizeof(obdConfSignature_l));
     if (writeCount != (INT)sizeof(obdConfSignature_l))
     {
         goto Exit;
     }
 
     // write OD signature and calculate CRC for it
-    pInstEntry->odDataCrc = CALCULATE_CRC16(pInstEntry->odDataCrc, (UINT8 GENERIC*) &odSignature, sizeof (odSignature));
-    writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8 FAR*) &odSignature, sizeof (odSignature));
+    pInstEntry->odDataCrc = CALCULATE_CRC16(pInstEntry->odDataCrc,
+                                            (UINT8*)&odSignature,
+                                            sizeof(odSignature));
+    writeCount = write(pInstEntry->hBkupArchiveFile,
+                       (UINT8*)&odSignature,
+                       sizeof(odSignature));
     if (writeCount != (INT)sizeof(odSignature))
     {
         goto Exit;
     }
 
     ret = kErrorOk;
+
 Exit:
     return ret;
 
@@ -385,20 +391,21 @@ tOplkError obdconf_deletePart (tObdPart odPart_p)
     pInstEntry = &aObdConfInstance_l[0];
 
     // get the file path for current OD part and instance
-    ret = EplTgtObdArcGetFilePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
+    ret = getFilePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
     {
         goto Exit;
     }
 
     // delete the backup archive file
-    if (unlink(aFilePath) == (-1)) //TODO@J Move to target specific source
+    if (unlink(aFilePath) == -1) //TODO@J Move to target specific source--> close()??
     {
         ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
     ret = kErrorOk;
+
 Exit:
     return ret;
 
@@ -409,7 +416,7 @@ Exit:
 //
 // Function:    EplTgtObdArcOpen()
 //
-// Description: Function opens an in existence archiv.
+// Description: Function opens an in existence archive.
 //
 // Parameters:  void  = (instance handle)
 //              CurrentOdPart_p       = OD-part
@@ -420,7 +427,7 @@ Exit:
 
 tOplkError obdconf_openPart(tObdPart odPart_p)
 {
-    UINT8                ret = kErrorObdStoreHwError;
+    UINT8               ret = kErrorObdStoreHwError;
     char                aFilePath[_MAX_PATH];
     tObdConfInstance*   pInstEntry;
 
@@ -428,7 +435,7 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
     pInstEntry = &aObdConfInstance_l[0];
 
     // get the file path for current OD part and instance
-    ret = EplTgtObdArcGetFilePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
+    ret = getFilePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
     {
         goto Exit;
@@ -457,6 +464,7 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
     lseek(pInstEntry->hBkupArchiveFile, 0, SEEK_SET);//TODO @J:Move to target source file
 
     ret = kErrorOk;
+
 Exit:
     return (ret);
 
@@ -539,7 +547,7 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-tOplkError EplTgtObdArcStore(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
+tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
     INT                 writeCount;
@@ -559,15 +567,15 @@ tOplkError EplTgtObdArcStore(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 
     // write current OD data to the file and calculate the CRC for it
     pInstEntry->odDataCrc = CALCULATE_CRC16(pInstEntry->odDataCrc, pData, size_p);
-    writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8*) pData, size_p);//TODO @J:Move to target source file
-    if (writeCount != (int) size_p)
+    writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8*)pData, size_p);//TODO @J:Move to target source file
+    if (writeCount != (INT)size_p)
     {
         goto Exit;
     }
 
     ret = kErrorOk;
 Exit:
-    return (ret);
+    return ret;
 
 }
 
@@ -588,7 +596,7 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-tOplkError EplTgtObdArcRestore(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
+tOplkError obdconf_restorePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
     INT                 readCount;
@@ -607,7 +615,7 @@ tOplkError EplTgtObdArcRestore(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     }
 
     // read OD data from current file position
-    readCount = read(pInstEntry->hBkupArchiveFile, (UINT8 FAR*) pData, size_p);//TODO @J:Move to target source file
+    readCount = read(pInstEntry->hBkupArchiveFile, (UINT8*)pData, size_p);//TODO @J:Move to target source file
     if (readCount != (INT)size_p)
     {
         goto Exit;
@@ -616,7 +624,7 @@ tOplkError EplTgtObdArcRestore(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     ret = kErrorOk;
 
 Exit:
-    return (ret);
+    return ret;
 
 }
 
@@ -641,15 +649,14 @@ Exit:
 // Returns:     tOplkError              = error code
 //
 //---------------------------------------------------------------------------
-
-tOplkError EplTgtObdArcGetCapabilities(UINT index_p, UINT subIndex_p,
-                                       tObdPart* pOdPart_p, UINT32* pDevFunc_p)
+tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
+                                         tObdPart* pOdPart_p, UINT32* pDevCap_p)
 {
     tOplkError ret = kErrorOk;
 
-    UNUSED_PARAMETER(index_p);
+    UNUSED_PARAMETER(index_p); //TODO Check index to verify it is indeed the correct one
 
-    if ((pOdPart_p == NULL) || (pDevFunc_p == NULL))
+    if ((pOdPart_p == NULL) || (pDevCap_p == NULL))
     {
         ret = kErrorApiInvalidParam;
         goto Exit;
@@ -660,41 +667,39 @@ tOplkError EplTgtObdArcGetCapabilities(UINT index_p, UINT subIndex_p,
         // Device supports save/restore of index ranges
         // 0x1000-0x1FFF, 0x2000-0x5FFF, 0x6000-0x9FFF
         case 1:
-            *pDevFunc_p = EPL_OBD_STORE_ON_COMMAND;
+            *pDevCap_p = OBD_STORE_ON_COMMAND;
             *pOdPart_p = kObdPartAll;
             break;
 
         // Device supports save/restore of index range
         // 0x1000-0x1FFF
         case 2:
-            *pDevFunc_p = EPL_OBD_STORE_ON_COMMAND;
+            *pDevCap_p = OBD_STORE_ON_COMMAND;
             *pOdPart_p = kObdPartGen;
             break;
 
         // Device supports not save/restore of index
         // 0x6000-0x9FFF
         case 3:
-            *pDevFunc_p = EPL_OBD_STORE_ON_COMMAND;
+            *pDevCap_p = OBD_STORE_ON_COMMAND;
             *pOdPart_p = kObdPartDev;
             break;
 
         // Device supports save/restore of index
         // 0x2000-0x5FFF
         case 4:
-            *pDevFunc_p = EPL_OBD_STORE_ON_COMMAND;
+            *pDevCap_p = OBD_STORE_ON_COMMAND;
             *pOdPart_p = kObdPartMan;
             break;
 
         default:
-            *pDevFunc_p = 0;
+            *pDevCap_p = 0;
             break;
     }
 
 Exit:
     return ret;
-
 }
-
 
 //---------------------------------------------------------------------------
 //
@@ -710,8 +715,7 @@ Exit:
 //              TRUE   -> signature is valid
 //
 //---------------------------------------------------------------------------
-
-BOOL EplTgtObdArcCheckValid(tObdPart odPart_p)
+BOOL obdconf_verifyPartSignature(tObdPart odPart_p)
 {
     BOOL                ret = FALSE;
     INT                 readCount;
@@ -736,15 +740,15 @@ BOOL EplTgtObdArcCheckValid(tObdPart odPart_p)
     switch (odPart_p)
     {
         case kObdPartGen:
-            curReadSign = pInstEntry->odSigPartGen;
+            curReadSign = pInstEntry->odSignPartGen;
             break;
 
         case kObdPartMan:
-            curReadSign = pInstEntry->odSigPartMan;
+            curReadSign = pInstEntry->odSignPartMan;
             break;
 
         case kObdPartDev:
-            curReadSign = pInstEntry->odSigPartDev;
+            curReadSign = pInstEntry->odSignPartDev;
             break;
 
         default:
@@ -753,7 +757,7 @@ BOOL EplTgtObdArcCheckValid(tObdPart odPart_p)
 
     // read target signature and calculate the CRC for it
     readCount = read(pInstEntry->hBkupArchiveFile, &readTargetSign, sizeof(readTargetSign));//TODO @J: move to target src
-    dataCrc = CALCULATE_CRC16(0, (UINT8*) &readTargetSign, sizeof(readTargetSign));//TODO @J: move to target src
+    dataCrc = CALCULATE_CRC16(0, (UINT8*)&readTargetSign, sizeof(readTargetSign));//TODO @J: move to target src
     if (readCount != (INT)sizeof(readTargetSign))
     {
         goto Exit;
@@ -761,7 +765,7 @@ BOOL EplTgtObdArcCheckValid(tObdPart odPart_p)
 
     // read OD signature and calculate the CRC for it
     readCount = read(pInstEntry->hBkupArchiveFile, &readOdSign, sizeof(readOdSign));//TODO @J: move to target src
-    dataCrc = CALCULATE_CRC16(dataCrc, (UINT8*) &readOdSign, sizeof(readOdSign));//TODO @J: move to target src
+    dataCrc = CALCULATE_CRC16(dataCrc, (UINT8*)&readOdSign, sizeof(readOdSign));//TODO @J: move to target src
     if (readCount != (INT)sizeof(readOdSign))
     {
         goto Exit;
@@ -779,7 +783,7 @@ BOOL EplTgtObdArcCheckValid(tObdPart odPart_p)
         count = read(pInstEntry->hBkupArchiveFile, &aTempBuffer[0], sizeof(aTempBuffer));//TODO @J: move to target src
         if (count > 0)
         {
-            dataCrc = CALCULATE_CRC16(dataCrc, (UINT8*) &aTempBuffer[0], count);
+            dataCrc = CALCULATE_CRC16(dataCrc, (UINT8*)&aTempBuffer[0], count);
         }
         else
         {
@@ -793,6 +797,7 @@ BOOL EplTgtObdArcCheckValid(tObdPart odPart_p)
         goto Exit;
     }
 
+    //XXX@J Does this belong here??
     // set file position back to OD data
     lseek(pInstEntry->hBkupArchiveFile, sizeof(readTargetSign) + sizeof(readOdSign), SEEK_SET);//TODO @J: move to target src
 
@@ -800,7 +805,6 @@ BOOL EplTgtObdArcCheckValid(tObdPart odPart_p)
 
 Exit:
     return ret;
-
 }
 
 
@@ -817,7 +821,7 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-tOplkError EplTgtObdArcSetBackupPath(const char* pBackupPath_p)
+tOplkError obdconf_setBackupArchivePath(const char* pBackupPath_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
     tObdConfInstance*   pInstEntry;
@@ -839,7 +843,6 @@ tOplkError EplTgtObdArcSetBackupPath(const char* pBackupPath_p)
 
 Exit:
     return ret;
-
 }
 
 
@@ -856,7 +859,7 @@ Exit:
 //
 //-------------------------------------------------------------PUBLIC --------------
 
-tOplkError EplTgtObdArcSetSignature ( tObdPart odPart_p, UINT32 signature_p)
+tOplkError obdconf_setPartSignature(tObdPart odPart_p, UINT32 signature_p)
 {
     tOplkError          ret = kErrorOk;
     tObdConfInstance*   pInstEntry;
@@ -867,16 +870,16 @@ tOplkError EplTgtObdArcSetSignature ( tObdPart odPart_p, UINT32 signature_p)
     // check OD part
     switch (odPart_p)
     {
-        case kEplObdPartGen:
-            pInstEntry->odSigPartGen = signature_p;
+        case kObdPartGen:
+            pInstEntry->odSignPartGen = signature_p;
             break;
 
-        case kEplObdPartMan:
-            pInstEntry->odSigPartMan = signature_p;
+        case kObdPartMan:
+            pInstEntry->odSignPartMan = signature_p;
             break;
 
-        case kEplObdPartDev:
-            pInstEntry->odSigPartDev = signature_p;
+        case kObdPartDev:
+            pInstEntry->odSignPartDev = signature_p;
             break;
 
         default:
@@ -886,9 +889,13 @@ tOplkError EplTgtObdArcSetSignature ( tObdPart odPart_p, UINT32 signature_p)
 
 Exit:
     return ret;
-
 }
 
+//============================================================================//
+//            P R I V A T E   F U N C T I O N S                               //
+//============================================================================//
+/// \name Private Functions
+/// \{
 
 //---------------------------------------------------------------------------
 //
@@ -905,9 +912,9 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-static tOplkError EplTgtObdArcGetFilePath(tObdPart odPart_p,
-                                          char* pszBackupPath_p,
-                                          char* pszBackupFilePath_p)
+static tOplkError getFilePath(tObdPart odPart_p,
+                              char* pszBackupPath_p,
+                              char* pszBackupFilePath_p)
 {
     tOplkError ret = kErrorObdStoreHwError;
     size_t     len;
@@ -928,7 +935,7 @@ static tOplkError EplTgtObdArcGetFilePath(tObdPart odPart_p,
     {
         strcat(pszBackupFilePath_p, "/");
     }
-    strcat(pszBackupFilePath_p, EPLTGTOBDARC_FILENAME_PREFIX);
+    strcat(pszBackupFilePath_p, OBD_ARCHIVE_FILENAME_PREFIX);
 
     // check OD part
     switch (odPart_p)
@@ -950,7 +957,7 @@ static tOplkError EplTgtObdArcGetFilePath(tObdPart odPart_p,
             goto Exit;
     }
 
-    strcat(pszBackupFilePath_p, EPLTGTOBDARC_FILENAME_EXTENSION);
+    strcat(pszBackupFilePath_p, OBD_ARCHIVE_FILENAME_EXTENSION);
 
     ret = kErrorOk;
 Exit:
@@ -958,5 +965,4 @@ Exit:
 
 }
 
-// EOF
-
+/// \}
