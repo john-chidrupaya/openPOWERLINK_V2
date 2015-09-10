@@ -54,6 +54,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <oplk/obd.h>
 #include <oplk/dll.h>
 
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+#include <oplk/obdconf.h>
+#endif
+
 #if defined(CONFIG_INCLUDE_NMT_MN)
 #include <user/nmtmnu.h>
 #include <user/identu.h>
