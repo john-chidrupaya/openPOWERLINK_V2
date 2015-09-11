@@ -135,7 +135,7 @@ static tOplkError   checkObjectRange(tObdSubEntryPtr pSubIndexEntry_p, void* pDa
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
 static tOplkError   prepareStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM* pCbStore_p);
-static tOplkError   cleanupStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM* pCbStore_p)
+static tOplkError   cleanupStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM* pCbStore_p);
 static tOplkError   doStoreRestore(tObdAccess access_p, tObdCbStoreParam MEM* pCbStore_p,
                                    void MEM* pObjData_p, tObdSize objSize_p);
 static tOplkError   callStoreCallback(tObdCbStoreParam MEM* pCbStoreParam_p);
@@ -1063,7 +1063,7 @@ The function sets the callback function for the load/store command.
 tOplkError obd_storeLoadObjCallback(tObdStoreLoadCallback pfnCallback_p)
 {
     // set new address of callback function
-    pfnStoreLoadObjectCb_l = pfnCallback_p;
+    obdInstance_l.pfnStoreLoadObjectCb = pfnCallback_p;
     return kErrorOk;
 }
 #endif // (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
@@ -2633,7 +2633,7 @@ The functions cleans up a store/restore command.
 //------------------------------------------------------------------------------
 static tOplkError cleanupStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM* pCbStore_p)
 {
-    tOplkError          ret;
+    tOplkError          ret; //TODO @J3: cleanup
 
     if (direction_p == kObdDirOBKCheck)
     {
@@ -2708,9 +2708,9 @@ static tOplkError callStoreCallback(tObdCbStoreParam MEM* pCbStoreParam_p)
 {
     tOplkError ret = kErrorOk;
 
-    if (pfnStoreLoadObjectCb_l != NULL)
+    if (obdInstance_l.pfnStoreLoadObjectCb != NULL)
     {
-        ret = pfnStoreLoadObjectCb_l(pCbStoreParam_p);
+        ret = obdInstance_l.pfnStoreLoadObjectCb(pCbStoreParam_p);
     }
     return ret;
 }
