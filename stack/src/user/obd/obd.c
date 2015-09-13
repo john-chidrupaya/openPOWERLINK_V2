@@ -44,6 +44,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <oplk/obd.h>
 #include <common/ami.h>
 
+#if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+#include <common/target.h>
+#endif
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
 //============================================================================//
@@ -88,7 +91,10 @@ typedef struct
 {
     tObdInitParam                   initParam;
     tObdStoreLoadCallback           pfnStoreLoadObjectCb;
-    BYTE                            obdTrashObject[8];
+#if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+    UINT32                          aOdSignature[3];
+#endif
+    UINT8                            obdTrashObject[8];
 } tObdInstance;
 
 //------------------------------------------------------------------------------
@@ -205,6 +211,10 @@ tOplkError obd_init(tObdInitParam MEM* pInitParam_p)
 
     // clear callback function for command LOAD and STORE
     obdInstance_l.pfnStoreLoadObjectCb = NULL;
+
+#if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+    OPLK_MEMSET(obdInstance_l.aOdSignature, -1, sizeof(obdInstance_l.aOdSignature));
+#endif
 
     calcOdIndexNum(&obdInstance_l.initParam);
 
@@ -1046,6 +1056,43 @@ tOplkError obd_searchVarEntry(UINT index_p, UINT subIndex_p, tObdVarEntry MEM** 
     return ret;
 }
 
+#if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+//---------------------------------------------------------------------------
+//
+// Function:    EplObdGetOdSignature()
+//
+// Description: reads the OD signature for checking valid OD in Store/Restore-file
+//
+// Parameters:  OdPart_p        = specifies the part of the OD
+//
+// Return:      WORD
+//
+// State:       not tested
+//
+//---------------------------------------------------------------------------
+UINT32 obd_getOdSignature(tObdPart odPart_p)
+{
+    UINT32 odCrc = (UINT32)~0U;
+
+    switch (odPart_p)
+    {
+        case kObdPartGen:
+            odCrc = EPL_MCO_GLB_VAR (obdInstance_l.aOdSignature[0]);
+            break;
+        case kObdPartMan:
+            odCrc = EPL_MCO_GLB_VAR (obdInstance_l.aOdSignature[1]);
+            break;
+        case kObdPartDev:
+            odCrc = EPL_MCO_GLB_VAR (obdInstance_l.aOdSignature[2]);
+            break;
+        default:
+            break;
+    }
+
+    return odCrc;
+}
+#endif
+
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
 //------------------------------------------------------------------------------
 /**
@@ -1776,7 +1823,7 @@ static void MEM* getObjectCurrentPtr(tObdSubEntryPtr pSubIndexEntry_p)
             {
                 size = getObjectSize(pSubIndexEntry_p);
             }
-            pData = ((BYTE MEM*)pData) + (size * arrayIndex);
+            pData = ((UINT8 MEM*)pData) + (size * arrayIndex);
         }
 
         if ((pSubIndexEntry_p->access & kObdAccVar) != 0)
@@ -2116,9 +2163,13 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
     UNUSED_PARAMETER(currentOdPart_p);
 #endif
 
+#if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+    UINT32                      odCrc = 0;
+#endif
+
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
     // prepare structure for STORE RESTORE callback function
-    CbStore.currentOdPart   = (BYTE)currentOdPart_p;
+    CbStore.currentOdPart   = (UINT8)currentOdPart_p;
     CbStore.pData           = NULL;
     CbStore.objSize         = 0;
 
@@ -2136,12 +2187,29 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
             pSubIndex = pObdEntry_p->pSubIndex;
             nSubIndexCount = pObdEntry_p->count;
 
+#if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+            if (direction_p == kObdDirInit)
+            {
+                odCrc = OPLK_CALCULATE_CRC16(odCrc, (UINT8*)&pObdEntry_p->index, sizeof(pObdEntry_p->index));
+                odCrc = OPLK_CALCULATE_CRC16(odCrc, (UINT8*)&pObdEntry_p->count, sizeof(pObdEntry_p->count));
+            }
+#endif
+
             while (nSubIndexCount != 0)                         // walk through sub-index table till all sub-indices were restored
             {
                 Access = (tObdAccess)pSubIndex->access;
                 pDefault = getObjectDefaultPtr(pSubIndex);
                 pDstData = getObjectCurrentPtr(pSubIndex);
                 ObjSize  = getObjectSize(pSubIndex);
+
+#if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+                if (direction_p == kObdDirInit)
+                {
+                    odCrc = OPLK_CALCULATE_CRC16(odCrc, (UINT8*)&pSubIndex->subIndex, sizeof(pSubIndex->subIndex));
+                    odCrc = OPLK_CALCULATE_CRC16(odCrc, (UINT8*)&pSubIndex->type, sizeof(pSubIndex->type));
+                    odCrc = OPLK_CALCULATE_CRC16(odCrc, (UINT8*)&pSubIndex->access, sizeof(pSubIndex->access));
+                }
+#endif
 
                 switch (direction_p)
                 {
@@ -2240,6 +2308,26 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
             pObdEntry_p++;                          // next index entry
         }
     }
+
+#if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+    if (direction_p == kObdDirInit)
+    {
+        switch (currentOdPart_p)
+        {
+            case kObdPartGen:
+                obdInstance_l.aOdSignature[0] = odCrc;
+                break;
+            case kObdPartMan:
+                obdInstance_l.aOdSignature[1] = odCrc;
+                break;
+            case kObdPartDev:
+                obdInstance_l.aOdSignature[2] = odCrc;
+                break;
+            default:
+                break;
+        }
+    }
+#endif
 
     // command of last action depends on direction to access
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
@@ -2596,25 +2684,25 @@ static tOplkError prepareStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
 
     if (direction_p == kObdDirLoad)
     {
-        pCbStore_p->command = (BYTE)kObdCmdOpenRead;
+        pCbStore_p->command = (UINT8)kObdCmdOpenRead;
         // call callback function for previous command
         ret = callStoreCallback(pCbStore_p);
         if (ret != kErrorOk)
             return ret;
 
         // set command for index and sub-index loop
-        pCbStore_p->command = (BYTE)kObdCmdReadObj;
+        pCbStore_p->command = (UINT8)kObdCmdReadObj;
     }
     else if (direction_p == kObdDirStore)
     {
-        pCbStore_p->command = (BYTE)kObdCmdOpenWrite;
+        pCbStore_p->command = (UINT8)kObdCmdOpenWrite;
         // call callback function for previous command
         ret = callStoreCallback (pCbStore_p);
         if (ret != kErrorOk)
             return ret;
 
         // set command for index and sub-index loop
-        pCbStore_p->command = (BYTE)kObdCmdWriteObj;
+        pCbStore_p->command = (UINT8)kObdCmdWriteObj;
     }
     return kErrorOk;
 }
@@ -2643,15 +2731,15 @@ static tOplkError cleanupStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
     {
         if (direction_p == kObdDirLoad)
         {
-            pCbStore_p->command = (BYTE)kObdCmdCloseRead;
+            pCbStore_p->command = (UINT8)kObdCmdCloseRead;
         }
         else if (direction_p == kObdDirStore)
         {
-            pCbStore_p->command = (BYTE)kObdCmdCloseWrite;
+            pCbStore_p->command = (UINT8)kObdCmdCloseWrite;
         }
         else if (direction_p == kObdDirRestore)
         {
-            pCbStore_p->command = (BYTE)kObdCmdClear;
+            pCbStore_p->command = (UINT8)kObdCmdClear;
         }
         else
         {

@@ -339,30 +339,30 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
         goto Exit;
     }
 
-    #if (EPL_OBD_CALC_OD_SIGNATURE != FALSE)
+    #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
     {
-        UINT32 dwSignature;
+        UINT32 signature;
 
-        // read OD signature of OD part 0x1000-0x1FFF and write it to the EplTgtObdArc module
-        dwSignature = (UINT32) EplObdGetOdSignature(kEplObdPartGen);
-        EplTgtObdArcSetSignature(kEplObdPartGen, dwSignature);
-        if (Ret != kEplSuccessful)
+        // read OD signature of OD part 0x1000-0x1FFF and write it to the obdconf module
+        signature = (UINT32)obd_getOdSignature(kObdPartGen);
+        obdconf_setPartSignature(kObdPartGen, signature);
+        if (ret != kErrorOk)
         {
             goto Exit;
         }
 
-        // read OD signature of OD part 0x6000-0x9FFF and write it to the EplTgtObdArc module
-        dwSignature = (UINT32) EplObdGetOdSignature(kEplObdPartDev);
-        EplTgtObdArcSetSignature(kEplObdPartDev, dwSignature);
-        if (Ret != kEplSuccessful)
+        // read OD signature of OD part 0x6000-0x9FFF and write it to the obdconf module
+        signature = (UINT32)obd_getOdSignature(kObdPartDev);
+        obdconf_setPartSignature(kObdPartDev, signature);
+        if (ret != kErrorOk)
         {
             goto Exit;
         }
 
-        // read OD signature of OD part 0x2000-0x5FFF and write it to the EplTgtObdArc module
-        dwSignature = (UINT32) EplObdGetOdSignature(kEplObdPartMan);
-        EplTgtObdArcSetSignature(kEplObdPartMan, dwSignature);
-        if (Ret != kEplSuccessful)
+        // read OD signature of OD part 0x2000-0x5FFF and write it to the obdconf module
+        signature = (UINT32)obd_getOdSignature(kObdPartMan);
+        obdconf_setPartSignature(kObdPartMan, signature);
+        if (ret != kErrorOk)
         {
             goto Exit;
         }
