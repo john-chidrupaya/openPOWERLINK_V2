@@ -162,7 +162,7 @@ tLinkObjectRequest    linkObjectRequestsMn[]  =
 static tOplkError initNmtu(tOplkApiInitParam* pInitParam_p);
 static tOplkError initObd(tOplkApiInitParam* pInitParam_p);
 static tOplkError updateDllConfig(tOplkApiInitParam* pInitParam_p, BOOL fUpdateIdentity_p);
-static tOplkError updateObd(tOplkApiInitParam* pInitParam_p);
+static tOplkError updateObd(tOplkApiInitParam* pInitParam_p, BOOL fForceUpdateStoredConf_p);
 static tOplkError processUserEvent(tEvent* pEvent_p);
 static tOplkError cbCnCheckEvent(tNmtEvent NmtEvent_p);
 static tOplkError cbNmtStateChange(tEventNmtStateChange nmtStateChange_p);
@@ -195,6 +195,13 @@ static tOplkError cbCfmEventCnProgress(tCfmEventCnProgress* pEventCnProgress_p);
 static tOplkError cbCfmEventCnResult(unsigned int uiNodeId_p, tNmtNodeCommand NodeCommand_p);
 #endif
 UINT32 getRequiredKernelFeatures(void);
+
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+static tOplkError cbStoreOdPart(tObdCbParam MEM* pParam_p);
+static tOplkError cbRestoreOdPart(tObdCbParam MEM* pParam_p);
+static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p);
+static tOplkError storeCheckArchiveState(tObdPart oddPart_p);
+#endif
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -318,9 +325,49 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
         goto Exit;
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    //TODO @J // register store/restore callback function
-              // initialize target-specific EplTgtObdArc module
-              // Read signatures of diff OD parts
+    // register store/restore callback function
+    ret = obd_storeLoadObjCallback(cbStoreLoadObject);
+    if (ret != kErrorOk)
+    {
+        goto Exit;
+    }
+
+    // initialize target-specific obdconf module
+    ret = obdconf_init();
+    if (ret != kErrorOk)
+    {
+        goto Exit;
+    }
+
+    #if (EPL_OBD_CALC_OD_SIGNATURE != FALSE)
+    {
+        UINT32 dwSignature;
+
+        // read OD signature of OD part 0x1000-0x1FFF and write it to the EplTgtObdArc module
+        dwSignature = (UINT32) EplObdGetOdSignature(kEplObdPartGen);
+        EplTgtObdArcSetSignature(kEplObdPartGen, dwSignature);
+        if (Ret != kEplSuccessful)
+        {
+            goto Exit;
+        }
+
+        // read OD signature of OD part 0x6000-0x9FFF and write it to the EplTgtObdArc module
+        dwSignature = (UINT32) EplObdGetOdSignature(kEplObdPartDev);
+        EplTgtObdArcSetSignature(kEplObdPartDev, dwSignature);
+        if (Ret != kEplSuccessful)
+        {
+            goto Exit;
+        }
+
+        // read OD signature of OD part 0x2000-0x5FFF and write it to the EplTgtObdArc module
+        dwSignature = (UINT32) EplObdGetOdSignature(kEplObdPartMan);
+        EplTgtObdArcSetSignature(kEplObdPartMan, dwSignature);
+        if (Ret != kEplSuccessful)
+        {
+            goto Exit;
+        }
+    }
+    #endif
 #endif
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
@@ -506,6 +553,7 @@ tOplkError ctrlu_shutdownStack(void)
     //TODO @J // De-register store/restore callback function
               // shutdown target-specific EplTgtObdArc module
               // Write signatures of diff OD parts???
+    obdconf_exit();
 #endif
 
 #if (CONFIG_OBD_USE_LOAD_CONCISEDCF != FALSE)
@@ -836,16 +884,17 @@ tOplkError ctrlu_cbObdAccess(tObdCbParam MEM* pParam_p)
 #endif
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-        //TODO @J callbacks for Obd Access
         case 0x1010:    // NMT_StoreParam_REC
         {
             // Store call back
+            ret = cbStoreOdPart(pParam_p);
             break;
         }
 
         case 0x1011:    // NMT_RestoreDefParam_REC
         {
             // Restore call back
+            ret = cbRestoreOdPart(pParam_p);
             break;
         }
 #endif
@@ -1028,8 +1077,9 @@ The function implements the callback function for node events.
 static tOplkError cbNmtStateChange(tEventNmtStateChange nmtStateChange_p)
 {
     tOplkError          ret = kErrorOk;
-    BYTE                nmtState;
+    UINT8                nmtState;
     tOplkApiEventArg    eventArg;
+    BOOL                fForceUpdateStoredConf = FALSE;
 
     // save NMT state in OD
     nmtState = (UINT8)nmtStateChange_p.newNmtState;
@@ -1073,10 +1123,14 @@ static tOplkError cbNmtStateChange(tEventNmtStateChange nmtStateChange_p)
                 return ret;
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-            //TODO @J check if non-volatile memory of OD archive is valid
+            // Check if non-volatile memory of OD archive is valid, if no then set the force update flag to TRUE
+            ret = obdconf_verifyPartSignature(kObdPartGen);
+            if (ret != kErrorOk)
+                fForceUpdateStoredConf = TRUE;
 #endif
+            //XXX @J: What to with the tags
             // $$$ d.k.: update OD only if OD was not loaded from non-volatile memory
-            ret = updateObd(&ctrlInstance_l.initParam);
+            ret = updateObd(&ctrlInstance_l.initParam, fForceUpdateStoredConf);
             if (ret != kErrorOk)
                 return ret;
 
@@ -1545,7 +1599,7 @@ static tOplkError updateSdoConfig(void)
 {
     tOplkError          ret = kErrorOk;
     tObdSize            obdSize;
-    DWORD               sdoSequTimeout;
+    UINT32               sdoSequTimeout;
 
     obdSize = sizeof(sdoSequTimeout);
     ret = obd_readEntry(0x1300, 0, &sdoSequTimeout, &obdSize);
@@ -1564,16 +1618,19 @@ static tOplkError updateSdoConfig(void)
 The function updates the object dictionary from the stack initialization
 parameters.
 
-\param  pInitParam_p        Pointer to the stack initialization parameters.
+\param  pInitParam_p                Pointer to the stack initialization parameters.
+\param  fForceUpdateStoredConf_p    Flag to indicate whether or not to overwrite
+                                    the configuration parameters stored in
+                                    non-volatile memory.
 
 \return The function returns a tOplkError error code.
 */
 //------------------------------------------------------------------------------
-static tOplkError updateObd(tOplkApiInitParam* pInitParam_p)
+static tOplkError updateObd(tOplkApiInitParam* pInitParam_p, BOOL fForceUpdateStoredConf_p)
 {
     tOplkError          ret = kErrorOk;
     WORD                wTemp;
-    BYTE                bTemp;
+    UINT8                bTemp;
 
     // set node id in OD
     ret = obd_setNodeId(pInitParam_p->nodeId,    // node id
@@ -1581,12 +1638,12 @@ static tOplkError updateObd(tOplkApiInitParam* pInitParam_p)
     if (ret != kErrorOk)
         return ret;
 
-    if (pInitParam_p->cycleLen != UINT_MAX)
+    if ((fForceUpdateStoredConf_p) && (pInitParam_p->cycleLen != UINT_MAX))
     {
         obd_writeEntry(0x1006, 0, &pInitParam_p->cycleLen, 4);
     }
 
-    if (pInitParam_p->lossOfFrameTolerance != UINT_MAX)
+    if ((fForceUpdateStoredConf_p) && (pInitParam_p->lossOfFrameTolerance != UINT_MAX))
     {
         obd_writeEntry(0x1C14, 0, &pInitParam_p->lossOfFrameTolerance, 4);
     }
@@ -1605,13 +1662,13 @@ static tOplkError updateObd(tOplkApiInitParam* pInitParam_p)
 
     obd_writeEntry(0x1F98, 3, &pInitParam_p->presMaxLatency, 4);
 
-    if (pInitParam_p->preqActPayloadLimit <= C_DLL_ISOCHR_MAX_PAYL)
+    if (((fForceUpdateStoredConf_p) && pInitParam_p->preqActPayloadLimit <= C_DLL_ISOCHR_MAX_PAYL))
     {
         wTemp = (WORD)pInitParam_p->preqActPayloadLimit;
         obd_writeEntry(0x1F98, 4, &wTemp, 2);
     }
 
-    if (pInitParam_p->presActPayloadLimit <= C_DLL_ISOCHR_MAX_PAYL)
+    if (((fForceUpdateStoredConf_p) && pInitParam_p->presActPayloadLimit <= C_DLL_ISOCHR_MAX_PAYL))
     {
         wTemp = (WORD)pInitParam_p->presActPayloadLimit;
         obd_writeEntry(0x1F98, 5, &wTemp, 2);
@@ -1619,31 +1676,32 @@ static tOplkError updateObd(tOplkApiInitParam* pInitParam_p)
 
     obd_writeEntry(0x1F98, 6, &pInitParam_p->asndMaxLatency, 4);
 
-    if (pInitParam_p->multiplCylceCnt <= 0xFF)
+    if ((fForceUpdateStoredConf_p) && (pInitParam_p->multiplCylceCnt <= 0xFF))
     {
-        bTemp = (BYTE)pInitParam_p->multiplCylceCnt;
+        bTemp = (UINT8)pInitParam_p->multiplCylceCnt;
         obd_writeEntry(0x1F98, 7, &bTemp, 1);
     }
 
-    if (pInitParam_p->asyncMtu <= C_DLL_MAX_ASYNC_MTU)
+    if ((fForceUpdateStoredConf_p) && (pInitParam_p->asyncMtu <= C_DLL_MAX_ASYNC_MTU))
     {
         wTemp = (WORD)pInitParam_p->asyncMtu;
         obd_writeEntry(0x1F98, 8, &wTemp, 2);
     }
 
-    if (pInitParam_p->prescaler <= 1000)
+    if ((fForceUpdateStoredConf_p) && (pInitParam_p->prescaler <= 1000))
     {
         wTemp = (WORD)pInitParam_p->prescaler;
         obd_writeEntry(0x1F98, 9, &wTemp, 2);
     }
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
-    if (pInitParam_p->waitSocPreq != UINT_MAX)
+    if ((fForceUpdateStoredConf_p) && (pInitParam_p->waitSocPreq != UINT_MAX))
     {
         obd_writeEntry(0x1F8A, 1, &pInitParam_p->waitSocPreq, 4);
     }
 
-    if ((pInitParam_p->asyncSlotTimeout != 0) && (pInitParam_p->asyncSlotTimeout != UINT_MAX))
+    if ((fForceUpdateStoredConf_p) && (pInitParam_p->asyncSlotTimeout != 0) &&
+        (pInitParam_p->asyncSlotTimeout != UINT_MAX))
     {
         obd_writeEntry(0x1F8A, 2, &pInitParam_p->asyncSlotTimeout, 4);
     }
@@ -2039,7 +2097,7 @@ UINT32 getRequiredKernelFeatures(void)
     return requiredKernelFeatures;
 }
 
-#if (EPL_OBD_USE_STORE_RESTORE != FALSE)
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
 // ----------------------------------------------------------------------------
 //
 // Function:    EplApiCbStore()
@@ -2059,83 +2117,83 @@ UINT32 getRequiredKernelFeatures(void)
 //
 // Parameters:  pParam_p               = address to calling parameters
 //
-// Returns:     tEplKernel             = error code
+// Returns:     tOplkError             = error code
 //
 // ----------------------------------------------------------------------------
-static tEplKernel PUBLIC EplApiCbStore(tEplObdCbParam MEM* pParam_p)
+static tOplkError cbStoreOdPart(tObdCbParam MEM* pParam_p)
 {
-tEplKernel          Ret         = kEplSuccessful;
-tEplObdPart         ObdPart     = kEplObdPartNo;
-DWORD               dwCap       = 0;
+    tOplkError          ret        = kErrorOk;
+    tObdPart            odPart     = kObdPartNo;
+    UINT32              devCap     = 0;
 
-    if ((pParam_p->m_uiSubIndex == 0)
-        || ((pParam_p->m_ObdEvent != kEplObdEvPreWrite)
-            && (pParam_p->m_ObdEvent != kEplObdEvPostRead)))
+    if ((pParam_p->subIndex == 0)
+        || ((pParam_p->obdEvent != kObdEvPreWrite)
+            && (pParam_p->obdEvent != kObdEvPostRead)))
     {
         goto Exit;
     }
 
-    Ret = EplTgtObdArcGetCapabilities(pParam_p->m_uiIndex, pParam_p->m_uiSubIndex,
-                                      &ObdPart, &dwCap);
-    if (Ret != kEplSuccessful)
+    ret = obdconf_getTargetCapabilities(pParam_p->index, pParam_p->subIndex,
+                                      &odPart, &devCap);
+    if (ret != kErrorOk)
     {
-        pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
+        pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
         goto Exit;
     }
 
     // function is called before writing to OD
-    if (pParam_p->m_ObdEvent == kEplObdEvPreWrite)
+    if (pParam_p->obdEvent == kObdEvPreWrite)
     {
         // check if signature "save" will be written to object 0x1010
-        if (*((DWORD GENERIC*) pParam_p->m_pArg) != 0x65766173L)
+        if (*((UINT32*)pParam_p->pArg) != 0x65766173L)
         {
             // abort SDO because wrong signature
-            pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_OR_STORED;
-            Ret = kEplWrongSignature;
+            pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
+            ret = kErrorWrongSignature;
             goto Exit;
         }
 
         // Does device support saving by command?
-        if ((dwCap & EPL_OBD_STORE_ON_COMMAND) == 0)
+        if ((devCap & OBD_STORE_ON_COMMAND) == 0)
         {
             // device does not support saving parameters or not by command
-            if ((dwCap & EPL_OBD_STORE_AUTONOMOUSLY) != 0)
+            if ((devCap & OBD_STORE_AUTONOMOUSLY) != 0)
             {
                 // Device saves parameters autonomously.
-                pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_DUE_LOCAL_CONTROL;
+                pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_LOCAL_CONTROL;
             }
             else
             {
                 // Device does not support saving parameters.
-                pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_OR_STORED;
+                pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
             }
 
-            Ret = kEplStoreInvalidState;
+            ret = kErrorObdStoreInvalidState;
             goto Exit;
         }
 
         // read all storable objects of selected OD part and store the
         // current object values to non-volatile memory
-        Ret = EplObdAccessOdPart(ObdPart, kEplObdDirStore);
-        if (Ret != kEplSuccessful)
+        ret = obd_accessOdPart(odPart, kObdDirStore);
+        if (ret != kErrorOk)
         {
             // abort SDO because access failed
-            pParam_p->m_dwAbortCode = EPL_SDOAC_ACCESS_FAILED_DUE_HW_ERROR;
+            pParam_p->abortCode = SDO_AC_ACCESS_FAILED_DUE_HW_ERROR;
             goto Exit;
         }
     }
 
     // function is called after reading from OD
-    else if (pParam_p->m_ObdEvent == kEplObdEvPostRead)
+    else if (pParam_p->obdEvent == kObdEvPostRead)
     {
         // WARNING: This does not work on big endian machines!
         //          The SDO adoptable object handling feature provides a clean
-        //          way to implement it.
-        *((DWORD GENERIC*) pParam_p->m_pArg) = dwCap;
+        //          way to implement it. //TODO @J3 WTheck
+        *((UINT32*)pParam_p->pArg) = devCap;
     }
 
 Exit:
-    return Ret;
+    return ret;
 }
 
 // ----------------------------------------------------------------------------
@@ -2159,72 +2217,73 @@ Exit:
 //
 // Parameters:  pParam_p               = address to calling parameters
 //
-// Returns:     tEplKernel             = error code
+// Returns:     tOplkError             = error code
 //
 // ----------------------------------------------------------------------------
-static tEplKernel PUBLIC EplApiCbRestore(tEplObdCbParam MEM* pParam_p)
+static tOplkError cbRestoreOdPart(tObdCbParam MEM* pParam_p)
 {
-tEplKernel          Ret         = kEplSuccessful;
-tEplObdPart         ObdPart     = kEplObdPartNo;
-DWORD               dwCap       = 0;
+    tOplkError          ret        = kErrorOk;
+    tObdPart            odPart     = kObdPartNo;
+    UINT32              devCap     = 0;
 
-    if ((pParam_p->m_uiSubIndex == 0)
-        || ((pParam_p->m_ObdEvent != kEplObdEvPreWrite)
-            && (pParam_p->m_ObdEvent != kEplObdEvPostRead)))
+
+    if ((pParam_p->subIndex == 0)
+        || ((pParam_p->obdEvent != kObdEvPreWrite)
+            && (pParam_p->obdEvent != kObdEvPostRead)))
     {
         goto Exit;
     }
 
-    Ret = EplTgtObdArcGetCapabilities(pParam_p->m_uiIndex, pParam_p->m_uiSubIndex,
-                                      &ObdPart, &dwCap);
-    if (Ret != kEplSuccessful)
+    ret = obdconf_getTargetCapabilities(pParam_p->index, pParam_p->subIndex,
+                                      &odPart, &devCap);
+    if (ret != kErrorOk)
     {
-        pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
+        pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
         goto Exit;
     }
 
     // was this function was called before writing to OD
-    if (pParam_p->m_ObdEvent == kEplObdEvPreWrite)
+    if (pParam_p->obdEvent == kObdEvPreWrite)
     {
         // check if signature "load" will be written to object 0x1010 subindex X
-        if (*((DWORD GENERIC*) pParam_p->m_pArg) != 0x64616F6CL)
+        if (*((UINT32*)pParam_p->pArg) != 0x64616F6CL)
         {
             // abort SDO
-            pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_OR_STORED;
-            Ret = kEplWrongSignature;
+            pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
+            ret = kErrorWrongSignature;
             goto Exit;
         }
 
         // Does device support saving by command?
-        if ((dwCap & EPL_OBD_STORE_ON_COMMAND) == 0)
+        if ((devCap & OBD_STORE_ON_COMMAND) == 0)
         {
             // Device does not support saving parameters.
-            pParam_p->m_dwAbortCode = EPL_SDOAC_DATA_NOT_TRANSF_OR_STORED;
+            pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
 
-            Ret = kEplStoreInvalidState;
+            ret = kErrorObdStoreInvalidState;
             goto Exit;
         }
 
-        Ret = EplObdAccessOdPart(ObdPart, kEplObdDirRestore);
-        if (Ret != kEplSuccessful)
+        ret = obd_accessOdPart(odPart, kObdDirRestore);
+        if (ret != kErrorOk)
         {
             // abort SDO
-            pParam_p->m_dwAbortCode = EPL_SDOAC_ACCESS_FAILED_DUE_HW_ERROR;
+            pParam_p->abortCode = SDO_AC_ACCESS_FAILED_DUE_HW_ERROR;
             goto Exit;
         }
     }
 
     // function is called after reading from OD
-    else if (pParam_p->m_ObdEvent == kEplObdEvPostRead)
+    else if (pParam_p->obdEvent == kObdEvPostRead)
     {
         // WARNING: This does not work on big endian machines!
         //          The SDO adoptable object handling feature provides a clean
         //          way to implement it.
-        *((DWORD GENERIC*) pParam_p->m_pArg) = dwCap;
+        *((UINT32*)pParam_p->pArg) = devCap;
     }
 
 Exit:
-    return Ret;
+    return ret;
 }
 
 // ----------------------------------------------------------------------------
@@ -2247,86 +2306,71 @@ Exit:
 //              ObjSize_p              = size of this object
 //              Direction_p            = direction (STORE to medium or LOAD from medium)
 //
-// Returns:     tEplKernel             = error code
+// Returns:     tOplkError             = error code
 //
 // ----------------------------------------------------------------------------
-static tEplKernel PUBLIC EplApiCbStoreLoadObject(
-    tEplObdCbStoreParam MEM* pCbStoreParam_p)
+static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
 {
-tEplKernel      Ret     = kEplSuccessful;
-tEplObdPart     OdPart  = pCbStoreParam_p->m_bCurrentOdPart; // only one bit is set!
-BOOL            fValid;
+    tOplkError      ret     = kErrorOk;
+    tObdPart        odPart  = pCbStoreParam_p->currentOdPart; // only one bit is set!
+    BOOL            fValid;
 
     // which event is notified
-    switch (pCbStoreParam_p->m_bCommand)
+    switch (pCbStoreParam_p->command)
     {
-        //-------------------------------------------------
-        case kEplObdCommOpenWrite:
-        {
-            // create archiv to write all objects of this OD part
-            Ret = EplTgtObdArcCreate(OdPart);
+        case kObdCmdOpenWrite:
+            // create archive to write all objects of this OD part
+            ret = obdconf_createPart(odPart);
             break;
-        }
 
-        //-------------------------------------------------
-        case kEplObdCommWriteObj:
-        {
+        case kObdCmdWriteObj:
             // store value from pData_p (with size ObjSize_p) to memory medium
-            Ret = EplTgtObdArcStore(OdPart,
-                                (BYTE GENERIC*) pCbStoreParam_p->m_pData,
-                                pCbStoreParam_p->m_ObjSize);
+            ret = obdconf_storePart(odPart,
+                                    (UINT8*)pCbStoreParam_p->pData,
+                                    pCbStoreParam_p->objSize);
             break;
-        }
 
-        //-------------------------------------------------
-        case kEplObdCommCloseRead:
-        case kEplObdCommCloseWrite:
-        {
-            Ret = EplTgtObdArcClose(OdPart);
+        case kObdCmdCloseRead:
+        case kObdCmdCloseWrite:
+            ret = obdconf_closePart(odPart);
             break;
-        }
 
-        //-------------------------------------------------
-        case kEplObdCommOpenRead:
-        {
+        case kObdCmdOpenRead:
             // at first open the stream for reading (then check for valid stream)
-            Ret = EplTgtObdArcOpen(OdPart);
-            if (Ret != kEplSuccessful)
+            ret = obdconf_openPart(odPart);
+            if (ret != kErrorOk)
             {
                 goto Exit;
             }
 
             // check signature for data valid on medium for this OD part
-            fValid = EplTgtObdArcCheckValid(OdPart);
+            fValid = obdconf_verifyPartSignature(odPart);
             if (fValid == FALSE)
             {
-                EplTgtObdArcClose(OdPart);
+                obdconf_closePart(odPart);
 
-                Ret = kEplStoreInvalidState;
+                ret = kErrorObdStoreInvalidState;
                 goto Exit;
             }
             break;
-        }
 
-        //-------------------------------------------------
-        case kEplObdCommReadObj:
-        {
-            Ret = EplTgtObdArcRestore(OdPart,
-                                    (BYTE GENERIC*) pCbStoreParam_p->m_pData,
-                                    pCbStoreParam_p->m_ObjSize);
+        case kObdCmdReadObj:
+            ret = obdconf_restorePart(odPart,
+                                      (UINT8*)pCbStoreParam_p->pData,
+                                      pCbStoreParam_p->objSize);
             break;
-        }
 
-        //-------------------------------------------------
-        case kEplObdCommClear:
-        {
-            Ret = EplTgtObdArcDelete(OdPart);
+        case kObdCmdClear:
+            ret = obdconf_deletePart(odPart);
             break;
-        }
+
+        default:
+            ret = kErrorInvalidOperation;
+            break;
     }
 
 Exit:
-    return Ret;
+    return ret;
 }
 
 // ----------------------------------------------------------------------------
@@ -2338,33 +2382,32 @@ Exit:
 //
 // Parameters:  ObdPart_p               = OD part
 //
-// Returns:     tEplKernel              = error code
+// Returns:     tOplkError              = error code
 //
 // ----------------------------------------------------------------------------
-static tEplKernel PUBLIC EplApiStoreCheckArchiveState(
-    tEplObdPart     ObdPart_p)
+static tOplkError storeCheckArchiveState(tObdPart odPart_p)
 {
-tEplKernel      Ret     = kEplSuccessful;
-BOOL            fValid;
+    tOplkError      ret     = kErrorOk;
+    BOOL            fValid;
 
     // at first open the stream for reading (then check for valid stream)
-    Ret = EplTgtObdArcOpen(ObdPart_p);
-    if (Ret != kEplSuccessful)
+    ret = obdconf_openPart(odPart_p);
+    if (ret != kErrorOk)
     {
         goto Exit;
     }
 
     // check signature for data valid on medium for this OD part
-    fValid = EplTgtObdArcCheckValid(ObdPart_p);
+    fValid = obdconf_verifyPartSignature(odPart_p);
     if (fValid == FALSE)
     {
-        Ret = kEplStoreInvalidState;
+        ret = kErrorObdStoreInvalidState;
     }
 
-    EplTgtObdArcClose(ObdPart_p);
+    obdconf_closePart(odPart_p);
 
 Exit:
-    return Ret;
+    return ret;
 }
 #endif
 
