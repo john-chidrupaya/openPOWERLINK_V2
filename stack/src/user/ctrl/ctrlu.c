@@ -325,6 +325,7 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
         goto Exit;
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+    printf("1.1\n");
     // register store/restore callback function
     ret = obd_storeLoadObjCallback(cbStoreLoadObject);
     if (ret != kErrorOk)
@@ -332,6 +333,7 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
         goto Exit;
     }
 
+    printf("1.1.1\n");
     // initialize target-specific obdconf module
     ret = obdconf_init();
     if (ret != kErrorOk)
@@ -339,7 +341,9 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
         goto Exit;
     }
 
+    printf("1.1\n");
     #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+    printf("2.2\n");
     {
         UINT32 signature;
 
@@ -367,6 +371,8 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
             goto Exit;
         }
     }
+
+    printf("2.2\n");
     #endif
 #endif
 
@@ -885,20 +891,15 @@ tOplkError ctrlu_cbObdAccess(tObdCbParam MEM* pParam_p)
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
         case 0x1010:    // NMT_StoreParam_REC
-        {
             // Store call back
             ret = cbStoreOdPart(pParam_p);
             break;
-        }
 
         case 0x1011:    // NMT_RestoreDefParam_REC
-        {
             // Restore call back
             ret = cbRestoreOdPart(pParam_p);
             break;
-        }
 #endif
-
         default:
             break;
     }
@@ -1052,6 +1053,7 @@ static tOplkError initObd(tOplkApiInitParam* pInitParam_p)
     if (ret != kErrorOk)
         return ret;
 
+    DEBUG_LVL_CTRL_TRACE("Initialize OBD...\n");
     ret = obd_init(&ObdInitParam);
     if (ret != kErrorOk)
         return ret;
@@ -1123,17 +1125,20 @@ static tOplkError cbNmtStateChange(tEventNmtStateChange nmtStateChange_p)
                 return ret;
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+            DEBUG_LVL_CTRL_TRACE("1.3\n");
             // Check if non-volatile memory of OD archive is valid, if no then set the force update flag to TRUE
-            ret = obdconf_verifyPartSignature(kObdPartGen);
+            ret = storeCheckArchiveState(kObdPartGen);
             if (ret != kErrorOk)
                 fForceUpdateStoredConf = TRUE;
 #endif
+            DEBUG_LVL_CTRL_TRACE("1.3.1\n");
             //XXX @J: What to with the tags
             // $$$ d.k.: update OD only if OD was not loaded from non-volatile memory
             ret = updateObd(&ctrlInstance_l.initParam, fForceUpdateStoredConf);
             if (ret != kErrorOk)
                 return ret;
 
+            DEBUG_LVL_CTRL_TRACE("1.3\n");
 #if (CONFIG_OBD_USE_LOAD_CONCISEDCF != FALSE)
             ret = obdcdc_loadCdc();
             if (ret != kErrorOk)
@@ -2126,6 +2131,7 @@ static tOplkError cbStoreOdPart(tObdCbParam MEM* pParam_p)
     tObdPart            odPart     = kObdPartNo;
     UINT32              devCap     = 0;
 
+    DEBUG_LVL_CTRL_TRACE("%s\n", __func__);
     if ((pParam_p->subIndex == 0)
         || ((pParam_p->obdEvent != kObdEvPreWrite)
             && (pParam_p->obdEvent != kObdEvPostRead)))
@@ -2193,6 +2199,7 @@ static tOplkError cbStoreOdPart(tObdCbParam MEM* pParam_p)
     }
 
 Exit:
+DEBUG_LVL_CTRL_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -2315,6 +2322,7 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
     tObdPart        odPart  = pCbStoreParam_p->currentOdPart; // only one bit is set!
     BOOL            fValid;
 
+    DEBUG_LVL_CTRL_TRACE("%s\n", __func__);
     // which event is notified
     switch (pCbStoreParam_p->command)
     {
@@ -2370,6 +2378,7 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
     }
 
 Exit:
+    DEBUG_LVL_CTRL_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -2390,6 +2399,7 @@ static tOplkError storeCheckArchiveState(tObdPart odPart_p)
     tOplkError      ret     = kErrorOk;
     BOOL            fValid;
 
+    DEBUG_LVL_CTRL_TRACE("1.4.\n");
     // at first open the stream for reading (then check for valid stream)
     ret = obdconf_openPart(odPart_p);
     if (ret != kErrorOk)
@@ -2397,6 +2407,7 @@ static tOplkError storeCheckArchiveState(tObdPart odPart_p)
         goto Exit;
     }
 
+    DEBUG_LVL_CTRL_TRACE("1.4.1\n");
     // check signature for data valid on medium for this OD part
     fValid = obdconf_verifyPartSignature(odPart_p);
     if (fValid == FALSE)
@@ -2404,8 +2415,10 @@ static tOplkError storeCheckArchiveState(tObdPart odPart_p)
         ret = kErrorObdStoreInvalidState;
     }
 
+    DEBUG_LVL_CTRL_TRACE("1.4.2\n");
     obdconf_closePart(odPart_p);
 
+    DEBUG_LVL_CTRL_TRACE("1.4\n");
 Exit:
     return ret;
 }

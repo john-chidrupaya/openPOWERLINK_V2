@@ -79,6 +79,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //---------------------------------------------------------------------------
 // The default debug-level is: ERROR and ALWAYS.
 // You can define an other debug-level in project settings.
+#define DEF_DEBUG_LVL                   0xEC000404
 #ifndef DEF_DEBUG_LVL
 #define DEF_DEBUG_LVL                   (DEBUG_LVL_ALWAYS | DEBUG_LVL_ERROR)
 #endif

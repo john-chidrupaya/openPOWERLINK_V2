@@ -289,6 +289,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     UINT32              odSignature;
     tObdConfInstance*   pInstEntry;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     // get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
@@ -362,6 +363,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     ret = kErrorOk;
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -384,6 +386,7 @@ tOplkError obdconf_deletePart (tObdPart odPart_p)
     char                aFilePath[_MAX_PATH];
     tObdConfInstance*   pInstEntry;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     // get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
@@ -404,6 +407,7 @@ tOplkError obdconf_deletePart (tObdPart odPart_p)
     ret = kErrorOk;
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -427,6 +431,7 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
     char                aFilePath[_MAX_PATH];
     tObdConfInstance*   pInstEntry;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     // get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
@@ -450,6 +455,7 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
     pInstEntry->fOpenForWrite = FALSE;
     pInstEntry->hBkupArchiveFile = open(aFilePath, O_RDONLY | O_BINARY, 0666); //TODO @J: Move to target source file
 
+    DEBUG_LVL_OBD_TRACE("%s: %d\n", aFilePath, pInstEntry->hBkupArchiveFile);
     if (pInstEntry->hBkupArchiveFile < 0)
     {
         // backup archive file could not be opend
@@ -462,6 +468,7 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
     ret = kErrorOk;
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -487,6 +494,7 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
     UINT8               data;
     tObdConfInstance*   pInstEntry;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     UNUSED_PARAMETER(odPart_p);
 
     // get current instance entry
@@ -503,10 +511,10 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
     if (pInstEntry->fOpenForWrite != FALSE)
     {
         // write CRC16 to end of the file (in big endian format)
-        data  = (UINT8)((pInstEntry->odDataCrc >> 8) & 0xFF);
-        errCode   = write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));//TODO @J:Move to target source file
-        data  = (UINT8)((pInstEntry->odDataCrc >> 0) & 0xFF);
-        errCode  += write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));
+        data = (UINT8)((pInstEntry->odDataCrc >> 8) & 0xFF);
+        errCode = write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));//TODO @J:Move to target source file
+        data = (UINT8)((pInstEntry->odDataCrc >> 0) & 0xFF);
+        errCode += write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));
         if (errCode != (INT)(sizeof(data) * 2))
         {   // save error code and close the file
             ret = kErrorObdStoreHwError;
@@ -521,6 +529,7 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
     pInstEntry->hBkupArchiveFile = -1;
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -547,6 +556,7 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     INT                 writeCount;
     tObdConfInstance*   pInstEntry;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     UNUSED_PARAMETER(odPart_p);
 
     // get current instance entry
@@ -569,6 +579,7 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 
     ret = kErrorOk;
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -595,6 +606,7 @@ tOplkError obdconf_restorePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     INT                 readCount;
     tObdConfInstance*   pInstEntry;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     UNUSED_PARAMETER(odPart_p);
 
     // get current instance entry
@@ -617,6 +629,7 @@ tOplkError obdconf_restorePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     ret = kErrorOk;
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -646,6 +659,7 @@ tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
 {
     tOplkError ret = kErrorOk;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     UNUSED_PARAMETER(index_p); //TODO Check index to verify it is indeed the correct one
 
     if ((pOdPart_p == NULL) || (pDevCap_p == NULL))
@@ -690,6 +704,7 @@ tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
     }
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -719,6 +734,7 @@ BOOL obdconf_verifyPartSignature(tObdPart odPart_p)
     UINT16              dataCrc;
     tObdConfInstance*   pInstEntry;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     // get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
@@ -796,6 +812,7 @@ BOOL obdconf_verifyPartSignature(tObdPart odPart_p)
     ret = TRUE;
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -818,6 +835,7 @@ tOplkError obdconf_setBackupArchivePath(const char* pBackupPath_p)
     tOplkError          ret = kErrorObdStoreHwError;
     tObdConfInstance*   pInstEntry;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     // check pointer to backup path string
     if (pBackupPath_p == NULL)
     {
@@ -834,6 +852,7 @@ tOplkError obdconf_setBackupArchivePath(const char* pBackupPath_p)
     ret = kErrorOk;
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -856,6 +875,7 @@ tOplkError obdconf_setPartSignature(tObdPart odPart_p, UINT32 signature_p)
     tOplkError          ret = kErrorOk;
     tObdConfInstance*   pInstEntry;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     // get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
@@ -880,6 +900,7 @@ tOplkError obdconf_setPartSignature(tObdPart odPart_p, UINT32 signature_p)
     }
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -911,6 +932,7 @@ static tOplkError getFilePath(tObdPart odPart_p,
     tOplkError ret = kErrorObdStoreHwError;
     size_t     len;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     // build complete file path string
     if (pszBackupPath_p != NULL)
     {
@@ -955,6 +977,7 @@ static tOplkError getFilePath(tObdPart odPart_p,
     ret = kErrorOk;
 
 Exit:
+DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 

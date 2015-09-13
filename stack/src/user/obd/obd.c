@@ -213,7 +213,9 @@ tOplkError obd_init(tObdInitParam MEM* pInitParam_p)
     obdInstance_l.pfnStoreLoadObjectCb = NULL;
 
 #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+    printf("2.1\n");
     OPLK_MEMSET(obdInstance_l.aOdSignature, -1, sizeof(obdInstance_l.aOdSignature));
+    printf("2.1\n");
 #endif
 
     calcOdIndexNum(&obdInstance_l.initParam);
@@ -1077,13 +1079,13 @@ UINT32 obd_getOdSignature(tObdPart odPart_p)
     switch (odPart_p)
     {
         case kObdPartGen:
-            odCrc = EPL_MCO_GLB_VAR (obdInstance_l.aOdSignature[0]);
+            odCrc = obdInstance_l.aOdSignature[0];
             break;
         case kObdPartMan:
-            odCrc = EPL_MCO_GLB_VAR (obdInstance_l.aOdSignature[1]);
+            odCrc = obdInstance_l.aOdSignature[1];
             break;
         case kObdPartDev:
-            odCrc = EPL_MCO_GLB_VAR (obdInstance_l.aOdSignature[2]);
+            odCrc = obdInstance_l.aOdSignature[2];
             break;
         default:
             break;
@@ -2158,7 +2160,7 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
     tObdVarEntry MEM*           pVarEntry = NULL;
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    tObdCbStoreParam MEM        CbStore;
+    tObdCbStoreParam MEM        cbStore;
 #else
     UNUSED_PARAMETER(currentOdPart_p);
 #endif
@@ -2168,14 +2170,17 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
 #endif
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+    DEBUG_LVL_OBD_TRACE("1.2\n");
     // prepare structure for STORE RESTORE callback function
-    CbStore.currentOdPart   = (UINT8)currentOdPart_p;
-    CbStore.pData           = NULL;
-    CbStore.objSize         = 0;
+    cbStore.currentOdPart   = (UINT8)currentOdPart_p;
+    cbStore.pData           = NULL;
+    cbStore.objSize         = 0;
 
     // command of first action depends on direction to access
-    if ((Ret = prepareStoreRestore(direction_p, &CbStore)) != kErrorOk)
+    if ((Ret = prepareStoreRestore(direction_p, &cbStore)) != kErrorOk)
         return Ret;
+
+    DEBUG_LVL_OBD_TRACE("1.2\n");
 #endif
 
     // we should not restore the OD values here
@@ -2264,14 +2269,14 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                         copyObjectData(pDstData, pDefault, ObjSize, pSubIndex->type);
                         callPostDefault(pDstData, pObdEntry_p, pSubIndex);
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-                        doStoreRestore(Access, &CbStore, pDstData, ObjSize);
+                        Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
 #endif
                         break;
 
                     // objects with attribute kObdAccStore has to be stored in EEPROM or in a file
                     case kObdDirStore:
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-                        doStoreRestore(Access, &CbStore, pDstData, ObjSize);
+                        Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
 #endif
                         break;
 
@@ -2331,7 +2336,8 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
 
     // command of last action depends on direction to access
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    return cleanupStoreRestore(direction_p, &CbStore);
+    cleanupStoreRestore(direction_p, &cbStore);
+    return Ret;
 #else
     return Ret;
 #endif
@@ -2682,13 +2688,14 @@ static tOplkError prepareStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
 {
     tOplkError          ret;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     if (direction_p == kObdDirLoad)
     {
         pCbStore_p->command = (UINT8)kObdCmdOpenRead;
         // call callback function for previous command
         ret = callStoreCallback(pCbStore_p);
         if (ret != kErrorOk)
-            return ret;
+            return kErrorOk;//TODO @J: Fix this issue with newer handling mechanism
 
         // set command for index and sub-index loop
         pCbStore_p->command = (UINT8)kObdCmdReadObj;
@@ -2704,6 +2711,8 @@ static tOplkError prepareStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
         // set command for index and sub-index loop
         pCbStore_p->command = (UINT8)kObdCmdWriteObj;
     }
+
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     return kErrorOk;
 }
 
@@ -2723,8 +2732,10 @@ static tOplkError cleanupStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
 {
     tOplkError          ret; //TODO @J3: cleanup
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     if (direction_p == kObdDirOBKCheck)
     {
+        DEBUG_LVL_OBD_TRACE("%s\n", __func__);
         return ret;
     }
     else
@@ -2745,7 +2756,10 @@ static tOplkError cleanupStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
         {
             return ret;
         }
-        return callStoreCallback(pCbStore_p);       // call callback function for last command
+
+        DEBUG_LVL_OBD_TRACE("%s\n", __func__);
+        callStoreCallback(pCbStore_p);       // call callback function for last command//TODO @J: Fix this issue with newer handling mechanism
+        return ret;
     }
 }
 
@@ -2768,6 +2782,7 @@ static tOplkError doStoreRestore(tObdAccess access_p, tObdCbStoreParam MEM* pCbS
 {
     tOplkError          ret = kErrorOk;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     // when attribute kObdAccStore is set, then call callback function
     if ((access_p & kObdAccStore) != 0)
     {
@@ -2778,6 +2793,8 @@ static tOplkError doStoreRestore(tObdAccess access_p, tObdCbStoreParam MEM* pCbS
         // call callback function for read or write object
         ret = callStoreCallback(pCbStore_p);
     }
+
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     return ret;
 }
 
@@ -2796,10 +2813,13 @@ static tOplkError callStoreCallback(tObdCbStoreParam MEM* pCbStoreParam_p)
 {
     tOplkError ret = kErrorOk;
 
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     if (obdInstance_l.pfnStoreLoadObjectCb != NULL)
     {
         ret = obdInstance_l.pfnStoreLoadObjectCb(pCbStoreParam_p);
     }
+
+    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     return ret;
 }
 #endif // (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
