@@ -307,6 +307,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
         goto Exit;
     }
 
+    //TODO @J: Shouldn't this be conditional on whether the signature is included or not
     // check OD part for correct OD signature
     switch (odPart_p)
     {
@@ -333,6 +334,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     if (pInstEntry->hBkupArchiveFile < 0)
     {
         pInstEntry->hBkupArchiveFile = -1;
+        ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
@@ -345,6 +347,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
                        sizeof(obdConfSignature_l));
     if (writeCount != (INT)sizeof(obdConfSignature_l))
     {
+        ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
@@ -357,6 +360,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
                        sizeof(odSignature));
     if (writeCount != (INT)sizeof(odSignature))
     {
+        ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
@@ -442,8 +446,6 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
         goto Exit;
     }
 
-    ret = kErrorObdStoreHwError;
-
     // is the file already opened?
     if (pInstEntry->hBkupArchiveFile >= 0)
     {
@@ -458,7 +460,8 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
     DEBUG_LVL_OBD_TRACE("%s: %d\n", aFilePath, pInstEntry->hBkupArchiveFile);
     if (pInstEntry->hBkupArchiveFile < 0)
     {
-        // backup archive file could not be opend
+        // backup archive file could not be opened
+        ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
@@ -490,7 +493,7 @@ DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
 tOplkError obdconf_closePart(tObdPart odPart_p)
 {
     tOplkError          ret = kErrorOk;
-    INT                 errCode;
+    INT                 writeCount;
     UINT8               data;
     tObdConfInstance*   pInstEntry;
 
@@ -512,10 +515,10 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
     {
         // write CRC16 to end of the file (in big endian format)
         data = (UINT8)((pInstEntry->odDataCrc >> 8) & 0xFF);
-        errCode = write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));//TODO @J:Move to target source file
+        writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));//TODO @J:Move to target source file
         data = (UINT8)((pInstEntry->odDataCrc >> 0) & 0xFF);
-        errCode += write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));
-        if (errCode != (INT)(sizeof(data) * 2))
+        writeCount += write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));
+        if (writeCount != (INT)(sizeof(data) * 2))
         {   // save error code and close the file
             ret = kErrorObdStoreHwError;
         }
@@ -722,7 +725,7 @@ DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
 //              TRUE   -> signature is valid
 //
 //---------------------------------------------------------------------------
-BOOL obdconf_verifyPartSignature(tObdPart odPart_p)
+BOOL obdconf_isPartArchiveValid(tObdPart odPart_p)
 {
     BOOL                ret = FALSE;
     INT                 readCount;
@@ -829,7 +832,7 @@ DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
 // Returns:     tOplkError -> error code
 //
 //---------------------------------------------------------------------------
-
+//TODO @J: Does this have to be exposed to the user API
 tOplkError obdconf_setBackupArchivePath(const char* pBackupPath_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
@@ -929,7 +932,7 @@ static tOplkError getFilePath(tObdPart odPart_p,
                               char* pszBackupPath_p,
                               char* pszBackupFilePath_p)
 {
-    tOplkError ret = kErrorObdStoreHwError;
+    tOplkError ret = kErrorOk;
     size_t     len;
 
     DEBUG_LVL_OBD_TRACE("%s\n", __func__);
@@ -973,8 +976,6 @@ static tOplkError getFilePath(tObdPart odPart_p,
     }
 
     strcat(pszBackupFilePath_p, OBD_ARCHIVE_FILENAME_EXTENSION);
-
-    ret = kErrorOk;
 
 Exit:
 DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);

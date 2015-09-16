@@ -2758,7 +2758,7 @@ static tOplkError cleanupStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
         }
 
         DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-        callStoreCallback(pCbStore_p);       // call callback function for last command//TODO @J: Fix this issue with newer handling mechanism
+        ret = callStoreCallback(pCbStore_p);       // call callback function for last command//TODO @J: Fix this issue with newer handling mechanism
         return ret;
     }
 }

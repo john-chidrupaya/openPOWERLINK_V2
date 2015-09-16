@@ -131,7 +131,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // supported by the device
 #ifdef CONFIG_STORE_RESTORE
 #define CONFIG_OBD_USE_STORE_RESTORE                TRUE
-#define CONFIG_OBD_CALC_OD_SIGNATURE                FALSE
+#define CONFIG_OBD_CALC_OD_SIGNATURE                TRUE
 #endif
 
 //==============================================================================

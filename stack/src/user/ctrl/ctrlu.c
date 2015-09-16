@@ -2140,7 +2140,7 @@ static tOplkError cbStoreOdPart(tObdCbParam MEM* pParam_p)
     }
 
     ret = obdconf_getTargetCapabilities(pParam_p->index, pParam_p->subIndex,
-                                      &odPart, &devCap);
+                                        &odPart, &devCap);
     if (ret != kErrorOk)
     {
         pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
@@ -2189,6 +2189,7 @@ static tOplkError cbStoreOdPart(tObdCbParam MEM* pParam_p)
         }
     }
 
+    //TODO @J What about the rest of the cases
     // function is called after reading from OD
     else if (pParam_p->obdEvent == kObdEvPostRead)
     {
@@ -2242,7 +2243,7 @@ static tOplkError cbRestoreOdPart(tObdCbParam MEM* pParam_p)
     }
 
     ret = obdconf_getTargetCapabilities(pParam_p->index, pParam_p->subIndex,
-                                      &odPart, &devCap);
+                                        &odPart, &devCap);
     if (ret != kErrorOk)
     {
         pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
@@ -2281,7 +2282,7 @@ static tOplkError cbRestoreOdPart(tObdCbParam MEM* pParam_p)
     }
 
     // function is called after reading from OD
-    else if (pParam_p->obdEvent == kObdEvPostRead)
+    else if (pParam_p->obdEvent == kObdEvPostRead) //TODO @J: why post read?
     {
         // WARNING: This does not work on big endian machines!
         //          The SDO adoptable object handling feature provides a clean
@@ -2352,7 +2353,7 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
             }
 
             // check signature for data valid on medium for this OD part
-            fValid = obdconf_verifyPartSignature(odPart);
+            fValid = obdconf_isPartArchiveValid(odPart);
             if (fValid == FALSE)
             {
                 obdconf_closePart(odPart);
@@ -2409,7 +2410,7 @@ static tOplkError storeCheckArchiveState(tObdPart odPart_p)
 
     DEBUG_LVL_CTRL_TRACE("1.4.1\n");
     // check signature for data valid on medium for this OD part
-    fValid = obdconf_verifyPartSignature(odPart_p);
+    fValid = obdconf_isPartArchiveValid(odPart_p);
     if (fValid == FALSE)
     {
         ret = kErrorObdStoreInvalidState;

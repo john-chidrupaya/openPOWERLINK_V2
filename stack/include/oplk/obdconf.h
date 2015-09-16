@@ -100,7 +100,7 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p);
 tOplkError obdconf_restorePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p);
 tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
                                          tObdPart* pOdPart_p, UINT32* pDevCap_p);
-BOOL obdconf_verifyPartSignature(tObdPart odPart_p);
+BOOL obdconf_isPartArchiveValid(tObdPart odPart_p);
 tOplkError obdconf_setBackupArchivePath(const char* pBackupPath_p);
 tOplkError obdconf_setPartSignature(tObdPart odPart_p, UINT32 signature_p);
 
