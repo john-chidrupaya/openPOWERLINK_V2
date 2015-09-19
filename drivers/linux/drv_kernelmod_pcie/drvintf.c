@@ -64,7 +64,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
-#define PROC_ID                         0xBA
+#define PROC_INSTANCE_ID                0xBA
 
 //------------------------------------------------------------------------------
 // module global vars
@@ -113,8 +113,8 @@ typedef struct
 {
     tDualprocDrvInstance    dualProcDrvInst;                    ///< Dual processor driver instance.
     BOOL                    fIrqMasterEnable;                   ///< Master interrupts status.
-    tCircBufInstance*       eventQueueInst[NR_OF_CIRC_BUFFERS]; ///< Event queue instances.
-    tCircBufInstance*       dllQueueInst[NR_OF_CIRC_BUFFERS];   ///< DLL queue instances.
+    tCircBufInstance*       apEventQueueInst[kEventQueueNum];       ///< Event queue instances.
+    tCircBufInstance*       apDllQueueInst[kDllCalQueueTxVeth + 1]; ///< DLL queue instances.
     tErrHndObjects*         pErrorObjects;                      ///< Pointer to error objects.
     tMemInfo                pdoMem;                             ///< PDO memory information mapped to user space.
     tMemInfo                benchmarkMem;                       ///< Benchmark memory information mapped to user space.
@@ -129,9 +129,11 @@ static tDrvIntfInstance    drvIntfInstance_l;
 //------------------------------------------------------------------------------
 // local function prototypes
 //------------------------------------------------------------------------------
+static tOplkError initDualProcShm(void);
 static tOplkError   initEvent(void);
 static tOplkError   initDllQueues(void);
 static tOplkError   initErrHndl(void);
+static void       exitDualProcShm(void);
 static void         exitEvent(void);
 static void         exitDllQueues(void);
 static void         exitErrHndl(void);
@@ -147,6 +149,64 @@ static void         unmapMemory(tMemInfo* pMemInfo_p);
 
 //------------------------------------------------------------------------------
 /**
+\brief  Initialize driver interface
+
+This function initializes necessary resources required for driver interface.
+
+\return Returns tOplkError error code.
+
+\ingroup module_driver_ndispcie
+*/
+//------------------------------------------------------------------------------
+tOplkError drv_init(void)
+{
+    tOplkError ret = kErrorOk;
+
+    TRACE("Initialize driver interface...");
+
+    OPLK_MEMSET(&drvInstance_l, 0, sizeof(tDriverInstance));
+
+    // Initialize the dualprocshm library
+    ret = initDualProcShm();
+    if (ret != kErrorOk)
+    {
+        DEBUG_LVL_ERROR_TRACE("Dual processor shared memory interface Initialization failed (0x%X)\n",
+                              ret);
+        return ret;
+    }
+
+    drvInstance_l.fDriverActive = TRUE;
+
+    TRACE(" OK\n");
+
+    return ret;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Close the driver interface
+
+This function frees all the resources used by the driver interface and shuts down
+the interface.
+
+\ingroup module_driver_ndispcie
+*/
+//------------------------------------------------------------------------------
+void drv_exit(void)
+{
+    TRACE("Exit driver interface...\n");
+
+    if (drvInstance_l.fDriverActive)
+    {
+        drvInstance_l.fDriverActive = FALSE;
+
+        // Close dualprocshm library interface
+        exitDualProcShm();
+    }
+}
+
+//------------------------------------------------------------------------------
+/**
 \brief  Execute a control command from user application
 
 This function parses the control command from user and passes it to PCP
@@ -155,18 +215,27 @@ copying it into the common control structure.
 
 \param  pCtrlCmd_p       Pointer to control command structure.
 
+\return Returns tOplkError error code.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_executeCmd(tCtrlCmd* pCtrlCmd_p)
+tOplkError drv_executeCmd(tCtrlCmd* pCtrlCmd_p)
 {
-    tOplkError      ret;
+    tOplkError    ret = kErrorOk;
     UINT16          cmd = pCtrlCmd_p->cmd;
-    int             timeout;
+    INT             timeout;
+    // Clean up stack
+    if (cmd == kCtrlCleanupStack || cmd == kCtrlShutdown)
+    {
+        exitDllQueues();
+        exitErrHndl();
+        exitEvent();
+    }
 
     if (dualprocshm_writeDataCommon(drvIntfInstance_l.dualProcDrvInst, FIELD_OFFSET(tCtrlBuf, ctrlCmd),
                                     sizeof(tCtrlCmd), (UINT8*)pCtrlCmd_p) != kDualprocSuccessful)
-        return;
+        return kErrorNoResource;
 
     // wait for response
     for (timeout = 0; timeout < CMD_TIMEOUT_CNT; timeout++)
@@ -176,38 +245,37 @@ void drv_executeCmd(tCtrlCmd* pCtrlCmd_p)
         if (dualprocshm_readDataCommon(drvIntfInstance_l.dualProcDrvInst, FIELD_OFFSET(tCtrlBuf, ctrlCmd),
                                        sizeof(tCtrlCmd), (UINT8*)pCtrlCmd_p) != kDualprocSuccessful)
         {
-            //TODO Command is not completed, return error
-            return;
+            return kErrorNoResource;
         }
 
         if (pCtrlCmd_p->cmd == 0)
             break;
     }
 
-    if (cmd == kCtrlInitStack && pCtrlCmd_p->retVal == kErrorOk)
+    if (timeout == CMD_TIMEOUT_CNT)
+        return kErrorGeneralError;
+
+    if ((cmd == kCtrlInitStack) && (pCtrlCmd_p->retVal == kErrorOk))
     {
         ret = initEvent();
         if (ret != kErrorOk)
         {
-            DEBUG_LVL_ERROR_TRACE("Event Initialization Failed %x\n", ret);
-            pCtrlCmd_p->retVal = ret;
-            return;
+            DEBUG_LVL_ERROR_TRACE("Event Initialization Failed (0x%X)\n", ret);
+            return ret;
         }
 
         ret = initErrHndl();
         if (ret != kErrorOk)
         {
-            DEBUG_LVL_ERROR_TRACE("Error Module Initialization Failed %x\n", ret);
-            pCtrlCmd_p->retVal = ret;
-            return;
+            DEBUG_LVL_ERROR_TRACE("Error Module Initialization Failed (0x%X)\n", ret);
+            return ret;
         }
 
         ret = initDllQueues();
         if (ret != kErrorOk)
         {
-            DEBUG_LVL_ERROR_TRACE("Dll Queues Initialization Failed %x\n", ret);
-            pCtrlCmd_p->retVal = ret;
-            return;
+            DEBUG_LVL_ERROR_TRACE("Dll Queues Initialization Failed (0x%X)\n", ret);
+            return ret;
         }
 
         ret = pdokcal_initSync();
@@ -219,13 +287,7 @@ void drv_executeCmd(tCtrlCmd* pCtrlCmd_p)
         }
     }
 
-    if (cmd == kCtrlShutdown)
-    {
-        exitDllQueues();
-        exitErrHndl();
-        exitEvent();
-        pdokcal_exitSync();
-    }
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -252,10 +314,12 @@ Read the initialization parameters from the kernel stack.
 
 \param  pInitParam_p       Pointer to initialization parameters structure.
 
+\return Returns tOplkError error code.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_readInitParam(tCtrlInitParam* pInitParam_p)
+tOplkError drv_readInitParam(tCtrlInitParam* pInitParam_p)
 {
     tDualprocReturn    dualRet;
 
@@ -270,8 +334,10 @@ void drv_readInitParam(tCtrlInitParam* pInitParam_p)
     if (dualRet != kDualprocSuccessful)
     {
         DEBUG_LVL_ERROR_TRACE("Cannot read initparam (0x%X)\n", dualRet);
-        return;
+        return kErrorNoResource;
     }
+
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -283,18 +349,28 @@ memory of stack.
 
 \param  pInitParam_p       Pointer to initialization parameters structure.
 
+\return Returns tOplkError error code.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_storeInitParam(tCtrlInitParam* pInitParam_p)
+tOplkError drv_storeInitParam(tCtrlInitParam* pInitParam_p)
 {
+    tDualprocReturn    dualRet;
     if (!drvIntfInstance_l.fDriverActive)
-        return;
+        return kErrorNoResource;
 
     dualprocshm_writeDataCommon(drvIntfInstance_l.dualProcDrvInst,
                                 FIELD_OFFSET(tCtrlBuf, initParam),
                                 sizeof(tCtrlInitParam),
                                 (UINT8*)pInitParam_p);
+    if (dualRet != kDualprocSuccessful)
+    {
+        DEBUG_LVL_ERROR_TRACE("Cannot store initparam (0x%X)\n", dualRet);
+        return kErrorNoResource;
+    }
+
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -305,13 +381,15 @@ Return the current status of kernel stack.
 
 \param  pStatus_p       Pointer to status variable to return.
 
+\return Returns tOplkError error code.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_getStatus(UINT16* pStatus_p)
+tOplkError drv_getStatus(UINT16* pStatus_p)
 {
     if (!drvIntfInstance_l.fDriverActive)
-        return;
+        return kErrorNoResource;
 
     if (dualprocshm_readDataCommon(drvIntfInstance_l.dualProcDrvInst,
                                    FIELD_OFFSET(tCtrlBuf, status),
@@ -319,7 +397,10 @@ void drv_getStatus(UINT16* pStatus_p)
                                    (UINT8*)pStatus_p) != kDualprocSuccessful)
     {
         DEBUG_LVL_ERROR_TRACE("Error Reading Status\n");
+        return kErrorNoResource;
     }
+
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -330,21 +411,26 @@ Return the current heartbeat value in kernel.
 
 \param  pHeartbeat       Pointer to heartbeat variable to return.
 
+\return Returns tOplkError error code.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_getHeartbeat(UINT16* pHeartbeat)
+tOplkError drv_getHeartbeat(UINT16* pHeartbeat_p)
 {
     if (!drvIntfInstance_l.fDriverActive)
-        return;
+        return kErrorNoResource;
 
     if (dualprocshm_readDataCommon(drvIntfInstance_l.dualProcDrvInst,
                                    FIELD_OFFSET(tCtrlBuf, heartbeat),
                                    sizeof(UINT16),
-                                   (UINT8*)pHeartbeat) != kDualprocSuccessful)
+                                   (UINT8*)pHeartbeat_p) != kDualprocSuccessful)
     {
-        DEBUG_LVL_ERROR_TRACE("%s()Error Reading HeartBeat\n");
+        DEBUG_LVL_ERROR_TRACE("Error Reading HeartBeat\n");
+        return kErrorNoResource;
     }
+
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -359,7 +445,7 @@ it into the specified DLL queue for processing by PCP.
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_sendAsyncFrame(unsigned char* pArg_p)
+tOplkError drv_sendAsyncFrame(unsigned char* pArg_p)
 {
     tIoctlDllCalAsync*      asyncFrameInfo;
     tFrameInfo              frameInfo;
@@ -370,10 +456,10 @@ void drv_sendAsyncFrame(unsigned char* pArg_p)
 
     asyncFrameInfo = (tIoctlDllCalAsync*)pArg_p;
     frameInfo.frameSize = asyncFrameInfo->size;
-    frameInfo.pFrame =    (tPlkFrame*)asyncFrameInfo->pData;
+    frameInfo.frame.pBuffer = (tPlkFrame*)asyncFrameInfo->pData;
 
     ret = insertDataBlock(drvIntfInstance_l.dllQueueInst[asyncFrameInfo->queue],
-                          (UINT8*)frameInfo.pFrame,
+                          (UINT8*)frameInfo.frame.pBuffer,
                           &(frameInfo.frameSize));
 
     if (ret != kErrorOk)
@@ -451,7 +537,7 @@ tOplkError drv_initDualProcDrv(void)
     OPLK_MEMSET(&dualProcConfig, 0, sizeof(tDualprocConfig));
 
     dualProcConfig.procInstance = kDualProcSecond;
-    dualProcConfig.procId = PROC_ID;
+    dualProcConfig.procInstance = PROC_INSTANCE_ID;
 
     dualRet = dualprocshm_create(&dualProcConfig, &drvIntfInstance_l.dualProcDrvInst);
     if (dualRet != kDualprocSuccessful)

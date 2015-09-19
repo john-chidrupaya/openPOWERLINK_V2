@@ -47,6 +47,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // const defines
 //------------------------------------------------------------------------------
 #define PLK_DEV_FILE      "/dev/plk"
+#define PLK_DRV_NAME      "plk"
+#define PLK_IOC_MAGIC     '='
 //------------------------------------------------------------------------------
 //  Commands for <ioctl>
 //------------------------------------------------------------------------------

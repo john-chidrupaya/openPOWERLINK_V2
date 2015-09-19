@@ -75,24 +75,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C"
 {
 #endif
-void        drv_executeCmd(tCtrlCmd* ctrlCmd_p);
-void        drv_readInitParam(tCtrlInitParam* pInitParam_p);
-void        drv_storeInitParam(tCtrlInitParam* pInitParam_p);
-void        drv_getStatus(UINT16* status_p);
-void        drv_getHeartbeat(UINT16* heartbeat);
-void        drv_sendAsyncFrame(unsigned char* pArg_p);
-void        drv_writeErrorObject(tErrHndIoctl* pWriteObject_p);
-void        drv_readErrorObject(tErrHndIoctl* pReadObject_p);
-tOplkError  drv_initDualProcDrv(void);
-void        drv_exitDualProcDrv(void);
-void        drv_postEvent(void* pEvent_p);
-void        drv_getEvent(void* pEvent_p, size_t* pSize_p);
+tOplkError drv_init(void);
+void       drv_exit(void);
+tOplkError drv_executeCmd(tCtrlCmd* ctrlCmd_p);
+tOplkError drv_readInitParam(tCtrlInitParam* pInitParam_p);
+tOplkError drv_storeInitParam(tCtrlInitParam* pInitParam_p);
+tOplkError drv_getStatus(UINT16* pStatus_p);
+tOplkError drv_getHeartbeat(UINT16* pHeartbeat_p);
+tOplkError drv_sendAsyncFrame(unsigned char* pArg_p);
+tOplkError drv_writeErrorObject(tErrHndIoctl* pWriteObject_p);
+tOplkError drv_readErrorObject(tErrHndIoctl* pReadObject_p);
+tOplkError drv_postEvent(void* pEvent_p);
+tOplkError drv_getEvent(void* pEvent_p, size_t* pSize_p);
 tOplkError  drv_getPdoMem(UINT8** ppPdoMem_p, size_t memSize_p);
 void        drv_freePdoMem(UINT8* pPdoMem_p, size_t memSize_p);
-tOplkError  drv_getBenchmarkMem(UINT8** ppBenchmarkMem_p);
-void        drv_freeBenchmarkMem(UINT8* pBenchmarkMem_p);
-tOplkError  drv_mapKernelMem(UINT8** pKernelMem_p, UINT8** pUserMem_p);
-void        drv_unmapKernelMem(UINT8* pUserMem_p);
+tOplkError drv_getBenchmarkMem(UINT8** ppBenchmarkMem_p);
+void       drv_freeBenchmarkMem(UINT8* pBenchmarkMem_p);
+tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p, UINT32* pSize_p);
+void       drv_unmapKernelMem(UINT8* pUserMem_p);
 tOplkError  drv_waitSyncEvent(void);
 
 #ifdef __cplusplus

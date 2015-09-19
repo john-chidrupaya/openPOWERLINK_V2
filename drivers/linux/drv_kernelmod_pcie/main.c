@@ -772,7 +772,6 @@ int postEventFromUser(ULONG arg)
         case kEventSinkApi:
         case kEventSinkDlluCal:
         case kEventSinkErru:
-        case kEventSinkLedu:
         /*TRACE("UINT type:%s(%d) sink:%s(%d) size:%d!\n",
                debugstr_getEventTypeStr(event.eventType), event.eventType,
                debugstr_getEventSinkStr(event.eventSink), event.eventSink,

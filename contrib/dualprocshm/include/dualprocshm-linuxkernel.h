@@ -64,12 +64,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define DUALPROCSHM_MEMCPY(dest, src, siz)      memcpy(dest, src, siz)
 
 /// IO operations
-#define DPSHM_READ8(base)                       readb((UINT8*)base);
-#define DPSHM_WRITE8(base, val)                 writeb(val, (UINT8*)base);
-#define DPSHM_READ16(base)                      readw((UINT16*)base);
-#define DPSHM_WRITE16(base, val)                writew(val, (UINT16*)base);
-#define DPSHM_READ32(base)                      readl((UINT32*)base);
-#define DPSHM_WRITE32(base, val)                writel(val, (UINT32*)base);
+#define DPSHM_READ8(base)                       readb((UINT8*)base)
+#define DPSHM_WRITE8(base, val)                 writeb(val, (UINT8*)base)
+#define DPSHM_READ16(base)                      readw((UINT16*)base)
+#define DPSHM_WRITE16(base, val)                writew(val, (UINT16*)base)
+#define DPSHM_READ32(base)                      readl((UINT32*)base)
+#define DPSHM_WRITE32(base, val)                writel(val, (UINT32*)base)
 #define DPSHM_ENABLE_INTR(fEnable)              // TODO
 #define DPSHM_DMB()                             // no data barriers used
 
