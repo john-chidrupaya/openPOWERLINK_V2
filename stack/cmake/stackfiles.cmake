@@ -80,7 +80,7 @@ SET(USER_SOURCES
     ${USER_SOURCE_DIR}/api/sdotest.c
     ${USER_SOURCE_DIR}/obd/obd.c
     ${USER_SOURCE_DIR}/obd/obdcreate.c
-    ${USER_SOURCE_DIR}/obd/obdconf-linux.c
+    ${USER_SOURCE_DIR}/obd/obdconf-fileio.c
     ${USER_SOURCE_DIR}/dll/dllucal.c
     ${USER_SOURCE_DIR}/event/eventu.c
     ${USER_SOURCE_DIR}/nmt/nmtu.c
