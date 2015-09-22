@@ -80,7 +80,7 @@ SET(USER_SOURCES
     ${USER_SOURCE_DIR}/api/sdotest.c
     ${USER_SOURCE_DIR}/obd/obd.c
     ${USER_SOURCE_DIR}/obd/obdcreate.c
-    ${USER_SOURCE_DIR}/obd/obdArchive.c
+    ${USER_SOURCE_DIR}/obd/obdconf-linux.c
     ${USER_SOURCE_DIR}/dll/dllucal.c
     ${USER_SOURCE_DIR}/event/eventu.c
     ${USER_SOURCE_DIR}/nmt/nmtu.c
@@ -506,10 +506,6 @@ SET(TARGET_WINDOWS_SOURCES
 SET(TARGET_LINUX_SOURCES
     ${ARCH_SOURCE_DIR}/linux/target-linux.c
     ${ARCH_SOURCE_DIR}/linux/target-mutex.c
-    )
-
-SET(TARGET_LINUX_OBD_SOURCES
-    ${ARCH_SOURCE_DIR}/linux/target-fileio.c
     )
 
 SET(TARGET_MICROBLAZE_SOURCES
