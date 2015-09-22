@@ -2,7 +2,10 @@
 ********************************************************************************
 \file   obdconf.c
 
-\brief
+\brief Implementation of the object dictionary (OD) archive module.
+
+The file contains implementation for the object dictionary (OD) configuration
+store, load, restore functionality.
 
 \ingroup module_obd
 *******************************************************************************/
@@ -74,7 +77,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #include <utime.h>
     #include <limits.h>
 
-#elif (DEV_SYSTEM == _DEV_PAR_BECK1X3_)
+#elif (DEV_SYSTEM == _DEV_PAR_BECK1X3_) //TODO @J: not yet supported
 
     #include <io.h>
     #include <string.h>
@@ -149,8 +152,8 @@ static tObdConfInstance aObdConfInstance_l[1];
 //------------------------------------------------------------------------------
 // local function prototypes
 //------------------------------------------------------------------------------
-static tOplkError getFilePath(tObdPart odPart_p, char* pBkupPath_p,
-                              char* pFilePathName_p);
+static tOplkError getOdPartArchivePath(tObdPart odPart_p, char* pBkupPath_p,
+                                       char* pFilePathName_p);
 
 /***************************************************************************/
 /*          C L A S S  <Store/Load>                                        */
@@ -158,79 +161,60 @@ static tOplkError getFilePath(tObdPart odPart_p, char* pBkupPath_p,
 /**
   Description:
 
-  File XXX%d_Com.bin:
+  File oplkOd_Com.bin:
           +----------------------+
-  0x0000  | target signature     | (4 byte)
+  0x0000  | target signature     | (4 Bytes)
           +----------------------+
-  0x0004  | OD signature of part | (4 byte)
+  0x0004  | OD signature of part | (4 Bytes)
           |  0x1000 - 0x1FFF     |
           +----------------------+
-  0x0008  | all OD data of part  | (n byte)
+  0x0008  | all OD data of part  | (n Bytes)
           |  0x1000 - 0x1FFF     |
           +----------------------+
-  0xNNNN  | OD data CRC          | (2 byte)
+  0xNNNN  | OD data CRC          | (2 Bytes)
           +----------------------+
 
-  File XXX%d_Man.bin:
+  File oplkOd_Man.bin:
           +----------------------+
-  0x0000  | target signature     | (4 byte)
+  0x0000  | target signature     | (4 Bytes)
           +----------------------+
-  0x0004  | OD signature of part | (4 byte)
+  0x0004  | OD signature of part | (4 Bytes)
           |  0x2000 - 0x5FFF     |
           +----------------------+
-  0x0008  | all OD data of part  | (n byte)
+  0x0008  | all OD data of part  | (n Bytes)
           |  0x2000 - 0x5FFF     |
           +----------------------+
-  0xNNNN  | OD data CRC          | (2 byte)
+  0xNNNN  | OD data CRC          | (2 Bytes)
           +----------------------+
 
-  File XXX%d_Dev.bin:
+  File oplkOd_Dev.bin:
           +----------------------+
-  0x0000  | target signature     | (4 byte)
+  0x0000  | target signature     | (4 Bytes)
           +----------------------+
-  0x0004  | OD signature of part | (4 byte)
+  0x0004  | OD signature of part | (4 Bytes)
           |  0x6000 - 0x9FFF     |
           +----------------------+
-  0x0008  | all OD data of part  | (n byte)
+  0x0008  | all OD data of part  | (n Bytes)
           |  0x6000 - 0x9FFF     |
           +----------------------+
-  0xNNNN  | OD data CRC          | (2 byte)
+  0xNNNN  | OD data CRC          | (2 Bytes)
           +----------------------+
 */
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
 //============================================================================//
-
 //------------------------------------------------------------------------------
 /**
-\brief  Initialize OD module
+\brief  Initialize OD archive module
 
-The function initializes the OD module.
-
-\param  pInitParam_p            Pointer to OD initialization parameters.
+The function initializes OD archive module.
 
 \return The function returns a tOplkError error code.
 
-\ingroup module_obd
+\ingroup module_obdconf
 */
 //------------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcInit()
-//
-// Description: initializes functionality for STORE, RESTORE and LOAD
-//              for OD values in other memory mediums, initializes
-//              interface to non-volatile memory if it not done by
-//              operating systems
-//
-// Parameters:  void  = (instance handle)
-//
-// Returns:     tOplkError             = error code
-//
-//---------------------------------------------------------------------------
-
 tOplkError obdconf_init(void)
 {
     tOplkError ret = kErrorOk;
@@ -238,7 +222,7 @@ tOplkError obdconf_init(void)
 
     obdConfSignature_l = 0x444F4C50;  // signature PLOD
 
-    // get current instance entry and initialize all members
+    // Get current instance entry and initialize all members
     pInstEntry = &aObdConfInstance_l[0];
     OPLK_MEMSET(pInstEntry, 0, sizeof(tObdConfInstance));
     pInstEntry->hBkupArchiveFile = -1;
@@ -246,18 +230,17 @@ tOplkError obdconf_init(void)
     return ret;
 }
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcShutdown()
-//
-// Description: disable interface to non-volatile memory
-//
-// Parameters:  void  = (instance handle)
-//
-// Returns:     tOplkError             = error code
-//
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+/**
+\brief  Cleanup OD archive module
 
+The function cleans up OD archive module.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
 tOplkError obdconf_exit(void)
 {
     tOplkError ret;
@@ -267,20 +250,20 @@ tOplkError obdconf_exit(void)
     return ret;
 }
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcCreate()
-//
-// Description: Function creates an archiv for the selected OD part. In
-//              existence archiv is set unvalid.
-//
-// Parameters:  void  = (instance handle)
-//              CurrentOdPart_p       = OD-part
-//
-// Returns:     tOplkError             = error code
-//
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+/**
+\brief  Create an archive for the OD part
 
+The function creates an archive for the selected OD part.
+Existing archive is set invalid.
+
+\param  odPart_p                OD part specifier
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
 tOplkError obdconf_createPart(tObdPart odPart_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
@@ -289,18 +272,17 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     UINT32              odSignature;
     tObdConfInstance*   pInstEntry;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    // get current instance entry
+    // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // get the file path for current OD part and instance
-    ret = getFilePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
+    // Get the file path for current OD part and instance
+    ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
     {
         goto Exit;
     }
 
-    // is the file already opened?
+    // Is the file already opened?
     if (pInstEntry->hBkupArchiveFile >= 0)
     {
         ret = kErrorObdStoreInvalidState;
@@ -308,7 +290,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     }
 
     //TODO @J: Shouldn't this be conditional on whether the signature is included or not
-    // check OD part for correct OD signature
+    // Check OD part for correct OD signature
     switch (odPart_p)
     {
         case kObdPartGen:
@@ -328,9 +310,9 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
             goto Exit;
     }
 
-    // open file for writing
+    // Open file for writing
     pInstEntry->fOpenForWrite = TRUE;
-    pInstEntry->hBkupArchiveFile = open(aFilePath, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666); //TODO@J2 Move to target source
+    pInstEntry->hBkupArchiveFile = open(aFilePath, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666);
     if (pInstEntry->hBkupArchiveFile < 0)
     {
         pInstEntry->hBkupArchiveFile = -1;
@@ -338,7 +320,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
         goto Exit;
     }
 
-    // write target signature and calculate CRC for it
+    // Write target signature and calculate CRC for it
     pInstEntry->odDataCrc = OPLK_CALCULATE_CRC16(0,
                                                  (UINT8*)&obdConfSignature_l,
                                                  sizeof(obdConfSignature_l));
@@ -351,7 +333,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
         goto Exit;
     }
 
-    // write OD signature and calculate CRC for it
+    // Write OD signature and calculate CRC for it
     pInstEntry->odDataCrc = OPLK_CALCULATE_CRC16(pInstEntry->odDataCrc,
                                                  (UINT8*)&odSignature,
                                                  sizeof(odSignature));
@@ -367,42 +349,40 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     ret = kErrorOk;
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Delete the archive for the OD part
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcDelete()
-//
-// Description: Function sets an archiv unvalid.
-//
-// Parameters:  void  = (instance handle)
-//              CurrentOdPart_p       = OD-part
-//
-// Returns:     tOplkError             = error code
-//
-//---------------------------------------------------------------------------
-tOplkError obdconf_deletePart (tObdPart odPart_p)
+The function deletes the archive for the selected OD part or sets it invalid.
+
+\param  odPart_p                OD part specifier
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
+tOplkError obdconf_deletePart(tObdPart odPart_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
     char                aFilePath[_MAX_PATH];
     tObdConfInstance*   pInstEntry;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    // get current instance entry
+    // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // get the file path for current OD part and instance
-    ret = getFilePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
+    // Get the file path for current OD part and instance
+    ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
     {
         goto Exit;
     }
 
-    // delete the backup archive file
-    if (unlink(aFilePath) == -1) //TODO@J2 Move to target specific source--> close()??
+    // Delete the backup archive file
+    if (unlink(aFilePath) == -1)
     {
         ret = kErrorObdStoreHwError;
         goto Exit;
@@ -411,85 +391,85 @@ tOplkError obdconf_deletePart (tObdPart odPart_p)
     ret = kErrorOk;
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Open the archive for the OD part
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcOpen()
-//
-// Description: Function opens an in existence archive.
-//
-// Parameters:  void  = (instance handle)
-//              CurrentOdPart_p       = OD-part
-//
-// Returns:     tOplkError             = error code
-//
-//---------------------------------------------------------------------------
+This function is called to open the selected OD part archive, for the subsequent
+read operation to load the OD configuration. The OD part archive must exist prior
+to calling this function.
 
+\param  odPart_p                OD part specifier
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
 tOplkError obdconf_openPart(tObdPart odPart_p)
 {
     UINT8               ret = kErrorObdStoreHwError;
     char                aFilePath[_MAX_PATH];
     tObdConfInstance*   pInstEntry;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    // get current instance entry
+    // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // get the file path for current OD part and instance
-    ret = getFilePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
+    // Get the file path for current OD part and instance
+    ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
     {
         goto Exit;
     }
 
-    // is the file already opened?
+    // Is the file already opened?
     if (pInstEntry->hBkupArchiveFile >= 0)
     {
         ret = kErrorObdStoreInvalidState;
         goto Exit;
     }
 
-    // open backup archive file for read
+    // Open backup archive file for read
     pInstEntry->fOpenForWrite = FALSE;
-    pInstEntry->hBkupArchiveFile = open(aFilePath, O_RDONLY | O_BINARY, 0666); //TODO @J: Move to target source file
+    pInstEntry->hBkupArchiveFile = open(aFilePath, O_RDONLY | O_BINARY, 0666);
 
-    DEBUG_LVL_OBD_TRACE("%s: %d\n", aFilePath, pInstEntry->hBkupArchiveFile);
     if (pInstEntry->hBkupArchiveFile < 0)
     {
-        // backup archive file could not be opened
+        // Backup archive file could not be opened
         ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
-    // set file position to the begin of the file
-    lseek(pInstEntry->hBkupArchiveFile, 0, SEEK_SET);//TODO @J:Move to target source file
+    // Set file position to the begin of the file
+    lseek(pInstEntry->hBkupArchiveFile, 0, SEEK_SET);
 
     ret = kErrorOk;
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Close the archive for the OD part
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcClose()
-//
-// Description: Function closes an archiv for the selected OD part by
-//              setting a valid signature.
-//
-// Parameters:  void  = (instance handle)
-//              CurrentOdPart_p       = OD-part
-//
-// Returns:     tOplkError             = error code
-//
-//---------------------------------------------------------------------------
+This function is called to close the selected OD part archive, after read/write
+operation to load/store the OD configuration. The OD part archive must exist
+prior to calling this function.
 
+For a write operation, the function appends the calculated CRC to the end of
+archive.
+
+\param  odPart_p                OD part specifier
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
 tOplkError obdconf_closePart(tObdPart odPart_p)
 {
     tOplkError          ret = kErrorOk;
@@ -497,84 +477,81 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
     UINT8               data;
     tObdConfInstance*   pInstEntry;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    UNUSED_PARAMETER(odPart_p);
+    UNUSED_PARAMETER(odPart_p); //TODO @J: use this to check error in sequence of operation
 
-    // get current instance entry
+    // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // is the file not opened?
+    // Is the file not opened?
     if (pInstEntry->hBkupArchiveFile < 0)
     {
         ret = kErrorObdStoreInvalidState;
         goto Exit;
     }
 
-    // if file was opened for write we have to add the OD data CRC at the end of the file
+    // If file was opened for write we have to add the OD data CRC at the end of the file
     if (pInstEntry->fOpenForWrite != FALSE)
     {
-        // write CRC16 to end of the file (in big endian format)
+        // Write CRC16 to end of the file (in big endian format)
         data = (UINT8)((pInstEntry->odDataCrc >> 8) & 0xFF);
-        writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));//TODO @J:Move to target source file
+        writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));
         data = (UINT8)((pInstEntry->odDataCrc >> 0) & 0xFF);
         writeCount += write(pInstEntry->hBkupArchiveFile, (UINT8*)&data, sizeof(data));
         if (writeCount != (INT)(sizeof(data) * 2))
-        {   // save error code and close the file
+        {   // Save error code and close the file
             ret = kErrorObdStoreHwError;
         }
 
-        // sync file to disc
-        flush(pInstEntry->hBkupArchiveFile);//TODO @J:Move to target source file
+        // Sync file to disc
+        flush(pInstEntry->hBkupArchiveFile);
     }
 
-    // close archive file and set file handle invalid
-    close(pInstEntry->hBkupArchiveFile);//TODO @J:Move to target source file
+    // Close archive file and set file handle invalid
+    close(pInstEntry->hBkupArchiveFile);
     pInstEntry->hBkupArchiveFile = -1;
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Store the OD part configuration
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcStore()
-//
-// Description: Function saves the parameter of the select part into
-//              memory.
-//
-// Parameters:  void  = (instance handle)
-//              CurrentOdPart_p       = OD-part
-//              pointer to source data
-//              number of bytes
-//
-// Returns:     tOplkError             = error code
-//
-//---------------------------------------------------------------------------
+This function writes the specified OD part configuration parameters into the
+corresponding part archive.
 
+\param  odPart_p                OD part specifier.
+\param  pData_p                 Pointer to the buffer containing configuration
+                                data to be stored.
+\param  size_p                  Total size of the data to be stored, in bytes.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
 tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
     INT                 writeCount;
     tObdConfInstance*   pInstEntry;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    UNUSED_PARAMETER(odPart_p);
+    UNUSED_PARAMETER(odPart_p); //TODO @J: use this to throw error on operation sequence
 
-    // get current instance entry
+    // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // is the file not opened?
+    // Is the file not opened?
     if (pInstEntry->hBkupArchiveFile < 0)
     {
         ret = kErrorObdStoreInvalidState;
         goto Exit;
     }
 
-    // write current OD data to the file and calculate the CRC for it
+    // Write current OD data to the file and calculate the CRC for it
     pInstEntry->odDataCrc = OPLK_CALCULATE_CRC16(pInstEntry->odDataCrc, pData, size_p);
-    writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8*)pData, size_p);//TODO @J:Move to target source file
+    writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8*)pData, size_p);
     if (writeCount != (INT)size_p)
     {
         goto Exit;
@@ -582,48 +559,46 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 
     ret = kErrorOk;
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Load the OD part configuration
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcRestore()
-//
-// Description: Function reads the parameter from memory and stores the
-//              value into the selected OD part.
-//
-// Parameters:  void  = (instance handle)
-//              CurrentOdPart_p       = OD-part
-//              pointer to destination data
-//              number of bytes
-//
-// Returns:     tOplkError             = error code
-//
-//---------------------------------------------------------------------------
+This function reads the specified OD part configuration parameters from the
+corresponding part archive.
 
-tOplkError obdconf_restorePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
+\param  odPart_p                OD part specifier.
+\param  pData_p                 Pointer to the buffer to hold the configuration
+                                data read from the archive.
+\param  size_p                  Total size of the data to be read, in bytes.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
+tOplkError obdconf_loadPart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
     INT                 readCount;
     tObdConfInstance*   pInstEntry;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    UNUSED_PARAMETER(odPart_p);
+    UNUSED_PARAMETER(odPart_p);  //TODO @J: check sequence of operation
 
-    // get current instance entry
+    // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // is the file not opened?
+    // Is the file not opened?
     if (pInstEntry->hBkupArchiveFile < 0)
     {
         ret = kErrorObdStoreInvalidState;
         goto Exit;
     }
 
-    // read OD data from current file position
-    readCount = read(pInstEntry->hBkupArchiveFile, (UINT8*)pData, size_p);//TODO @J:Move to target source file
+    // Read OD data from current file position
+    readCount = read(pInstEntry->hBkupArchiveFile, (UINT8*)pData, size_p);
     if (readCount != (INT)size_p)
     {
         goto Exit;
@@ -632,38 +607,38 @@ tOplkError obdconf_restorePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     ret = kErrorOk;
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Get target's store/restore capabilities
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcGetCapabilities()
-//
-// Description: The function returns the storage capabilities corresponding
-//              to the specified object index and sub-index.
-//              Additionally it returns the OD part corresponding to the
-//              specified sub-index.
-//
-// Parameters:  uiIndex_p           = [IN] identifies command (0x1010 = save, 0x1011 = restore)
-//              uiSubIndex_p        = [IN] identifies OD part
-//              pOdPart_p           = [OUT] pointer to OD part
-//              pdwCap_p            = [OUT] pointer to capabilities bit-field
-//                  EPL_OBD_STORE_UNSUPPORTED  = 0x00000000 - Device does not save parameters.
-//                  EPL_OBD_STORE_ON_COMMAND   = 0x00000001 - Device saves parameters on command.
-//                  EPL_OBD_STORE_AUTONOMOUSLY = 0x00000002 - Device saves parameters autonomously.
-//
-// Returns:     tOplkError              = error code
-//
-//---------------------------------------------------------------------------
+This function returns the store/restore capabilities of the target platform
+for the OD part corresponding to the specified store/restore parameter object
+sub-index.
+
+\param  index_p                 OD store/restore parameter object index.
+\param  subIndex_p              OD store/restore parameter object sub-index.
+\param  pOdPart_p               Pointer to hold the OD part specifier
+                                corresponding to the sub-index.
+\param  pDevCap_p               Pointer to hold the target device store/restore
+                                capabilities.
+                                NOTE: For the current filesystem based archive
+                                implementation, all OD parts are configured to
+                                use 0x00000001 mode i.e. 'store on command'.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
 tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
                                          tObdPart* pOdPart_p, UINT32* pDevCap_p)
 {
     tOplkError ret = kErrorOk;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    UNUSED_PARAMETER(index_p); //TODO Check index to verify it is indeed the correct one
+    UNUSED_PARAMETER(index_p); //TODO @J: Check index to verify it is indeed the correct one
 
     if ((pOdPart_p == NULL) || (pDevCap_p == NULL))
     {
@@ -673,28 +648,28 @@ tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
 
     switch (subIndex_p)
     {
-        // Device supports save/restore of index ranges
+        // Device supports store/restore of index ranges
         // 0x1000-0x1FFF, 0x2000-0x5FFF, 0x6000-0x9FFF
         case 1:
             *pDevCap_p = OBD_STORE_ON_COMMAND;
             *pOdPart_p = kObdPartAll;
             break;
 
-        // Device supports save/restore of index range
+        // Device supports store/restore of index range
         // 0x1000-0x1FFF
         case 2:
             *pDevCap_p = OBD_STORE_ON_COMMAND;
             *pOdPart_p = kObdPartGen;
             break;
 
-        // Device supports not save/restore of index
+        // Device supports store/restore of index
         // 0x6000-0x9FFF
         case 3:
             *pDevCap_p = OBD_STORE_ON_COMMAND;
             *pOdPart_p = kObdPartDev;
             break;
 
-        // Device supports save/restore of index
+        // Device supports store/restore of index
         // 0x2000-0x5FFF
         case 4:
             *pDevCap_p = OBD_STORE_ON_COMMAND;
@@ -707,24 +682,29 @@ tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
     }
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcCheckValid()
-//
-// Description: Function checks up if signature of selected OD
-//              part is valid.
-//
-// Parameters:  void  = (instance handle)
-//              CurrentOdPart_p       = OD-part
-//
-// Returns:     FALSE  -> signature is unvalid
-//              TRUE   -> signature is valid
-//
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+/**
+\brief  Check if the OD part archive is valid
+
+This function checks the data integrity and signature of the specified
+OD part archive and returns if the archive is valid or invalid.
+
+The OD part archive has to opened prior to calling this function.
+The function resets the read pointer for the archive to the beginning
+of the configuration data.
+
+\param  odPart_p                OD part specifier.
+
+\return The function returns a boolean value.
+\retVal TRUE                    The OD part archive is valid.
+\retVal FALSE                   The OD part archive is not valid.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
 BOOL obdconf_isPartArchiveValid(tObdPart odPart_p)
 {
     BOOL                ret = FALSE;
@@ -737,17 +717,16 @@ BOOL obdconf_isPartArchiveValid(tObdPart odPart_p)
     UINT16              dataCrc;
     tObdConfInstance*   pInstEntry;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    // get current instance entry
+    // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // is the file not opened?
+    // Is the file not opened?
     if (pInstEntry->hBkupArchiveFile < 0)
     {
         goto Exit;
     }
 
-    // check OD part for correct OD signature
+    // Check OD part for correct OD signature
     switch (odPart_p)
     {
         case kObdPartGen:
@@ -766,32 +745,32 @@ BOOL obdconf_isPartArchiveValid(tObdPart odPart_p)
             goto Exit;
     }
 
-    // read target signature and calculate the CRC for it
-    readCount = read(pInstEntry->hBkupArchiveFile, &readTargetSign, sizeof(readTargetSign));//TODO @J2: move to target src
-    dataCrc = OPLK_CALCULATE_CRC16(0, (UINT8*)&readTargetSign, sizeof(readTargetSign));//TODO @J2: move to target src
+    // Read target signature and calculate the CRC for it
+    readCount = read(pInstEntry->hBkupArchiveFile, &readTargetSign, sizeof(readTargetSign));
+    dataCrc = OPLK_CALCULATE_CRC16(0, (UINT8*)&readTargetSign, sizeof(readTargetSign));
     if (readCount != (INT)sizeof(readTargetSign))
     {
         goto Exit;
     }
 
-    // read OD signature and calculate the CRC for it
-    readCount = read(pInstEntry->hBkupArchiveFile, &readOdSign, sizeof(readOdSign));//TODO @J: move to target src
-    dataCrc = OPLK_CALCULATE_CRC16(dataCrc, (UINT8*)&readOdSign, sizeof(readOdSign));//TODO @J: move to target src
+    // Read OD signature and calculate the CRC for it
+    readCount = read(pInstEntry->hBkupArchiveFile, &readOdSign, sizeof(readOdSign));
+    dataCrc = OPLK_CALCULATE_CRC16(dataCrc, (UINT8*)&readOdSign, sizeof(readOdSign));
     if (readCount != (INT)sizeof(readOdSign))
     {
         goto Exit;
     }
 
-    // check if both target signature and OD signature are correct
+    // Check if both target signature and OD signature are correct
     if ((readTargetSign != obdConfSignature_l) || (readOdSign  != curReadSign))
     {
         goto Exit;
     }
 
-    // calculate OD data CRC over all data bytes
+    // Calculate OD data CRC over all data bytes
     for (;;)
     {
-        count = read(pInstEntry->hBkupArchiveFile, &aTempBuffer[0], sizeof(aTempBuffer));//TODO @J: move to target src
+        count = read(pInstEntry->hBkupArchiveFile, &aTempBuffer[0], sizeof(aTempBuffer));
         if (count > 0)
         {
             dataCrc = OPLK_CALCULATE_CRC16(dataCrc, (UINT8*)&aTempBuffer[0], count);
@@ -802,87 +781,84 @@ BOOL obdconf_isPartArchiveValid(tObdPart odPart_p)
         }
     }
 
-    // check OD data CRC (always zero because CRC has to be set at the end of the file in big endian format)
+    // Set file position back to OD data
+    lseek(pInstEntry->hBkupArchiveFile, sizeof(readTargetSign) + sizeof(readOdSign), SEEK_SET);
+
+    // Check OD data CRC (always zero because CRC has to be set at the end of the file in big endian format)
     if (dataCrc != 0)
     {
         goto Exit;
     }
 
-    //XXX@J Does this belong here??
-    // set file position back to OD data
-    lseek(pInstEntry->hBkupArchiveFile, sizeof(readTargetSign) + sizeof(readOdSign), SEEK_SET);//TODO @J: move to target src
-
     ret = TRUE;
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
+
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Set OD archive path
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcSetBackupPath()
-//
-// Description: Function set the file path for backup archive.
-//
-// Parameters:  void  = (instance handle)
-//              pszBackupPath_p        = selected OD-part
-//
-// Returns:     tOplkError -> error code
-//
-//---------------------------------------------------------------------------
+This function sets the root path for all OD part archives. This module uses
+this path for searching the OD part archives suring store/restore operation.
+
+\param  pBackupPath_p           OD part archives' path.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
 //TODO @J: Does this have to be exposed to the user API
 tOplkError obdconf_setBackupArchivePath(const char* pBackupPath_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
     tObdConfInstance*   pInstEntry;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    // check pointer to backup path string
+    // Check pointer to backup path string
     if (pBackupPath_p == NULL)
     {
         ret = kErrorApiInvalidParam;
         goto Exit;
     }
 
-    // get current instance entry
+    // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // save pointer to backup path
+    // Save pointer to backup path
     pInstEntry->pBackupPath = (char*)pBackupPath_p;
 
     ret = kErrorOk;
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
+//------------------------------------------------------------------------------
+/**
+\brief  Set OD part archive signature
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcSetSignature()
-//
-// Description: Function set the signature of object dictionary.
-//
-// Parameters:  void  = (instance handle)
-//              CurrentOdPart_p       = OD-part
-//
-// Returns:     tOplkError -> error code
-//
-//-------------------------------------------------------------PUBLIC --------------
+This function sets the signature for the specified OD part archive.
 
+\param  odPart_p                OD part specifier.
+\param  signature_p             Signature for the OD part.
+
+\return The function returns a tOplkError error code.
+
+\ingroup module_obdconf
+*/
+//------------------------------------------------------------------------------
 tOplkError obdconf_setPartSignature(tObdPart odPart_p, UINT32 signature_p)
 {
     tOplkError          ret = kErrorOk;
     tObdConfInstance*   pInstEntry;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    // get current instance entry
+    // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // check OD part
+    // Check OD part
     switch (odPart_p)
     {
         case kObdPartGen:
@@ -903,7 +879,6 @@ tOplkError obdconf_setPartSignature(tObdPart odPart_p, UINT32 signature_p)
     }
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 
@@ -913,61 +888,58 @@ DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
 /// \name Private Functions
 /// \{
 
-//---------------------------------------------------------------------------
-//
-// Function:    EplTgtObdArcGetFilePath()
-//
-// Description: Function returns the file path for the file archive.
-//
-// Parameters:  void  = (instance handle)
-//              CurrentOdPart_p       = [in]  OD-part
-//              pszBackupPath_p        = [in]  directory path
-//              pszBackupFilePath_p    = [out] pointer to a buffer for receiving the file path
-//
-// Returns:     tOplkError -> error code
-//
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+/**
+\brief  Get complete path to the OD part archive
 
-static tOplkError getFilePath(tObdPart odPart_p,
-                              char* pszBackupPath_p,
-                              char* pszBackupFilePath_p)
+The functions returns the complete path to the specifed OD part archive, from
+the archive parent directory path provided.
+
+\param  odPart_p                OD part specifier.
+\param  pBkupPath_p             Parent directory path string.
+\param  pFilePathName_p         String pointer to hold the archive file path.
+
+\return The function returns a tOplkError error code.
+*/
+//------------------------------------------------------------------------------
+static tOplkError getOdPartArchivePath(tObdPart odPart_p, char* pBkupPath_p,
+                                       char* pFilePathName_p);
 {
     tOplkError ret = kErrorOk;
     size_t     len;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-    // build complete file path string
-    if (pszBackupPath_p != NULL)
+    // Build complete file path string
+    if (pBkupPath_p != NULL)
     {
-        strcpy(pszBackupFilePath_p, pszBackupPath_p);
+        strcpy(pFilePathName_p, pBkupPath_p);
     }
     else
     {
-        pszBackupFilePath_p[0] = '\0';
+        pFilePathName_p[0] = '\0';
     }
-    len = strlen(pszBackupFilePath_p);
+    len = strlen(pFilePathName_p);
     if ((len > 0)
-        && (pszBackupFilePath_p[len-1] != '\\')
-        && (pszBackupFilePath_p[len-1] != '/'))
+        && (pFilePathName_p[len-1] != '\\')
+        && (pFilePathName_p[len-1] != '/'))
     {
-        strcat(pszBackupFilePath_p, "/");
+        strcat(pFilePathName_p, "/");
     }
 
-    strcat(pszBackupFilePath_p, OBD_ARCHIVE_FILENAME_PREFIX);
+    strcat(pFilePathName_p, OBD_ARCHIVE_FILENAME_PREFIX);
 
-    // check OD part
+    // Check OD part archive name suffix
     switch (odPart_p)
     {
         case kObdPartGen:
-            strcat(pszBackupFilePath_p, "_partCom");
+            strcat(pFilePathName_p, "_partCom");
             break;
 
         case kObdPartMan:
-            strcat(pszBackupFilePath_p, "_partMan");
+            strcat(pFilePathName_p, "_partMan");
             break;
 
         case kObdPartDev:
-            strcat(pszBackupFilePath_p, "_partDev");
+            strcat(pFilePathName_p, "_partDev");
             break;
 
         default:
@@ -975,10 +947,9 @@ static tOplkError getFilePath(tObdPart odPart_p,
             goto Exit;
     }
 
-    strcat(pszBackupFilePath_p, OBD_ARCHIVE_FILENAME_EXTENSION);
+    strcat(pFilePathName_p, OBD_ARCHIVE_FILENAME_EXTENSION);
 
 Exit:
-DEBUG_LVL_OBD_TRACE("%s: %X\n", __func__, ret);
     return ret;
 }
 

@@ -37,7 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------*/
 
 #ifndef _INC_oplk_obdconf_H_
-#define _INC_oplk_obdconf_H_RC_H_
+#define _INC_oplk_obdconf_H_
 
 
 //---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ tOplkError obdconf_deletePart (tObdPart odPart_p);
 tOplkError obdconf_openPart(tObdPart odPart_p);
 tOplkError obdconf_closePart(tObdPart odPart_p);
 tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p);
-tOplkError obdconf_restorePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p);
+tOplkError obdconf_loadPart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p);
 tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
                                          tObdPart* pOdPart_p, UINT32* pDevCap_p);
 BOOL obdconf_isPartArchiveValid(tObdPart odPart_p);

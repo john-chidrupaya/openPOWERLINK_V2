@@ -94,7 +94,7 @@ typedef struct
 #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
     UINT32                          aOdSignature[3];
 #endif
-    UINT8                            obdTrashObject[8];
+    UINT8                           obdTrashObject[8];
 } tObdInstance;
 
 //------------------------------------------------------------------------------
@@ -213,9 +213,7 @@ tOplkError obd_init(tObdInitParam MEM* pInitParam_p)
     obdInstance_l.pfnStoreLoadObjectCb = NULL;
 
 #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
-    printf("2.1\n");
     OPLK_MEMSET(obdInstance_l.aOdSignature, -1, sizeof(obdInstance_l.aOdSignature));
-    printf("2.1\n");
 #endif
 
     calcOdIndexNum(&obdInstance_l.initParam);
@@ -1059,22 +1057,24 @@ tOplkError obd_searchVarEntry(UINT index_p, UINT subIndex_p, tObdVarEntry MEM** 
 }
 
 #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
-//---------------------------------------------------------------------------
-//
-// Function:    EplObdGetOdSignature()
-//
-// Description: reads the OD signature for checking valid OD in Store/Restore-file
-//
-// Parameters:  OdPart_p        = specifies the part of the OD
-//
-// Return:      WORD
-//
-// State:       not tested
-//
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+/**
+\brief  Get OD part archive signature
+
+The function reads the OD signature for checking valid OD part in Store/Restore
+archive file.
+
+\param  odPart_p        The OD part specifier.
+
+\return The function returns the OD part archive signature.
+\retVal UINT32_MAX      The OD part parameter is invalid
+
+\ingroup module_obd
+*/
+//------------------------------------------------------------------------------
 UINT32 obd_getOdSignature(tObdPart odPart_p)
 {
-    UINT32 odCrc = (UINT32)~0U;
+    UINT32 odCrc = UINT32_MAX;
 
     switch (odPart_p)
     {
@@ -1825,7 +1825,7 @@ static void MEM* getObjectCurrentPtr(tObdSubEntryPtr pSubIndexEntry_p)
             {
                 size = getObjectSize(pSubIndexEntry_p);
             }
-            pData = ((UINT8 MEM*)pData) + (size * arrayIndex);
+            pData = ((BYTE MEM*)pData) + (size * arrayIndex);
         }
 
         if ((pSubIndexEntry_p->access & kObdAccVar) != 0)
@@ -2170,7 +2170,7 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
 #endif
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    DEBUG_LVL_OBD_TRACE("1.2\n");
+
     // prepare structure for STORE RESTORE callback function
     cbStore.currentOdPart   = (UINT8)currentOdPart_p;
     cbStore.pData           = NULL;
@@ -2179,8 +2179,6 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
     // command of first action depends on direction to access
     if ((Ret = prepareStoreRestore(direction_p, &cbStore)) != kErrorOk)
         return Ret;
-
-    DEBUG_LVL_OBD_TRACE("1.2\n");
 #endif
 
     // we should not restore the OD values here
@@ -2336,7 +2334,7 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
 
     // command of last action depends on direction to access
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    cleanupStoreRestore(direction_p, &cbStore);
+    cleanupStoreRestore(direction_p, &cbStore); // Ignoring return from this
     return Ret;
 #else
     return Ret;
@@ -2688,7 +2686,6 @@ static tOplkError prepareStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
 {
     tOplkError          ret;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     if (direction_p == kObdDirLoad)
     {
         pCbStore_p->command = (UINT8)kObdCmdOpenRead;
@@ -2700,19 +2697,21 @@ static tOplkError prepareStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
         // set command for index and sub-index loop
         pCbStore_p->command = (UINT8)kObdCmdReadObj;
     }
-    else if (direction_p == kObdDirStore)
+    else
     {
-        pCbStore_p->command = (UINT8)kObdCmdOpenWrite;
-        // call callback function for previous command
-        ret = callStoreCallback (pCbStore_p);
-        if (ret != kErrorOk)
-            return ret;
+        if (direction_p == kObdDirStore)
+        {
+            pCbStore_p->command = (UINT8)kObdCmdOpenWrite;
+            // call callback function for previous command
+            ret = callStoreCallback (pCbStore_p);
+            if (ret != kErrorOk)
+                return ret;
 
-        // set command for index and sub-index loop
-        pCbStore_p->command = (UINT8)kObdCmdWriteObj;
+            // set command for index and sub-index loop
+            pCbStore_p->command = (UINT8)kObdCmdWriteObj;
+        }
     }
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     return kErrorOk;
 }
 
@@ -2730,12 +2729,10 @@ The functions cleans up a store/restore command.
 //------------------------------------------------------------------------------
 static tOplkError cleanupStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM* pCbStore_p)
 {
-    tOplkError          ret; //TODO @J3: cleanup
+    tOplkError          ret = kErrorOk;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     if (direction_p == kObdDirOBKCheck)
     {
-        DEBUG_LVL_OBD_TRACE("%s\n", __func__);
         return ret;
     }
     else
@@ -2757,8 +2754,8 @@ static tOplkError cleanupStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
             return ret;
         }
 
-        DEBUG_LVL_OBD_TRACE("%s\n", __func__);
-        ret = callStoreCallback(pCbStore_p);       // call callback function for last command//TODO @J: Fix this issue with newer handling mechanism
+        // Call callback function for last command
+        ret = callStoreCallback(pCbStore_p);
         return ret;
     }
 }
@@ -2782,7 +2779,6 @@ static tOplkError doStoreRestore(tObdAccess access_p, tObdCbStoreParam MEM* pCbS
 {
     tOplkError          ret = kErrorOk;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     // when attribute kObdAccStore is set, then call callback function
     if ((access_p & kObdAccStore) != 0)
     {
@@ -2794,7 +2790,6 @@ static tOplkError doStoreRestore(tObdAccess access_p, tObdCbStoreParam MEM* pCbS
         ret = callStoreCallback(pCbStore_p);
     }
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     return ret;
 }
 
@@ -2813,13 +2808,11 @@ static tOplkError callStoreCallback(tObdCbStoreParam MEM* pCbStoreParam_p)
 {
     tOplkError ret = kErrorOk;
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     if (obdInstance_l.pfnStoreLoadObjectCb != NULL)
     {
         ret = obdInstance_l.pfnStoreLoadObjectCb(pCbStoreParam_p);
     }
 
-    DEBUG_LVL_OBD_TRACE("%s\n", __func__);
     return ret;
 }
 #endif // (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
