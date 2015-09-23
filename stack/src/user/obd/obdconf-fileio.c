@@ -811,7 +811,6 @@ this path for searching the OD part archives suring store/restore operation.
 \ingroup module_obdconf
 */
 //------------------------------------------------------------------------------
-//TODO @J: Does this have to be exposed to the user API
 tOplkError obdconf_setBackupArchivePath(const char* pBackupPath_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;

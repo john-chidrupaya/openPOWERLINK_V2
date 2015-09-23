@@ -1027,6 +1027,40 @@ tOplkError oplk_setCdcFilename(char* pCdcFilename_p)
 
 //------------------------------------------------------------------------------
 /**
+\brief  Set OD archive path
+
+The function sets the object dictionary (OD) configuration archive file path
+to be used by the stack to store/restore OD configuration.
+
+\param  pBackupPath_p   Path to be used for storing/restoring the OD archive.
+
+\note   The function is only used if the configuration store restore
+        functionality is included in the openPOWERLINK stack.
+
+\return The function returns a \ref tOplkError error code.
+\retval kErrorOk                    The path has successfully been set.
+\retval kErrorApiInvalidParam       The function is not available due to missing
+                                    configuration store restore module.
+
+\ingroup module_api
+*/
+//------------------------------------------------------------------------------
+tOplkError oplk_setOdArchivePath(const char* pBackupPath_p)
+{
+    if (!ctrlu_stackIsInitialized())
+        return kErrorApiNotInitialized;
+
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+    return obdconf_setBackupArchivePath(pBackupPath_p);
+#else
+    UNUSED_PARAMETER(pBackupPath_p);
+
+    return kErrorApiInvalidParam;
+#endif
+}
+
+//------------------------------------------------------------------------------
+/**
 \brief  Stack process function
 
 The process function is used in single threaded environments e.g. without any OS.
