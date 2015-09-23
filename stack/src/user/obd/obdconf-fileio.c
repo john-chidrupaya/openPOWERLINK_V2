@@ -903,7 +903,7 @@ the archive parent directory path provided.
 */
 //------------------------------------------------------------------------------
 static tOplkError getOdPartArchivePath(tObdPart odPart_p, char* pBkupPath_p,
-                                       char* pFilePathName_p);
+                                       char* pFilePathName_p)
 {
     tOplkError ret = kErrorOk;
     size_t     len;

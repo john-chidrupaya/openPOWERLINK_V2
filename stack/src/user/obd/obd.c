@@ -1074,7 +1074,7 @@ archive file.
 //------------------------------------------------------------------------------
 UINT32 obd_getOdSignature(tObdPart odPart_p)
 {
-    UINT32 odCrc = UINT32_MAX;
+    UINT32 odCrc = (UINT32)~0U;
 
     switch (odPart_p)
     {
