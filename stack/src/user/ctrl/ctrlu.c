@@ -308,8 +308,13 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
     tOplkError              ret = kErrorOk;
     tCtrlInitParam          ctrlParam;
     UINT16                  retVal;
+
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+    tObdPart                curOdPart;
+
 #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
-        UINT32 signature;
+    UINT32                  signature;
+#endif
 #endif
 
     // reset instance structure
@@ -328,15 +333,61 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
         goto Exit;
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    // Register store/restore callback function
-    ret = obd_storeLoadObjCallback(cbStoreLoadObject);
+
+    // Initialize target-specific obdconf module
+    ret = obdconf_init();
     if (ret != kErrorOk)
     {
         goto Exit;
     }
 
-    // Initialize target-specific obdconf module
-    ret = obdconf_init();
+    // Check the state of each OD part archive; create blank archives for non-existent ones
+    retVal = 1;
+    curOdPart = kObdPartNo;
+    while (retVal != 0)
+    {
+        switch (curOdPart)
+        {
+            case kObdPartNo:
+                break;
+
+            case kObdPartGen:
+            case kObdPartMan:
+            case kObdPartDev:
+
+                if (checkOdPartArchiveState(curOdPart) == kErrorObdStoreHwError)
+                {
+                    if ((ret = obdconf_createPart(curOdPart)) != kErrorOk)
+                    {
+                        retVal = 0;
+                        break;
+                    }
+
+                    if ((ret = obdconf_closePart(curOdPart)) != kErrorOk)
+                        retVal = 0;
+                }
+
+                break;
+
+            case kObdPartUsr:
+            case kObdPartApp:
+            case kObdPartAll:
+            default:
+                retVal = 0;
+                break;
+        }
+
+        // switch to the next OD part
+        curOdPart = curOdPart << 1;
+    }
+
+    if (ret != kErrorOk)
+    {
+        goto Exit;
+    }
+
+    // Register store/restore callback function
+    ret = obd_storeLoadObjCallback(cbStoreLoadObject);
     if (ret != kErrorOk)
     {
         goto Exit;
@@ -2387,6 +2438,7 @@ static tOplkError checkOdPartArchiveState(tObdPart odPart_p)
     ret = obdconf_openPart(odPart_p);
     if (ret != kErrorOk)
     {
+        ret = kErrorObdStoreHwError;
         goto Exit;
     }
 

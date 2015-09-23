@@ -2313,6 +2313,7 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
     }
 
 #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+    // Save the calculated CRC for writing when the Archive is being closed
     if (direction_p == kObdDirInit)
     {
         switch (currentOdPart_p)
@@ -2334,8 +2335,7 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
 
     // command of last action depends on direction to access
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    cleanupStoreRestore(direction_p, &cbStore); // Ignoring return from this
-    return Ret;
+    return cleanupStoreRestore(direction_p, &cbStore);
 #else
     return Ret;
 #endif
@@ -2692,7 +2692,7 @@ static tOplkError prepareStoreRestore(tObdDir direction_p, tObdCbStoreParam MEM*
         // call callback function for previous command
         ret = callStoreCallback(pCbStore_p);
         if (ret != kErrorOk)
-            return kErrorOk;//TODO @J: Fix this issue with newer handling mechanism
+            return ret;
 
         // set command for index and sub-index loop
         pCbStore_p->command = (UINT8)kObdCmdReadObj;

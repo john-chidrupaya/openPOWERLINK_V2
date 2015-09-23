@@ -74,6 +74,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <oplk/obdcdc.h>
 #endif
 
+#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
+#include <oplk/obdconf.h>
+#endif
 
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
