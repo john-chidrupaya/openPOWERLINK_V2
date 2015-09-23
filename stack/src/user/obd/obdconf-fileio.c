@@ -134,13 +134,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 typedef struct
 {
-    INT         hBkupArchiveFile;
-    char*       pBackupPath;
-    BOOL        fOpenForWrite;
-    UINT32      odSignPartDev;
-    UINT32      odSignPartGen;
-    UINT32      odSignPartMan;
-    UINT16      odDataCrc;
+    INT         hBkupArchiveFile;       ///< Handle for the opened OD part archive
+    char*       pBackupPath;            ///< The parent directory for the archives
+    BOOL        fOpenForWrite;          ///< Flag to indicate whether the archive is opened for a write operation
+    UINT32      odSignPartDev;          ///< Signature for the OD standard device profile area archive
+    UINT32      odSignPartGen;          ///< Signature for the OD standard communication profile area archive
+    UINT32      odSignPartMan;          ///< Signature for the OD manufacturer area archive
+    UINT16      odDataCrc;              ///< 2 Byte CRC for the last opened archive
+    tObdType    curOdPart;              ///< Currently opened OD part archive
 }tObdConfInstance;
 
 //------------------------------------------------------------------------------
@@ -226,6 +227,7 @@ tOplkError obdconf_init(void)
     pInstEntry = &aObdConfInstance_l[0];
     OPLK_MEMSET(pInstEntry, 0, sizeof(tObdConfInstance));
     pInstEntry->hBkupArchiveFile = -1;
+    pInstEntry->curOdPart = kObdPartNo;
 
     return ret;
 }
@@ -243,9 +245,14 @@ The function cleans up OD archive module.
 //------------------------------------------------------------------------------
 tOplkError obdconf_exit(void)
 {
-    tOplkError ret;
+    tOplkError        ret = kErrorOk;
+    tObdConfInstance* pInstEntry;
 
-    ret = kErrorOk;
+    pInstEntry = &aObdConfInstance_l[0];
+    pInstEntry->curOdPart = kObdPartNo;
+    pInstEntry->hBkupArchiveFile = -1;
+    OPLK_MEMSET(pInstEntry, 0, sizeof(tObdConfInstance));
+    obdConfSignature_l = (UINT32)~0U;
 
     return ret;
 }
@@ -312,9 +319,11 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
 
     // Open file for writing
     pInstEntry->fOpenForWrite = TRUE;
+    pInstEntry->curOdPart = odPart_p;
     pInstEntry->hBkupArchiveFile = open(aFilePath, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666);
     if (pInstEntry->hBkupArchiveFile < 0)
     {
+        pInstEntry->curOdPart = kObdPartNo;
         pInstEntry->hBkupArchiveFile = -1;
         ret = kErrorObdStoreHwError;
         goto Exit;
@@ -434,11 +443,14 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
 
     // Open backup archive file for read
     pInstEntry->fOpenForWrite = FALSE;
+    pInstEntry->curOdPart = odPart_p;
     pInstEntry->hBkupArchiveFile = open(aFilePath, O_RDONLY | O_BINARY, 0666);
 
     if (pInstEntry->hBkupArchiveFile < 0)
     {
         // Backup archive file could not be opened
+        pInstEntry->curOdPart = kObdPartNo;
+        pInstEntry->hBkupArchiveFile = -1;
         ret = kErrorObdStoreHwError;
         goto Exit;
     }
@@ -477,10 +489,14 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
     UINT8               data;
     tObdConfInstance*   pInstEntry;
 
-    UNUSED_PARAMETER(odPart_p); //TODO @J: use this to check error in sequence of operation
-
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
+
+    if (odPart_p != pInstEntry->curOdPart)
+    {
+        ret = kErrorInvalidInstanceParam;
+        goto Exit;
+    }
 
     // Is the file not opened?
     if (pInstEntry->hBkupArchiveFile < 0)
@@ -508,6 +524,7 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
 
     // Close archive file and set file handle invalid
     close(pInstEntry->hBkupArchiveFile);
+    pInstEntry->curOdPart = kObdPartNo;
     pInstEntry->hBkupArchiveFile = -1;
 
 Exit:
@@ -537,10 +554,14 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     INT                 writeCount;
     tObdConfInstance*   pInstEntry;
 
-    UNUSED_PARAMETER(odPart_p); //TODO @J: use this to throw error on operation sequence
-
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
+
+    if (odPart_p != pInstEntry->curOdPart)
+    {
+        ret = kErrorInvalidInstanceParam;
+        goto Exit;
+    }
 
     // Is the file not opened?
     if (pInstEntry->hBkupArchiveFile < 0)
@@ -554,6 +575,7 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     writeCount = write(pInstEntry->hBkupArchiveFile, (UINT8*)pData, size_p);
     if (writeCount != (INT)size_p)
     {
+        ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
@@ -585,10 +607,15 @@ tOplkError obdconf_loadPart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     INT                 readCount;
     tObdConfInstance*   pInstEntry;
 
-    UNUSED_PARAMETER(odPart_p);  //TODO @J: check sequence of operation
-
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
+
+
+    if (odPart_p != pInstEntry->curOdPart)
+    {
+        ret = kErrorInvalidInstanceParam;
+        goto Exit;
+    }
 
     // Is the file not opened?
     if (pInstEntry->hBkupArchiveFile < 0)
@@ -599,8 +626,15 @@ tOplkError obdconf_loadPart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 
     // Read OD data from current file position
     readCount = read(pInstEntry->hBkupArchiveFile, (UINT8*)pData, size_p);
+    if (readCount < 0)
+    {
+        ret = kErrorObdStoreHwError;
+        goto Exit;
+    }
+
     if (readCount != (INT)size_p)
     {
+        ret = kErrorObdStoreLoadLimitExceeded;
         goto Exit;
     }
 
@@ -638,10 +672,10 @@ tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
 {
     tOplkError ret = kErrorOk;
 
-    UNUSED_PARAMETER(index_p); //TODO @J: Check index to verify it is indeed the correct one
-
-    if ((pOdPart_p == NULL) || (pDevCap_p == NULL))
+    if ((pOdPart_p == NULL) || (pDevCap_p == NULL) ||
+        ((index_p != 0x1010) && (index_p != 0x1011)))
     {
+        printf("Error: %d\n", __LINE__);
         ret = kErrorApiInvalidParam;
         goto Exit;
     }

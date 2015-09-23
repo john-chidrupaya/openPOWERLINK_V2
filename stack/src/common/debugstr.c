@@ -457,6 +457,11 @@ static tRetValInfo retValInfo_l[] =
     { kErrorCfmNoConfigData,          "No configuration data present"},
     { kErrorCfmUnsuppDatatypeDcf,     "Unsupported datatype found in DCF -> this entry was not configured"},
 
+    /* area for OD configuration store restore module 0x0D0 - 0x0DF */
+    { kErrorObdStoreHwError,           "HW error while accessing non-volatile memory"},
+    { kErrorObdStoreInvalidState,      "non-volatile memory is in invalid state (nothing saved)"},
+    { kErrorObdStoreLoadLimitExceeded, "Read data count is less than the expected size"},
+
     { kErrorApiTaskDeferred,          "openPOWERLINK performs a task in the background and informs the application (or vice-versa) when it is finished"},
     { kErrorApiInvalidParam,          "Invalid parameters were passed to a function (e.g. invalid node id)"},
     { kErrorApiNoObdInitRam,          "No function pointer for ObdInitRam supplied"},

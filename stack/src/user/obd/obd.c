@@ -381,7 +381,10 @@ tOplkError obd_accessOdPart(tObdPart obdPart_p, tObdDir direction_p)
         fPartFount = TRUE;
         ret = accessOdPartition(kObdPartGen, pObdEntry, direction_p);
         if (ret != kErrorOk)
+        {
+            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             return ret;
+        }
     }
 
     pObdEntry = obdInstance_l.initParam.pManufacturerPart;
@@ -390,7 +393,10 @@ tOplkError obd_accessOdPart(tObdPart obdPart_p, tObdDir direction_p)
         fPartFount = TRUE;
         ret = accessOdPartition(kObdPartMan, pObdEntry, direction_p);
         if (ret != kErrorOk)
+        {
+            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             return ret;
+        }
     }
 
     pObdEntry = obdInstance_l.initParam.pDevicePart;
@@ -399,7 +405,10 @@ tOplkError obd_accessOdPart(tObdPart obdPart_p, tObdDir direction_p)
         fPartFount = TRUE;
         ret = accessOdPartition(kObdPartDev, pObdEntry, direction_p);
         if (ret != kErrorOk)
+        {
+            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             return ret;
+        }
     }
 
 #if (defined (OBD_USER_OD) && (OBD_USER_OD != FALSE))
@@ -415,7 +424,10 @@ tOplkError obd_accessOdPart(tObdPart obdPart_p, tObdDir direction_p)
 
     // no access to an OD part was done? illegal OD part was specified!
     if (fPartFount == FALSE)
+    {
+        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
         ret = kErrorObdIllegalPart;
+    }
     return ret;
 }
 
@@ -2161,6 +2173,7 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
     tObdCbStoreParam MEM        cbStore;
+    tOplkError                  archiveState = kErrorOk;
 #else
     UNUSED_PARAMETER(currentOdPart_p);
 #endif
@@ -2177,8 +2190,11 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
     cbStore.objSize         = 0;
 
     // command of first action depends on direction to access
-    if ((Ret = prepareStoreRestore(direction_p, &cbStore)) != kErrorOk)
-        return Ret;
+    if ((archiveState = prepareStoreRestore(direction_p, &cbStore)) != kErrorOk)
+    {
+        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, Ret);
+        goto Exit;
+    }
 #endif
 
     // we should not restore the OD values here
@@ -2267,14 +2283,19 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                         copyObjectData(pDstData, pDefault, ObjSize, pSubIndex->type);
                         callPostDefault(pDstData, pObdEntry_p, pSubIndex);
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-                        Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
+                        archiveState = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
+                        if ((archiveState != kErrorObdStoreLoadLimitExceeded) || (archiveState != kErrorOk))
+                            goto Exit;
+                        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, archiveState);
 #endif
                         break;
 
                     // objects with attribute kObdAccStore has to be stored in EEPROM or in a file
                     case kObdDirStore:
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-                        Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
+                        archiveState = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
+                        if (archiveState != kErrorOk)
+                            goto Exit;
 #endif
                         break;
 
@@ -2333,12 +2354,15 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
     }
 #endif
 
+Exit:
     // command of last action depends on direction to access
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    return cleanupStoreRestore(direction_p, &cbStore);
-#else
-    return Ret;
+    Ret = cleanupStoreRestore(direction_p, &cbStore);
+    if (archiveState != kErrorOk)
+        Ret = archiveState;
+    printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, Ret);
 #endif
+    return Ret;
 }
 
 //------------------------------------------------------------------------------

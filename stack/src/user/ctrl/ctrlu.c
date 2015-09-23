@@ -201,6 +201,7 @@ static tOplkError storeOdPart(tObdCbParam MEM* pParam_p);
 static tOplkError restoreOdPart(tObdCbParam MEM* pParam_p);
 static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p);
 static tOplkError checkOdPartArchiveState(tObdPart oddPart_p);
+static tOplkError initDefaultOdPartArchive(void);
 #endif
 
 //============================================================================//
@@ -309,12 +310,8 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
     tCtrlInitParam          ctrlParam;
     UINT16                  retVal;
 
-#if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    tObdPart                curOdPart;
-
 #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
     UINT32                  signature;
-#endif
 #endif
 
     // reset instance structure
@@ -336,58 +333,6 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
 
     // Initialize target-specific obdconf module
     ret = obdconf_init();
-    if (ret != kErrorOk)
-    {
-        goto Exit;
-    }
-
-    // Check the state of each OD part archive; create blank archives for non-existent ones
-    retVal = 1;
-    curOdPart = kObdPartNo;
-    while (retVal != 0)
-    {
-        switch (curOdPart)
-        {
-            case kObdPartNo:
-                break;
-
-            case kObdPartGen:
-            case kObdPartMan:
-            case kObdPartDev:
-
-                if (checkOdPartArchiveState(curOdPart) == kErrorObdStoreHwError)
-                {
-                    if ((ret = obdconf_createPart(curOdPart)) != kErrorOk)
-                    {
-                        retVal = 0;
-                        break;
-                    }
-
-                    if ((ret = obdconf_closePart(curOdPart)) != kErrorOk)
-                        retVal = 0;
-                }
-
-                break;
-
-            case kObdPartUsr:
-            case kObdPartApp:
-            case kObdPartAll:
-            default:
-                retVal = 0;
-                break;
-        }
-
-        // switch to the next OD part
-        curOdPart = curOdPart << 1;
-    }
-
-    if (ret != kErrorOk)
-    {
-        goto Exit;
-    }
-
-    // Register store/restore callback function
-    ret = obd_storeLoadObjCallback(cbStoreLoadObject);
     if (ret != kErrorOk)
     {
         goto Exit;
@@ -420,6 +365,21 @@ tOplkError ctrlu_initStack(tOplkApiInitParam* pInitParam_p)
     }
 
 #endif // (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
+
+    // Check the state of each OD part archive; create blank archives for non-existent ones
+    ret = initDefaultOdPartArchive();
+    if (ret != kErrorOk)
+    {
+        goto Exit;
+    }
+
+    // Register store/restore callback function
+    ret = obd_storeLoadObjCallback(cbStoreLoadObject);
+    if (ret != kErrorOk)
+    {
+        goto Exit;
+    }
+
 #endif // (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
 
 #if defined(CONFIG_INCLUDE_NMT_MN)
@@ -602,9 +562,7 @@ tOplkError ctrlu_shutdownStack(void)
     DEBUG_LVL_CTRL_TRACE("shoutdown kernel modules():  0x%X\n", ret);
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    //TODO @J // De-register store/restore callback function
-              // shutdown target-specific obdconf module
-              // Write signatures of diff OD parts???
+    ret = obd_storeLoadObjCallback(NULL);
     obdconf_exit();
 #endif
 
@@ -1159,7 +1117,10 @@ static tOplkError cbNmtStateChange(tEventNmtStateChange nmtStateChange_p)
             // reset application part of OD
             ret = obd_accessOdPart(kObdPartApp, kObdDirLoad);
             if (ret != kErrorOk)
+            {
+                printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
                 return ret;
+            }
             break;
 
         // init of the communication profile area
@@ -1167,14 +1128,20 @@ static tOplkError cbNmtStateChange(tEventNmtStateChange nmtStateChange_p)
             // reset communication part of OD
             ret = obd_accessOdPart(kObdPartGen, kObdDirLoad);
             if (ret != kErrorOk)
+            {
+                printf("Error: %d\n", __LINE__);
                 return ret;
+            }
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
 
             // Check if non-volatile memory of OD archive is valid, if no then set the force update flag to TRUE
             ret = checkOdPartArchiveState(kObdPartGen);
             if (ret != kErrorOk)
+            {
+                printf("Error: %d\n", __LINE__);
                 fForceUpdateStoredConf = TRUE;
+            }
 #endif
             // From 1.8.x: $$$ d.k.: update OD only if OD was not loaded from non-volatile memory
             ret = updateObd(&ctrlInstance_l.initParam, fForceUpdateStoredConf);
@@ -2184,6 +2151,7 @@ static tOplkError storeOdPart(tObdCbParam MEM* pParam_p)
     if (ret != kErrorOk)
     {
         pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
+        printf("Error: %d\n", __LINE__);
         goto Exit;
     }
 
@@ -2195,6 +2163,7 @@ static tOplkError storeOdPart(tObdCbParam MEM* pParam_p)
         {
             // Abort SDO because wrong signature
             pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
+            printf("Error: %d\n", __LINE__);
             ret = kErrorWrongSignature;
             goto Exit;
         }
@@ -2207,11 +2176,13 @@ static tOplkError storeOdPart(tObdCbParam MEM* pParam_p)
             {
                 // Device saves parameters autonomously.
                 pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_LOCAL_CONTROL;
+                printf("Error: %d\n", __LINE__);
             }
             else
             {
                 // Device does not support saving parameters.
                 pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
+                printf("Error: %d\n", __LINE__);
             }
 
             ret = kErrorObdStoreInvalidState;
@@ -2225,6 +2196,7 @@ static tOplkError storeOdPart(tObdCbParam MEM* pParam_p)
         {
             // Abort SDO because access failed
             pParam_p->abortCode = SDO_AC_ACCESS_FAILED_DUE_HW_ERROR;
+            printf("Error: %d\n", __LINE__);
             goto Exit;
         }
     }
@@ -2256,7 +2228,7 @@ Reseting default parameters will only be done if following conditions are met:
                 by command. If the device does not support restoring
                 parameters then abort transfer with abort code 0x08000020.
               - The memory device is ready for restoring or the device is in
-                the right state for restoring. If this condition not fullfilled
+                the right state for restoring. If this condition not fulfilled
                 abort transfer (0x08000022).
               - Restoring is done by declaring the stored parameters as invalid.
                 The function does not load the default parameters. This is only done
@@ -2286,6 +2258,7 @@ static tOplkError restoreOdPart(tObdCbParam MEM* pParam_p)
     if (ret != kErrorOk)
     {
         pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
+        printf("Error: %d\n", __LINE__);
         goto Exit;
     }
 
@@ -2297,6 +2270,7 @@ static tOplkError restoreOdPart(tObdCbParam MEM* pParam_p)
         {
             // Abort SDO
             pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
+            printf("Error: %d\n", __LINE__);
             ret = kErrorWrongSignature;
             goto Exit;
         }
@@ -2306,6 +2280,7 @@ static tOplkError restoreOdPart(tObdCbParam MEM* pParam_p)
         {
             // Device does not support saving parameters.
             pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
+            printf("Error: %d\n", __LINE__);
 
             ret = kErrorObdStoreInvalidState;
             goto Exit;
@@ -2316,6 +2291,7 @@ static tOplkError restoreOdPart(tObdCbParam MEM* pParam_p)
         {
             // abort SDO
             pParam_p->abortCode = SDO_AC_ACCESS_FAILED_DUE_HW_ERROR;
+            printf("Error: %d\n", __LINE__);
             goto Exit;
         }
     }
@@ -2364,6 +2340,7 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
         case kObdCmdOpenWrite:
             // Create archive to write all objects of this OD part
             ret = obdconf_createPart(odPart);
+            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             break;
 
         case kObdCmdWriteObj:
@@ -2376,6 +2353,7 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
         case kObdCmdCloseRead:
         case kObdCmdCloseWrite:
             ret = obdconf_closePart(odPart);
+            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             break;
 
         case kObdCmdOpenRead:
@@ -2383,6 +2361,7 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
             ret = obdconf_openPart(odPart);
             if (ret != kErrorOk)
             {
+                printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
                 goto Exit;
             }
 
@@ -2391,7 +2370,7 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
             if (fValid == FALSE)
             {
                 obdconf_closePart(odPart);
-
+                printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
                 ret = kErrorObdStoreInvalidState;
                 goto Exit;
             }
@@ -2419,7 +2398,7 @@ Exit:
 
 //----------------------------------------------------------------------------
 /**
-\brief  Check OD archive part is valid
+\brief  Check OD part archive is valid
 
 The function checks if the specified OD archive part in non-volatile memory
 is valid.
@@ -2431,14 +2410,15 @@ is valid.
 //----------------------------------------------------------------------------
 static tOplkError checkOdPartArchiveState(tObdPart odPart_p)
 {
-    tOplkError      ret     = kErrorOk;
+    tOplkError      ret = kErrorOk;
+    tOplkError      archiveState = kErrorOk;
     BOOL            fValid;
 
     // At first open the stream for reading (then check for valid stream)
     ret = obdconf_openPart(odPart_p);
     if (ret != kErrorOk)
     {
-        ret = kErrorObdStoreHwError;
+        archiveState = kErrorObdStoreHwError;
         goto Exit;
     }
 
@@ -2446,10 +2426,86 @@ static tOplkError checkOdPartArchiveState(tObdPart odPart_p)
     fValid = obdconf_isPartArchiveValid(odPart_p);
     if (fValid == FALSE)
     {
-        ret = kErrorObdStoreInvalidState;
+        archiveState = kErrorObdStoreInvalidState;
     }
 
-    obdconf_closePart(odPart_p);
+    ret = obdconf_closePart(odPart_p);
+
+    if (archiveState != kErrorOk)
+        ret = archiveState;
+
+Exit:
+    return ret;
+}
+
+//----------------------------------------------------------------------------
+/**
+\brief  Initialize default OD part archives
+
+The function checks if the specified OD archive part in non-volatile memory
+is valid.
+
+\param  odPart_p    OD part type to check
+
+\return The function returns a tOplkError error code.
+*/
+//----------------------------------------------------------------------------
+static tOplkError initDefaultOdPartArchive(void)
+{
+    tOplkError              ret = kErrorOk;
+    tObdPart                curOdPart = kObdPartNo;
+    tObdPart                nextOdPart = kObdPartNo;
+    BOOL                    fExit = FALSE;
+
+    while (fExit != TRUE)
+    {
+        switch (curOdPart)
+        {
+            case kObdPartNo:
+                nextOdPart = kObdPartGen;
+                break;
+
+            case kObdPartGen:
+            case kObdPartMan:
+            case kObdPartDev:
+
+                if (checkOdPartArchiveState(curOdPart) == kErrorObdStoreHwError)
+                {
+                    if ((ret = obdconf_createPart(curOdPart)) != kErrorOk)
+                    {
+                        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
+                        fExit = TRUE;
+                        break;
+                    }
+
+                    if ((ret = obdconf_closePart(curOdPart)) != kErrorOk)
+                    {
+                        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
+                        fExit = TRUE;
+                    }
+
+                    printf("Creating files: %s() %d: 0x%X\n", __func__, __LINE__, ret);
+                }
+
+                nextOdPart = curOdPart << 1;
+                break;
+
+            case kObdPartUsr:
+                nextOdPart = kObdPartApp;
+                break;
+
+            case kObdPartApp:
+                nextOdPart = kObdPartAll;
+                break;
+            case kObdPartAll:
+            default:
+                fExit = TRUE;
+                break;
+        }
+
+        // switch to the next OD part
+        curOdPart = nextOdPart;
+    }
 
 Exit:
     return ret;

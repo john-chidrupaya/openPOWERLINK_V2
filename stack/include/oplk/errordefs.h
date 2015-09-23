@@ -172,8 +172,6 @@ typedef enum
     kErrorObdInvalidDcf             = 0x003C,       ///< The device configuration file (CDC) is not valid
     kErrorObdOutOfMemory            = 0x003D,       ///< Out of memory
     kErrorObdNoConfigData           = 0x003E,       ///< No configuration data present (CDC is empty)
-    kErrorObdStoreHwError           = 0x003F,       ///< HW error while accessing non-volatile memory
-    kErrorObdStoreInvalidState      = 0x0040,       ///< non-volatile memory is in invalid state (nothing saved)
 
     // area for NMT module 0x0040 - 0x004F
     kErrorNmtUnknownCommand         = 0x0040,       ///< Unknown NMT command
@@ -254,6 +252,11 @@ typedef enum
     kErrorCfmNoFreeConfig           = 0x00C5,       ///< No free configuration entry
     kErrorCfmNoConfigData           = 0x00C6,       ///< No configuration data present
     kErrorCfmUnsuppDatatypeDcf      = 0x00C7,       ///< Unsupported datatype found in dcf -> this entry was not configured
+
+    // area for OD configuration store restore module 0x0D0 - 0x0DF
+    kErrorObdStoreHwError           = 0x00D0,       ///< HW error while accessing non-volatile memory
+    kErrorObdStoreInvalidState      = 0x00D1,       ///< non-volatile memory is in invalid state (nothing saved)
+    kErrorObdStoreLoadLimitExceeded = 0x00D2,       ///< Read data count is less than the expected size
 
     kErrorApiTaskDeferred           = 0x0140,       ///< openPOWERLINK performs task in background and informs the application (or vice-versa), when it is finished
     kErrorApiInvalidParam           = 0x0142,       ///< Passed invalid parameters to a function (e.g. invalid node id)
