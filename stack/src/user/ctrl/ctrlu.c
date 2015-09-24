@@ -1087,39 +1087,26 @@ static tOplkError cbNmtStateChange(tEventNmtStateChange nmtStateChange_p)
             // reset application part of OD
             ret = obd_accessOdPart(kObdPartApp, kObdDirLoad);
             if (ret != kErrorOk)
-            {
-                printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
                 return ret;
-            }
             break;
 
         // init of the communication profile area
         case kNmtGsResetCommunication:
             // reset communication part of OD
-            printf("Ret: %s() %d\n", __func__, __LINE__);
             ret = obd_accessOdPart(kObdPartGen, kObdDirLoad);
             if (ret != kErrorOk)
-            {
-                printf("Error: %d\n", __LINE__);
                 return ret;
-            }
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
 
             // Check if non-volatile memory of OD archive is valid, if no then set the force update flag to TRUE
-            printf("Ret: %s() %d\n", __func__, __LINE__);
 #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
             signature = (UINT32)obd_getOdSignature(kObdPartGen);
 #endif
-            printf("Ret: %s() %d\n", __func__, __LINE__);
             ret = obdconf_getPartArchiveState(kObdPartGen, signature);
             if (ret != kErrorOk)
-            {
-                printf("Error: %d\n", __LINE__);
                 fForceUpdateStoredConf = TRUE;
-            }
 #endif
-            printf("Ret: %s() %d\n", __func__, __LINE__);
             // From 1.8.x: $$$ d.k.: update OD only if OD was not loaded from non-volatile memory
             ret = updateObd(&ctrlInstance_l.initParam, fForceUpdateStoredConf);
             if (ret != kErrorOk)
@@ -1130,7 +1117,6 @@ static tOplkError cbNmtStateChange(tEventNmtStateChange nmtStateChange_p)
             if (ret != kErrorOk)
                 return ret;
 #endif
-            printf("Ret: %s() %d\n", __func__, __LINE__);
             break;
 
         // build the configuration with infos from OD
@@ -2129,7 +2115,6 @@ static tOplkError storeOdPart(tObdCbParam MEM* pParam_p)
     if (ret != kErrorOk)
     {
         pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
-        printf("Error: %d\n", __LINE__);
         goto Exit;
     }
 
@@ -2141,7 +2126,6 @@ static tOplkError storeOdPart(tObdCbParam MEM* pParam_p)
         {
             // Abort SDO because wrong signature
             pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
-            printf("Error: %d\n", __LINE__);
             ret = kErrorWrongSignature;
             goto Exit;
         }
@@ -2154,13 +2138,11 @@ static tOplkError storeOdPart(tObdCbParam MEM* pParam_p)
             {
                 // Device saves parameters autonomously.
                 pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_LOCAL_CONTROL;
-                printf("Error: %d\n", __LINE__);
             }
             else
             {
                 // Device does not support saving parameters.
                 pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
-                printf("Error: %d\n", __LINE__);
             }
 
             ret = kErrorObdStoreInvalidState;
@@ -2174,7 +2156,6 @@ static tOplkError storeOdPart(tObdCbParam MEM* pParam_p)
         {
             // Abort SDO because access failed
             pParam_p->abortCode = SDO_AC_ACCESS_FAILED_DUE_HW_ERROR;
-            printf("Error: %d\n", __LINE__);
             goto Exit;
         }
     }
@@ -2236,7 +2217,6 @@ static tOplkError restoreOdPart(tObdCbParam MEM* pParam_p)
     if (ret != kErrorOk)
     {
         pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_DUE_DEVICE_STATE;
-        printf("Error: %d\n", __LINE__);
         goto Exit;
     }
 
@@ -2248,7 +2228,6 @@ static tOplkError restoreOdPart(tObdCbParam MEM* pParam_p)
         {
             // Abort SDO
             pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
-            printf("Error: %d\n", __LINE__);
             ret = kErrorWrongSignature;
             goto Exit;
         }
@@ -2258,7 +2237,6 @@ static tOplkError restoreOdPart(tObdCbParam MEM* pParam_p)
         {
             // Device does not support saving parameters.
             pParam_p->abortCode = SDO_AC_DATA_NOT_TRANSF_OR_STORED;
-            printf("Error: %d\n", __LINE__);
 
             ret = kErrorObdStoreInvalidState;
             goto Exit;
@@ -2269,7 +2247,6 @@ static tOplkError restoreOdPart(tObdCbParam MEM* pParam_p)
         {
             // abort SDO
             pParam_p->abortCode = SDO_AC_ACCESS_FAILED_DUE_HW_ERROR;
-            printf("Error: %d\n", __LINE__);
             goto Exit;
         }
     }
@@ -2322,7 +2299,6 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
             signature = (UINT32)obd_getOdSignature(odPart);
 #endif
             ret = obdconf_createPart(odPart, signature);
-            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             break;
 
         case kObdCmdWriteObj:
@@ -2335,7 +2311,6 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
         case kObdCmdCloseRead:
         case kObdCmdCloseWrite:
             ret = obdconf_closePart(odPart);
-            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             break;
 
         case kObdCmdOpenRead:
@@ -2347,13 +2322,9 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
             if ((archiveState == kErrorOk) || ((archiveState == kErrorObdStoreDataObsolete)))
             {
                 if ((ret = obdconf_openReadPart(odPart)) == kErrorOk)
-                {
                     ret = archiveState;
-                    printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
-                }
             }
 
-            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
 
             break;
 
@@ -2361,17 +2332,14 @@ static tOplkError cbStoreLoadObject(tObdCbStoreParam MEM* pCbStoreParam_p)
             ret = obdconf_loadPart(odPart,
                                    (UINT8*)pCbStoreParam_p->pData,
                                    pCbStoreParam_p->objSize);
-            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             break;
 
         case kObdCmdClear:
             ret = obdconf_deletePart(odPart);
-            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             break;
 
         default:
             ret = kErrorInvalidOperation;
-            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             break;
     }
 
@@ -2419,18 +2387,13 @@ static tOplkError initDefaultOdPartArchive(void)
                     // Create a part archive marked obsolete
                     if ((ret = obdconf_createPart(curOdPart, (UINT32)~0)) != kErrorOk)
                     {
-                        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
                         fExit = TRUE;
                         break;
                     }
 
                     if ((ret = obdconf_closePart(curOdPart)) != kErrorOk)
-                    {
-                        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
                         fExit = TRUE;
-                    }
 
-                    printf("Creating files: %s() %d: 0x%X\n", __func__, __LINE__, ret);
                 }
 
                 nextOdPart = curOdPart << 1;

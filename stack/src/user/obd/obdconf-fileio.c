@@ -93,12 +93,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 #if (TARGET_SYSTEM == _WIN32_)
 
+    #define MAX_PATH_LEN _MAX_PATH
     #define flush  _commit
 
 #elif (TARGET_SYSTEM == _LINUX_)
 
     #define O_BINARY 0
-    #define _MAX_PATH PATH_MAX
+    #define MAX_PATH_LEN PATH_MAX
     #define flush  fsync
 
 #elif (DEV_SYSTEM == _DEV_PAR_BECK1X3_)
@@ -272,12 +273,12 @@ tOplkError obdconf_createPart(tObdPart odPart_p, UINT32 odPartSignature_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
     INT                 writeCount;
-    char                aFilePath[_MAX_PATH];
+    char                aFilePath[MAX_PATH_LEN];
     tObdConfInstance*   pInstEntry;
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
-    printf("%s() %d\n", __func__, __LINE__);
+
     // Get the file path for current OD part and instance
     ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
@@ -333,7 +334,6 @@ tOplkError obdconf_createPart(tObdPart odPart_p, UINT32 odPartSignature_p)
     ret = kErrorOk;
 
 Exit:
-printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -353,14 +353,14 @@ The function deletes the archive for the selected OD part or sets it invalid.
 tOplkError obdconf_deletePart(tObdPart odPart_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
-    char                aFilePath[_MAX_PATH];
+    char                aFilePath[MAX_PATH_LEN];
     tObdConfInstance*   pInstEntry;
     INT                 writeCount;
     UINT32              data = (UINT32)~0U;
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
-    printf("%s() %d\n", __func__, __LINE__);
+
     // Get the file path for current OD part and instance
     ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
@@ -368,7 +368,7 @@ tOplkError obdconf_deletePart(tObdPart odPart_p)
         goto Exit;
     }
 
-    // Is the file already opened?
+    // Use the local file handle to avoid race condition
     if (pInstEntry->hBkupArchiveFile >= 0)
     {
         ret = kErrorObdStoreInvalidState;
@@ -404,7 +404,6 @@ Exit:
     // Close archive file and set file handle invalid
     close(pInstEntry->hBkupArchiveFile);
     pInstEntry->hBkupArchiveFile = -1;
-    printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -426,12 +425,12 @@ to calling this function.
 tOplkError obdconf_openReadPart(tObdPart odPart_p)
 {
     UINT8               ret = kErrorObdStoreHwError;
-    char                aFilePath[_MAX_PATH];
+    char                aFilePath[MAX_PATH_LEN];
     tObdConfInstance*   pInstEntry;
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
-    printf("%s() %d\n", __func__, __LINE__);
+
     // Get the file path for current OD part and instance
     ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
@@ -466,7 +465,6 @@ tOplkError obdconf_openReadPart(tObdPart odPart_p)
     ret = kErrorOk;
 
 Exit:
-printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -497,7 +495,6 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
-    printf("%s() %d\n", __func__, __LINE__);
     if (odPart_p != pInstEntry->curOdPart)
     {
         ret = kErrorInvalidInstanceParam;
@@ -534,7 +531,6 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
     pInstEntry->hBkupArchiveFile = -1;
 
 Exit:
-printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -561,7 +557,6 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     INT                 writeCount;
     tObdConfInstance*   pInstEntry;
 
-    printf("%s() %d\n", __func__, __LINE__);
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
@@ -589,7 +584,6 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 
     ret = kErrorOk;
 Exit:
-printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -616,7 +610,6 @@ tOplkError obdconf_loadPart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     INT                 readCount;
     tObdConfInstance*   pInstEntry;
 
-    printf("%s() %d\n", __func__, __LINE__);
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
@@ -651,7 +644,6 @@ tOplkError obdconf_loadPart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     ret = kErrorOk;
 
 Exit:
-printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -686,7 +678,6 @@ tOplkError obdconf_getTargetCapabilities(UINT index_p, UINT subIndex_p,
     if ((pOdPart_p == NULL) || (pDevCap_p == NULL) ||
         ((index_p != 0x1010) && (index_p != 0x1011)))
     {
-        printf("Error: %d\n", __LINE__);
         ret = kErrorApiInvalidParam;
         goto Exit;
     }
@@ -762,7 +753,7 @@ tOplkError obdconf_getPartArchiveState(tObdPart odPart_p, UINT32 odPartSignature
     INT                 count;
     UINT16              dataCrc;
     tObdConfInstance*   pInstEntry;
-    char                aFilePath[_MAX_PATH];
+    char                aFilePath[MAX_PATH_LEN];
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
@@ -774,8 +765,7 @@ tOplkError obdconf_getPartArchiveState(tObdPart odPart_p, UINT32 odPartSignature
         goto Exit;
     }
 
-    printf("%s() %d\n", __func__, __LINE__);
-    // Is a file already opened
+    // Use the local file handle to avoid race conditions
     if (pInstEntry->hBkupArchiveFile >= 0)
     {
         ret = kErrorObdStoreInvalidState;
@@ -844,7 +834,6 @@ tOplkError obdconf_getPartArchiveState(tObdPart odPart_p, UINT32 odPartSignature
 Exit:
     close(pInstEntry->hBkupArchiveFile);
     pInstEntry->hBkupArchiveFile = -1;
-    printf("%s() %d: 0x%X\n", __func__, __LINE__, ret);
     return ret;
 }
 

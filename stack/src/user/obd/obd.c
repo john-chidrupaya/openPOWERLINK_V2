@@ -381,10 +381,7 @@ tOplkError obd_accessOdPart(tObdPart obdPart_p, tObdDir direction_p)
         fPartFount = TRUE;
         ret = accessOdPartition(kObdPartGen, pObdEntry, direction_p);
         if (ret != kErrorOk)
-        {
-            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             return ret;
-        }
     }
 
     pObdEntry = obdInstance_l.initParam.pManufacturerPart;
@@ -393,10 +390,7 @@ tOplkError obd_accessOdPart(tObdPart obdPart_p, tObdDir direction_p)
         fPartFount = TRUE;
         ret = accessOdPartition(kObdPartMan, pObdEntry, direction_p);
         if (ret != kErrorOk)
-        {
-            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             return ret;
-        }
     }
 
     pObdEntry = obdInstance_l.initParam.pDevicePart;
@@ -405,10 +399,7 @@ tOplkError obd_accessOdPart(tObdPart obdPart_p, tObdDir direction_p)
         fPartFount = TRUE;
         ret = accessOdPartition(kObdPartDev, pObdEntry, direction_p);
         if (ret != kErrorOk)
-        {
-            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
             return ret;
-        }
     }
 
 #if (defined (OBD_USER_OD) && (OBD_USER_OD != FALSE))
@@ -424,10 +415,7 @@ tOplkError obd_accessOdPart(tObdPart obdPart_p, tObdDir direction_p)
 
     // no access to an OD part was done? illegal OD part was specified!
     if (fPartFount == FALSE)
-    {
-        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, ret);
         ret = kErrorObdIllegalPart;
-    }
     return ret;
 }
 
@@ -2192,10 +2180,7 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
     // command of first action depends on direction to access
     archiveState = prepareStoreRestore(direction_p, &cbStore);
     if ((archiveState != kErrorOk) && (archiveState != kErrorObdStoreDataObsolete))
-    {
-        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, archiveState);
         return archiveState;
-    }
 #endif
 
     // we should not restore the OD values here
@@ -2289,7 +2274,6 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                             Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
                             if (Ret != kErrorOk)
                                 goto Exit;
-                            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, archiveState);
 
                         }
 #endif
@@ -2301,7 +2285,6 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                             Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
                             if (Ret != kErrorOk)
                                 goto Exit;
-                            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, archiveState);
 #endif
                         break;
 
@@ -2366,7 +2349,6 @@ Exit:
     archiveState = cleanupStoreRestore(direction_p, &cbStore);
     if (Ret == kErrorOk)
         Ret = archiveState;
-    printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, Ret);
 #endif
     return Ret;
 }
