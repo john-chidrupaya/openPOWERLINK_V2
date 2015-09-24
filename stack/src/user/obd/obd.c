@@ -2152,11 +2152,11 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
 {
     tObdSubEntryPtr             pSubIndex;
     UINT                        nSubIndexCount;
-    tObdAccess                  Access;
+    tObdAccess                  access;
     void MEM*                   pDstData;
     CONST void*                 pDefault;
-    tObdSize                    ObjSize;
-    tOplkError                  Ret = kErrorOk;
+    tObdSize                    objSize;
+    tOplkError                  ret = kErrorOk;
     tObdVarEntry MEM*           pVarEntry = NULL;
 
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
@@ -2202,10 +2202,10 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
 
             while (nSubIndexCount != 0)                         // walk through sub-index table till all sub-indices were restored
             {
-                Access = (tObdAccess)pSubIndex->access;
+                access = (tObdAccess)pSubIndex->access;
                 pDefault = getObjectDefaultPtr(pSubIndex);
                 pDstData = getObjectCurrentPtr(pSubIndex);
-                ObjSize  = getObjectSize(pSubIndex);
+                objSize  = getObjectSize(pSubIndex);
 
 #if (CONFIG_OBD_CALC_OD_SIGNATURE != FALSE)
                 if (direction_p == kObdDirInit)
@@ -2222,10 +2222,10 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                     case kObdDirInit:
                         // If VAR-Flag is set, pCurrent means not address of data but address of tObdVarEntry.
                         // Address of data has to be get from this structure.
-                        if ((Access & kObdAccVar) != 0)
+                        if ((access & kObdAccVar) != 0)
                         {
                             getVarEntry(pSubIndex, &pVarEntry);
-                            obd_initVarEntry(pVarEntry, pSubIndex->type, ObjSize);
+                            obd_initVarEntry(pVarEntry, pSubIndex->type, objSize);
                             // at this time no application variable is defined therefore data can not be copied!
                             break;
                         }
@@ -2240,10 +2240,10 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                                 // For copying data we have to set the destination pointer to the real RAM string. This
                                 // pointer to RAM string is located in default string info structure.
                                 pDstData = (void MEM*)((tObdVStringDef ROM*)pSubIndex->pDefault)->pString;
-                                ObjSize  = ((tObdVStringDef ROM*)pSubIndex->pDefault)->size;
+                                objSize  = ((tObdVStringDef ROM*)pSubIndex->pDefault)->size;
 
                                 ((tObdVString MEM*)pSubIndex->pCurrent)->pString = pDstData;
-                                ((tObdVString MEM*)pSubIndex->pCurrent)->size    = ObjSize;
+                                ((tObdVString MEM*)pSubIndex->pCurrent)->size    = objSize;
                             }
                         }
                         else if (pSubIndex->type == kObdTypeOString)
@@ -2253,26 +2253,26 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                                 // For copying data we have to set the destination pointer to the real RAM string. This
                                 // pointer to RAM string is located in default string info structure.
                                 pDstData = (void MEM*)((tObdOStringDef ROM*)pSubIndex->pDefault)->pString;
-                                ObjSize  = ((tObdOStringDef ROM*)pSubIndex->pDefault)->size;
+                                objSize  = ((tObdOStringDef ROM*)pSubIndex->pDefault)->size;
 
                                 ((tObdOString MEM*)pSubIndex->pCurrent)->pString = pDstData;
-                                ((tObdOString MEM*)pSubIndex->pCurrent)->size    = ObjSize;
+                                ((tObdOString MEM*)pSubIndex->pCurrent)->size    = objSize;
                             }
                         }
 
-                        copyObjectData(pDstData, pDefault, ObjSize, pSubIndex->type);
+                        copyObjectData(pDstData, pDefault, objSize, pSubIndex->type);
                         callPostDefault(pDstData, pObdEntry_p, pSubIndex);
                         break;
 
                     // objects with attribute kObdAccStore has to be load from EEPROM or from a file
                     case kObdDirLoad:
-                        copyObjectData(pDstData, pDefault, ObjSize, pSubIndex->type);
+                        copyObjectData(pDstData, pDefault, objSize, pSubIndex->type);
                         callPostDefault(pDstData, pObdEntry_p, pSubIndex);
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
                         if (archiveState == kErrorOk)
                         {
-                            Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
-                            if (Ret != kErrorOk)
+                            ret = doStoreRestore(access, &cbStore, pDstData, objSize);
+                            if (ret != kErrorOk)
                                 goto Exit;
 
                         }
@@ -2282,8 +2282,8 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                     // objects with attribute kObdAccStore has to be stored in EEPROM or in a file
                     case kObdDirStore:
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-                            Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
-                            if (Ret != kErrorOk)
+                            ret = doStoreRestore(access, &cbStore, pDstData, objSize);
+                            if (ret != kErrorOk)
                                 goto Exit;
 #endif
                         break;
@@ -2302,7 +2302,7 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                 nSubIndexCount--;
 
                 // next sub-index entry
-                if ((Access & kObdAccArray) == 0)
+                if ((access & kObdAccArray) == 0)
                 {
                     pSubIndex++;
                     if ((nSubIndexCount > 0) && ((pSubIndex->access & kObdAccArray) != 0))
@@ -2347,10 +2347,10 @@ Exit:
     // command of last action depends on direction to access
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
     archiveState = cleanupStoreRestore(direction_p, &cbStore);
-    if (Ret == kErrorOk)
-        Ret = archiveState;
+    if (ret == kErrorOk)
+        ret = archiveState;
 #endif
-    return Ret;
+    return ret;
 }
 
 //------------------------------------------------------------------------------
