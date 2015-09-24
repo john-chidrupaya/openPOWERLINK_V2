@@ -460,7 +460,8 @@ static tRetValInfo retValInfo_l[] =
     /* area for OD configuration store restore module 0x0D0 - 0x0DF */
     { kErrorObdStoreHwError,           "HW error while accessing non-volatile memory"},
     { kErrorObdStoreInvalidState,      "non-volatile memory is in invalid state (nothing saved)"},
-    { kErrorObdStoreLoadLimitExceeded, "Read data count is less than the expected size"},
+    { kErrorObdStoreDataLimitExceeded, "Data count is less than the expected size"},
+    { kErrorObdStoreDataObsolete,      "Data stored in the archive is obsolete"},
 
     { kErrorApiTaskDeferred,          "openPOWERLINK performs a task in the background and informs the application (or vice-versa) when it is finished"},
     { kErrorApiInvalidParam,          "Invalid parameters were passed to a function (e.g. invalid node id)"},

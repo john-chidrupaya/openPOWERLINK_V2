@@ -2190,10 +2190,11 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
     cbStore.objSize         = 0;
 
     // command of first action depends on direction to access
-    if ((archiveState = prepareStoreRestore(direction_p, &cbStore)) != kErrorOk)
+    archiveState = prepareStoreRestore(direction_p, &cbStore);
+    if ((archiveState != kErrorOk) && (archiveState != kErrorObdStoreDataObsolete))
     {
-        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, Ret);
-        goto Exit;
+        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, archiveState);
+        return archiveState;
     }
 #endif
 
@@ -2283,19 +2284,24 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
                         copyObjectData(pDstData, pDefault, ObjSize, pSubIndex->type);
                         callPostDefault(pDstData, pObdEntry_p, pSubIndex);
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-                        archiveState = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
-                        if ((archiveState != kErrorObdStoreLoadLimitExceeded) || (archiveState != kErrorOk))
-                            goto Exit;
-                        printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, archiveState);
+                        if (archiveState == kErrorOk)
+                        {
+                            Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
+                            if (Ret != kErrorOk)
+                                goto Exit;
+                            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, archiveState);
+
+                        }
 #endif
                         break;
 
                     // objects with attribute kObdAccStore has to be stored in EEPROM or in a file
                     case kObdDirStore:
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-                        archiveState = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
-                        if (archiveState != kErrorOk)
-                            goto Exit;
+                            Ret = doStoreRestore(Access, &cbStore, pDstData, ObjSize);
+                            if (Ret != kErrorOk)
+                                goto Exit;
+                            printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, archiveState);
 #endif
                         break;
 
@@ -2357,8 +2363,8 @@ static tOplkError accessOdPartition(tObdPart currentOdPart_p, tObdEntryPtr pObdE
 Exit:
     // command of last action depends on direction to access
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
-    Ret = cleanupStoreRestore(direction_p, &cbStore);
-    if (archiveState != kErrorOk)
+    archiveState = cleanupStoreRestore(direction_p, &cbStore);
+    if (Ret == kErrorOk)
         Ret = archiveState;
     printf("Error: %s() %d: 0x%X\n", __func__, __LINE__, Ret);
 #endif

@@ -137,9 +137,6 @@ typedef struct
     INT         hBkupArchiveFile;       ///< Handle for the opened OD part archive
     char*       pBackupPath;            ///< The parent directory for the archives
     BOOL        fOpenForWrite;          ///< Flag to indicate whether the archive is opened for a write operation
-    UINT32      odSignPartDev;          ///< Signature for the OD standard device profile area archive
-    UINT32      odSignPartGen;          ///< Signature for the OD standard communication profile area archive
-    UINT32      odSignPartMan;          ///< Signature for the OD manufacturer area archive
     UINT16      odDataCrc;              ///< 2 Byte CRC for the last opened archive
     tObdType    curOdPart;              ///< Currently opened OD part archive
 }tObdConfInstance;
@@ -271,17 +268,16 @@ Existing archive is set invalid.
 \ingroup module_obdconf
 */
 //------------------------------------------------------------------------------
-tOplkError obdconf_createPart(tObdPart odPart_p)
+tOplkError obdconf_createPart(tObdPart odPart_p, UINT32 odPartSignature_p)
 {
     tOplkError          ret = kErrorObdStoreHwError;
     INT                 writeCount;
     char                aFilePath[_MAX_PATH];
-    UINT32              odSignature;
     tObdConfInstance*   pInstEntry;
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
-
+    printf("%s() %d\n", __func__, __LINE__);
     // Get the file path for current OD part and instance
     ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
@@ -294,27 +290,6 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     {
         ret = kErrorObdStoreInvalidState;
         goto Exit;
-    }
-
-    //TODO @J: Shouldn't this be conditional on whether the signature is included or not
-    // Check OD part for correct OD signature
-    switch (odPart_p)
-    {
-        case kObdPartGen:
-            odSignature = pInstEntry->odSignPartGen;
-            break;
-
-        case kObdPartMan:
-            odSignature = pInstEntry->odSignPartMan;
-            break;
-
-        case kObdPartDev:
-            odSignature = pInstEntry->odSignPartDev;
-            break;
-
-        default:
-            ret = kErrorInvalidInstanceParam;
-            goto Exit;
     }
 
     // Open file for writing
@@ -344,12 +319,12 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
 
     // Write OD signature and calculate CRC for it
     pInstEntry->odDataCrc = OPLK_CALCULATE_CRC16(pInstEntry->odDataCrc,
-                                                 (UINT8*)&odSignature,
-                                                 sizeof(odSignature));
+                                                 (UINT8*)&odPartSignature_p,
+                                                 sizeof(odPartSignature_p));
     writeCount = write(pInstEntry->hBkupArchiveFile,
-                       (UINT8*)&odSignature,
-                       sizeof(odSignature));
-    if (writeCount != (INT)sizeof(odSignature))
+                       (UINT8*)&odPartSignature_p,
+                       sizeof(odPartSignature_p));
+    if (writeCount != (INT)sizeof(odPartSignature_p))
     {
         ret = kErrorObdStoreHwError;
         goto Exit;
@@ -358,6 +333,7 @@ tOplkError obdconf_createPart(tObdPart odPart_p)
     ret = kErrorOk;
 
 Exit:
+printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -379,10 +355,12 @@ tOplkError obdconf_deletePart(tObdPart odPart_p)
     tOplkError          ret = kErrorObdStoreHwError;
     char                aFilePath[_MAX_PATH];
     tObdConfInstance*   pInstEntry;
+    INT                 writeCount;
+    UINT32              data = (UINT32)~0U;
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
-
+    printf("%s() %d\n", __func__, __LINE__);
     // Get the file path for current OD part and instance
     ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
@@ -390,16 +368,43 @@ tOplkError obdconf_deletePart(tObdPart odPart_p)
         goto Exit;
     }
 
-    // Delete the backup archive file
-    if (unlink(aFilePath) == -1)
+    // Is the file already opened?
+    if (pInstEntry->hBkupArchiveFile >= 0)
+    {
+        ret = kErrorObdStoreInvalidState;
+        goto Exit;
+    }
+
+    pInstEntry->hBkupArchiveFile = open(aFilePath, O_WRONLY | O_BINARY, 0666);
+    if (pInstEntry->hBkupArchiveFile < 0)
     {
         ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
+    // Set file position to OD part signature
+    lseek(pInstEntry->hBkupArchiveFile, sizeof(obdConfSignature_l), SEEK_SET);
+
+    // Mark the signature as invalid
+    writeCount = write(pInstEntry->hBkupArchiveFile, &data, sizeof(data));
+    if (writeCount != (INT)sizeof(data))
+    {
+        ret = kErrorObdStoreHwError;
+        goto Exit;
+    }
+
+    // $$ Ideally recalculate the CRC and write to make the file as uncorrupted
+
+    // Sync file to disc
+    flush(pInstEntry->hBkupArchiveFile);
+
     ret = kErrorOk;
 
 Exit:
+    // Close archive file and set file handle invalid
+    close(pInstEntry->hBkupArchiveFile);
+    pInstEntry->hBkupArchiveFile = -1;
+    printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -418,7 +423,7 @@ to calling this function.
 \ingroup module_obdconf
 */
 //------------------------------------------------------------------------------
-tOplkError obdconf_openPart(tObdPart odPart_p)
+tOplkError obdconf_openReadPart(tObdPart odPart_p)
 {
     UINT8               ret = kErrorObdStoreHwError;
     char                aFilePath[_MAX_PATH];
@@ -426,7 +431,7 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
-
+    printf("%s() %d\n", __func__, __LINE__);
     // Get the file path for current OD part and instance
     ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
     if (ret != kErrorOk)
@@ -455,12 +460,13 @@ tOplkError obdconf_openPart(tObdPart odPart_p)
         goto Exit;
     }
 
-    // Set file position to the begin of the file
-    lseek(pInstEntry->hBkupArchiveFile, 0, SEEK_SET);
+    // Set file position to the object data part
+    lseek(pInstEntry->hBkupArchiveFile, 2 * sizeof(UINT32), SEEK_SET);
 
     ret = kErrorOk;
 
 Exit:
+printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -491,7 +497,7 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
-
+    printf("%s() %d\n", __func__, __LINE__);
     if (odPart_p != pInstEntry->curOdPart)
     {
         ret = kErrorInvalidInstanceParam;
@@ -528,6 +534,7 @@ tOplkError obdconf_closePart(tObdPart odPart_p)
     pInstEntry->hBkupArchiveFile = -1;
 
 Exit:
+printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -554,6 +561,7 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     INT                 writeCount;
     tObdConfInstance*   pInstEntry;
 
+    printf("%s() %d\n", __func__, __LINE__);
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
@@ -581,6 +589,7 @@ tOplkError obdconf_storePart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 
     ret = kErrorOk;
 Exit:
+printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -607,6 +616,7 @@ tOplkError obdconf_loadPart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
     INT                 readCount;
     tObdConfInstance*   pInstEntry;
 
+    printf("%s() %d\n", __func__, __LINE__);
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
@@ -634,13 +644,14 @@ tOplkError obdconf_loadPart(tObdPart odPart_p, UINT8 *pData, UINT32 size_p)
 
     if (readCount != (INT)size_p)
     {
-        ret = kErrorObdStoreLoadLimitExceeded;
+        ret = kErrorObdStoreDataLimitExceeded;
         goto Exit;
     }
 
     ret = kErrorOk;
 
 Exit:
+printf("%s() %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -736,54 +747,60 @@ of the configuration data.
 \retVal TRUE                    The OD part archive is valid.
 \retVal FALSE                   The OD part archive is not valid.
 
+\return The function returns a tOplkError error code.
+
 \ingroup module_obdconf
 */
 //------------------------------------------------------------------------------
-BOOL obdconf_isPartArchiveValid(tObdPart odPart_p)
+tOplkError obdconf_getPartArchiveState(tObdPart odPart_p, UINT32 odPartSignature_p)
 {
-    BOOL                ret = FALSE;
+    tOplkError          ret = kErrorOk;
     INT                 readCount;
     UINT32              readTargetSign;
     UINT32              readOdSign;
-    UINT32              curReadSign;
     UINT8               aTempBuffer[8];
     INT                 count;
     UINT16              dataCrc;
     tObdConfInstance*   pInstEntry;
+    char                aFilePath[_MAX_PATH];
 
     // Get current instance entry
     pInstEntry = &aObdConfInstance_l[0];
 
-    // Is the file not opened?
-    if (pInstEntry->hBkupArchiveFile < 0)
+    // Get the file path for current OD part and instance
+    ret = getOdPartArchivePath(odPart_p, pInstEntry->pBackupPath, &aFilePath[0]);
+    if (ret != kErrorOk)
     {
         goto Exit;
     }
 
-    // Check OD part for correct OD signature
-    switch (odPart_p)
+    printf("%s() %d\n", __func__, __LINE__);
+    // Is a file already opened
+    if (pInstEntry->hBkupArchiveFile >= 0)
     {
-        case kObdPartGen:
-            curReadSign = pInstEntry->odSignPartGen;
-            break;
-
-        case kObdPartMan:
-            curReadSign = pInstEntry->odSignPartMan;
-            break;
-
-        case kObdPartDev:
-            curReadSign = pInstEntry->odSignPartDev;
-            break;
-
-        default:
-            goto Exit;
+        ret = kErrorObdStoreInvalidState;
+        goto Exit;
     }
+
+    // Open backup archive file for read
+    pInstEntry->hBkupArchiveFile = open(aFilePath, O_RDONLY | O_BINARY, 0666);
+
+    if (pInstEntry->hBkupArchiveFile < 0)
+    {
+        // Backup archive file could not be opened
+        ret = kErrorObdStoreHwError;
+        goto Exit;
+    }
+
+    // Set file position to the begin of the file
+    lseek(pInstEntry->hBkupArchiveFile, 0, SEEK_SET);
 
     // Read target signature and calculate the CRC for it
     readCount = read(pInstEntry->hBkupArchiveFile, &readTargetSign, sizeof(readTargetSign));
     dataCrc = OPLK_CALCULATE_CRC16(0, (UINT8*)&readTargetSign, sizeof(readTargetSign));
     if (readCount != (INT)sizeof(readTargetSign))
     {
+        ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
@@ -792,12 +809,14 @@ BOOL obdconf_isPartArchiveValid(tObdPart odPart_p)
     dataCrc = OPLK_CALCULATE_CRC16(dataCrc, (UINT8*)&readOdSign, sizeof(readOdSign));
     if (readCount != (INT)sizeof(readOdSign))
     {
+        ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
     // Check if both target signature and OD signature are correct
-    if ((readTargetSign != obdConfSignature_l) || (readOdSign  != curReadSign))
+    if ((readTargetSign != obdConfSignature_l) || (readOdSign  != odPartSignature_p))
     {
+        ret = kErrorObdStoreDataObsolete;
         goto Exit;
     }
 
@@ -815,19 +834,17 @@ BOOL obdconf_isPartArchiveValid(tObdPart odPart_p)
         }
     }
 
-    // Set file position back to OD data
-    lseek(pInstEntry->hBkupArchiveFile, sizeof(readTargetSign) + sizeof(readOdSign), SEEK_SET);
-
     // Check OD data CRC (always zero because CRC has to be set at the end of the file in big endian format)
     if (dataCrc != 0)
     {
+        ret = kErrorObdStoreHwError;
         goto Exit;
     }
 
-    ret = TRUE;
-
 Exit:
-
+    close(pInstEntry->hBkupArchiveFile);
+    pInstEntry->hBkupArchiveFile = -1;
+    printf("%s() %d: 0x%X\n", __func__, __LINE__, ret);
     return ret;
 }
 
@@ -864,52 +881,6 @@ tOplkError obdconf_setBackupArchivePath(const char* pBackupPath_p)
     pInstEntry->pBackupPath = (char*)pBackupPath_p;
 
     ret = kErrorOk;
-
-Exit:
-    return ret;
-}
-
-//------------------------------------------------------------------------------
-/**
-\brief  Set OD part archive signature
-
-This function sets the signature for the specified OD part archive.
-
-\param  odPart_p                OD part specifier.
-\param  signature_p             Signature for the OD part.
-
-\return The function returns a tOplkError error code.
-
-\ingroup module_obdconf
-*/
-//------------------------------------------------------------------------------
-tOplkError obdconf_setPartSignature(tObdPart odPart_p, UINT32 signature_p)
-{
-    tOplkError          ret = kErrorOk;
-    tObdConfInstance*   pInstEntry;
-
-    // Get current instance entry
-    pInstEntry = &aObdConfInstance_l[0];
-
-    // Check OD part
-    switch (odPart_p)
-    {
-        case kObdPartGen:
-            pInstEntry->odSignPartGen = signature_p;
-            break;
-
-        case kObdPartMan:
-            pInstEntry->odSignPartMan = signature_p;
-            break;
-
-        case kObdPartDev:
-            pInstEntry->odSignPartDev = signature_p;
-            break;
-
-        default:
-            ret = kErrorApiInvalidParam;
-            goto Exit;
-    }
 
 Exit:
     return ret;
