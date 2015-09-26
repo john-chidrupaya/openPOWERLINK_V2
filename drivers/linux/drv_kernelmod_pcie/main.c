@@ -131,6 +131,7 @@ typedef struct
     BOOL                    fSyncEnabled;
     BYTE*                   pShmMemLocal;
     BYTE*                   pShmMemRemote;
+    BYTE                    shmSize;
 } tDrvInstance;
 
 //------------------------------------------------------------------------------
@@ -324,7 +325,7 @@ static int powerlinkOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
         return -EIO;
     }
 
-    if (drv_initDualProcDrv() != kErrorOk)
+    if (drv_init() != kErrorOk)
     {
         atomic_dec(&openCount_g);
         return -EIO;
@@ -378,7 +379,7 @@ static int  powerlinkRelease(struct inode* pDeviceFile_p, struct file* pInstance
     instance_l.fSyncEnabled = FALSE;
     instance_l.pShmMemLocal = NULL;
     instance_l.pShmMemRemote = NULL;
-    drv_exitDualProcDrv();
+    drv_exit();
     pcieDrv_shutdown();
     atomic_dec(&openCount_g);
     DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkRelease - OK\n");
@@ -1000,7 +1001,9 @@ static int mapMemoryForUserIoctl(unsigned long arg_p)
     // the copying of the entire async frame memory.
     copy_from_user(&memMapParams, (const void __user*)arg_p, sizeof(tMemmap));
     if ((instance_l.pShmMemLocal == NULL) || (instance_l.pShmMemRemote == NULL))
-        retVal = drv_mapKernelMem((UINT8**)&instance_l.pShmMemRemote, (UINT8**)&instance_l.pShmMemLocal);
+        retVal = drv_mapKernelMem((UINT8**)&instance_l.pShmMemRemote,
+                                  (UINT8**)&instance_l.pShmMemLocal,
+                                  (UINT8*)&instance_l.shmSize);
 
     if (retVal != kErrorOk)
     {

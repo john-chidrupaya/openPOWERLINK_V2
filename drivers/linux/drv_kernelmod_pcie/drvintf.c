@@ -164,7 +164,7 @@ tOplkError drv_init(void)
 
     TRACE("Initialize driver interface...");
 
-    OPLK_MEMSET(&drvInstance_l, 0, sizeof(tDriverInstance));
+    OPLK_MEMSET(&drvIntfInstance_l, 0, sizeof(tDrvIntfInstance));
 
     // Initialize the dualprocshm library
     ret = initDualProcShm();
@@ -175,7 +175,7 @@ tOplkError drv_init(void)
         return ret;
     }
 
-    drvInstance_l.fDriverActive = TRUE;
+    drvIntfInstance_l.fDriverActive = TRUE;
 
     TRACE(" OK\n");
 
@@ -196,9 +196,9 @@ void drv_exit(void)
 {
     TRACE("Exit driver interface...\n");
 
-    if (drvInstance_l.fDriverActive)
+    if (drvIntfInstance_l.fDriverActive)
     {
-        drvInstance_l.fDriverActive = FALSE;
+        drvIntfInstance_l.fDriverActive = FALSE;
 
         // Close dualprocshm library interface
         exitDualProcShm();
@@ -283,7 +283,7 @@ tOplkError drv_executeCmd(tCtrlCmd* pCtrlCmd_p)
         {
             DEBUG_LVL_ERROR_TRACE("PDO Sync Initialization Failed %x\n", ret);
             pCtrlCmd_p->retVal = ret;
-            return;
+            return ret;
         }
     }
 
@@ -324,7 +324,7 @@ tOplkError drv_readInitParam(tCtrlInitParam* pInitParam_p)
     tDualprocReturn    dualRet;
 
     if (!drvIntfInstance_l.fDriverActive)
-        return;
+        return kErrorNoResource;
 
     dualRet = dualprocshm_readDataCommon(drvIntfInstance_l.dualProcDrvInst,
                                          FIELD_OFFSET(tCtrlBuf, initParam),
@@ -452,19 +452,19 @@ tOplkError drv_sendAsyncFrame(unsigned char* pArg_p)
     tOplkError              ret;
 
     if (!drvIntfInstance_l.fDriverActive)
-        return;
+        return kErrorNoResource;
 
     asyncFrameInfo = (tIoctlDllCalAsync*)pArg_p;
     frameInfo.frameSize = asyncFrameInfo->size;
     frameInfo.frame.pBuffer = (tPlkFrame*)asyncFrameInfo->pData;
 
-    ret = insertDataBlock(drvIntfInstance_l.dllQueueInst[asyncFrameInfo->queue],
+    ret = insertDataBlock(drvIntfInstance_l.apDllQueueInst[asyncFrameInfo->queue],
                           (UINT8*)frameInfo.frame.pBuffer,
                           &(frameInfo.frameSize));
 
     if (ret != kErrorOk)
     {
-        DEBUG_LVL_ERROR_TRACE("Error Sending ASync Frame Queue %d\n", asyncFrameInfo->queue);
+        DEBUG_LVL_ERROR_TRACE("Error sending async frame queue %d\n", asyncFrameInfo->queue);
     }
 }
 
@@ -480,14 +480,16 @@ from user layer.
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_writeErrorObject(tErrHndIoctl* pWriteObject_p)
+tOplkError drv_writeErrorObject(tErrHndIoctl* pWriteObject_p)
 {
     tErrHndObjects*   errorObjects = drvIntfInstance_l.pErrorObjects;
 
     if (!drvIntfInstance_l.fDriverActive)
-        return;
+        return kErrorNoResource;
 
-    *((UINT32*)((char*)errorObjects + pWriteObject_p->offset)) = pWriteObject_p->errVal;
+    *((UINT32*)((UINT8*)errorObjects + pWriteObject_p->offset)) = pWriteObject_p->errVal;
+
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -502,12 +504,12 @@ layer.
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_readErrorObject(tErrHndIoctl* pReadObject_p)
+tOplkError drv_readErrorObject(tErrHndIoctl* pReadObject_p)
 {
     tErrHndObjects*   errorObjects = drvIntfInstance_l.pErrorObjects;
 
     if (!drvIntfInstance_l.fDriverActive)
-        return;
+        return kErrorNoResource;
 
     pReadObject_p->errVal = *((UINT32*)((char*)errorObjects + pReadObject_p->offset));
 }
@@ -613,18 +615,20 @@ Copies the event from user layer into user to kernel(U2K) event queue.
 
 \param  pEvent_p    Pointer to user event memory.
 
+\return Returns tOplkError error code.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_postEvent(void* pEvent_p)
+tOplkError drv_postEvent(void* pEvent_p)
 {
     tOplkError          ret = kErrorOk;
     tCircBufError       circError;
 
-    tCircBufInstance*   pCircBufInstance = drvIntfInstance_l.eventQueueInst[kEventQueueU2K];
+    tCircBufInstance*   pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueU2K];
 
-    if (!drvIntfInstance_l.fDriverActive)
-        return;
+    if ((pEvent_p == NULL) || !drvIntfInstance_l.fDriverActive)
+        return kErrorNoResource;
 
     if (((tEvent*)pEvent_p)->eventArgSize == 0)
     {
@@ -641,6 +645,8 @@ void drv_postEvent(void* pEvent_p)
         DEBUG_LVL_ERROR_TRACE("Error in Post event %x\n", circError);
         ret = kErrorEventPostError;
     }
+
+    return ret;
 }
 
 //------------------------------------------------------------------------------
@@ -652,15 +658,17 @@ Retrieves an event from kernel to user event(K2U) queue for the user layer.
 \param  pEvent_p    Pointer to user event memory.
 \param  pSize_p     Pointer to store the size of the event buffer.
 
+\return Returns tOplkError error code and the size of the read data.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-void drv_getEvent(void* pEvent_p, size_t* pSize_p)
+tOplkError drv_getEvent(void* pEvent_p, size_t* pSize_p)
 {
     tCircBufError       errCode = kCircBufOk;
-    tCircBufInstance*   pCircBufInstance = drvIntfInstance_l.eventQueueInst[kEventQueueK2U];
-    if (!drvIntfInstance_l.fDriverActive)
-        return;
+    tCircBufInstance*   pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueK2U];
+    if ((pEvent_p == NULL) || (pSize_p == NULL) || !drvIntfInstance_l.fDriverActive)
+        return kErrorNoResource;
 
     if (circbuf_getDataCount(pCircBufInstance) > 0)
     {
@@ -677,6 +685,8 @@ void drv_getEvent(void* pEvent_p, size_t* pSize_p)
         *pSize_p = 0;
         DEBUG_LVL_ERROR_TRACE("Error in reading circular buffer event data!!\n");
     }
+	
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -725,6 +735,7 @@ tOplkError drv_getPdoMem(UINT8** ppPdoMem_p, size_t memSize_p)
     return kErrorOk;
 }
 
+//TODO @J Remove this function
 //------------------------------------------------------------------------------
 /**
 \brief  Free PDO memory
@@ -830,13 +841,14 @@ Maps the kernel layer memory specified by the caller into user layer.
 
 \param  ppKernelMem_p    Double pointer to kernel memory.
 \param  ppUserMem_p      Double pointer to mapped kernel memory in user layer.
+\param  pSize_p          Pointer to the size of the memory to be mapped.
 
 \return Returns tOplkError error code.
 
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p)
+tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p, UINT32* pSize_p)
 {
     tDualprocReturn             dualRet;
     tMemInfo*                   pKernel2UserMemInfo = &drvIntfInstance_l.kernel2UserMem;
@@ -849,6 +861,7 @@ tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p)
         return kErrorNoResource;
 
 
+    UNUSED_PARAMETER(pSize_p);
     localProcInst = dualprocshm_getLocalProcInst();
     remoteProcInst = dualprocshm_getRemoteProcInst();
 
@@ -919,6 +932,83 @@ void drv_unmapKernelMem(UINT8* pUserMem_p)
 
 //------------------------------------------------------------------------------
 /**
+\brief  Initialize dual processor shared memory driver instance
+
+This routine initializes the driver instance of dualprocshm for HOST processor.
+
+\return Returns tOplkError error code.
+
+*/
+//------------------------------------------------------------------------------
+static tOplkError initDualProcShm(void)
+{
+    tDualprocReturn     dualRet;
+    tDualprocConfig     dualProcConfig;
+    INT                 loopCount = 0;
+
+    OPLK_MEMSET(&dualProcConfig, 0, sizeof(tDualprocConfig));
+
+    dualProcConfig.procInstance = kDualProcSecond;
+
+    dualRet = dualprocshm_create(&dualProcConfig, &drvIntfInstance_l.dualProcDrvInst);
+    if (dualRet != kDualprocSuccessful)
+    {
+        DEBUG_LVL_ERROR_TRACE(" {%s} Could not create dual processor driver instance (0x%X)\n",
+                              __func__, dualRet);
+        dualprocshm_delete(drvIntfInstance_l.dualProcDrvInst);
+        return kErrorNoResource;
+    }
+
+    for (loopCount = 0; loopCount <= DPSHM_ENABLE_TIMEOUT_SEC; loopCount++)
+    {
+        target_msleep(1000U);
+        dualRet = dualprocshm_checkShmIntfState(drvIntfInstance_l.dualProcDrvInst);
+        if (dualRet != kDualprocshmIntfDisabled)
+            break;
+    }
+
+    if (dualRet != kDualprocshmIntfEnabled)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s Dual processor interface is not enabled (0x%X)\n",
+                              __func__, dualRet);
+        return kErrorNoResource;
+    }
+
+    dualRet = dualprocshm_initInterrupts(drvIntfInstance_l.dualProcDrvInst);
+    if (dualRet != kDualprocSuccessful)
+    {
+        DEBUG_LVL_ERROR_TRACE("{%s} Error Initializing interrupts %x\n ", __func__, dualRet);
+        return kErrorNoResource;
+    }
+
+    return kErrorOk;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Delete dual processor shared memory driver instance
+
+This routine deletes the driver instance of dualprocshm created during
+initialization.
+
+*/
+//------------------------------------------------------------------------------
+static void exitDualProcShm(void)
+{
+    tDualprocReturn    dualRet;
+
+    // disable system irq
+    dualprocshm_freeInterrupts(drvIntfInstance_l.dualProcDrvInst);
+
+    dualRet = dualprocshm_delete(drvIntfInstance_l.dualProcDrvInst);
+    if (dualRet != kDualprocSuccessful)
+    {
+        DEBUG_LVL_ERROR_TRACE("Could not delete dual processor driver inst (0x%X)\n", dualRet);
+    }
+}
+
+//------------------------------------------------------------------------------
+/**
 \brief  Initialize event queues
 
 Initializes shared event queues between user and kernel layer of stack. The memory for the
@@ -936,14 +1026,14 @@ static tOplkError initEvent(void)
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
 
-    circError = circbuf_connect(CIRCBUF_USER_TO_KERNEL_QUEUE, &drvIntfInstance_l.eventQueueInst[kEventQueueU2K]);
+    circError = circbuf_connect(CIRCBUF_USER_TO_KERNEL_QUEUE, &drvIntfInstance_l.apEventQueueInst[kEventQueueU2K]);
     if (circError != kCircBufOk)
     {
         TRACE("PLK : Could not allocate CIRCBUF_USER_TO_KERNEL_QUEUE circbuffer\n");
         return kErrorNoResource;
     }
 
-    circError = circbuf_connect(CIRCBUF_KERNEL_TO_USER_QUEUE, &drvIntfInstance_l.eventQueueInst[kEventQueueK2U]);
+    circError = circbuf_connect(CIRCBUF_KERNEL_TO_USER_QUEUE, &drvIntfInstance_l.apEventQueueInst[kEventQueueK2U]);
     if (circError != kCircBufOk)
     {
         TRACE("PLK : Could not allocate CIRCBUF_KERNEL_TO_USER_QUEUE circbuffer\n");
@@ -965,8 +1055,11 @@ Close event queues initialized earlier.
 //------------------------------------------------------------------------------
 static void exitEvent(void)
 {
-    circbuf_disconnect(drvIntfInstance_l.eventQueueInst[kEventQueueK2U]);
-    circbuf_disconnect(drvIntfInstance_l.eventQueueInst[kEventQueueU2K]);
+    if (drvIntfInstance_l.apEventQueueInst[kEventQueueK2U] != NULL)
+    circbuf_disconnect(drvIntfInstance_l.apEventQueueInst[kEventQueueK2U]);
+
+    if (drvIntfInstance_l.apEventQueueInst[kEventQueueU2K] != NULL)
+    circbuf_disconnect(drvIntfInstance_l.apEventQueueInst[kEventQueueU2K]);
 }
 
 //------------------------------------------------------------------------------
@@ -1046,21 +1139,21 @@ static tOplkError initDllQueues(void)
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
 
-    circError = circbuf_connect(CIRCBUF_DLLCAL_TXGEN, &drvIntfInstance_l.dllQueueInst[kDllCalQueueTxGen]);
+    circError = circbuf_connect(CIRCBUF_DLLCAL_TXGEN, &drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxGen]);
     if (circError != kCircBufOk)
     {
         TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXGEN circbuffer\n");
         return kErrorNoResource;
     }
 
-    circError = circbuf_connect(CIRCBUF_DLLCAL_TXNMT, &drvIntfInstance_l.dllQueueInst[kDllCalQueueTxNmt]);
+    circError = circbuf_connect(CIRCBUF_DLLCAL_TXNMT, &drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxNmt]);
     if (circError != kCircBufOk)
     {
         TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXNMT circbuffer\n");
         return kErrorNoResource;
     }
 
-    circError = circbuf_connect(CIRCBUF_DLLCAL_TXSYNC, &drvIntfInstance_l.dllQueueInst[kDllCalQueueTxSync]);
+    circError = circbuf_connect(CIRCBUF_DLLCAL_TXSYNC, &drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxSync]);
     if (circError != kCircBufOk)
     {
         TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXSYNC circbuffer\n");
@@ -1088,11 +1181,17 @@ static tOplkError initDllQueues(void)
 //------------------------------------------------------------------------------
 static void exitDllQueues(void)
 {
-    circbuf_disconnect(drvIntfInstance_l.dllQueueInst[kDllCalQueueTxGen]);
-    circbuf_disconnect(drvIntfInstance_l.dllQueueInst[kDllCalQueueTxNmt]);
-    circbuf_disconnect(drvIntfInstance_l.dllQueueInst[kDllCalQueueTxSync]);
+    if (drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxGen] != NULL)
+    circbuf_disconnect(drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxGen]);
+
+    if (drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxNmt] != NULL)
+    circbuf_disconnect(drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxNmt]);
+
+    if (drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxSync] != NULL)
+    circbuf_disconnect(drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxSync]);
     /*
         //TODO: VETH to be integrated later
+    if (drvInstance_l.dllQueueInst[kDllCalQueueTxVeth] != NULL)
         circbuf_disconnect(drvIntfInstance_l.dllQueueInst[kDllCalQueueTxVeth]);
     */
 }
