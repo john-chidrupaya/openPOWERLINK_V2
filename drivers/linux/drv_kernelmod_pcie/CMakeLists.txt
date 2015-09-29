@@ -158,6 +158,7 @@ SET(MODULE_SOURCE_FILES
     ${COMMON_SOURCE_DIR}/debugstr.c
     ${CONTRIB_SOURCE_DIR}/trace/trace-printk.c
     ${STACK_SOURCE_DIR}/kernel/pdo/pdokcalsync-linuxkernel.c
+    ${STACK_SOURCE_DIR}/arch/linuxkernel/target-linuxkernel.c
     )
 
 IF((CMAKE_SYSTEM_PROCESSOR MATCHES x86*) OR (CMAKE_SYSTEM_PROCESSOR MATCHES i686))
