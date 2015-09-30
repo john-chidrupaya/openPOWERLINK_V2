@@ -49,7 +49,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <linux/errno.h>
 #include <linux/version.h>
 #include <linux/mm.h>
-#include <asm/page.h>
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/atomic.h>
@@ -131,7 +130,7 @@ typedef struct
     BOOL                    fSyncEnabled;
     BYTE*                   pShmMemLocal;
     BYTE*                   pShmMemRemote;
-    BYTE                    shmSize;
+    UINT32                  shmSize;
 } tDrvInstance;
 
 //------------------------------------------------------------------------------
@@ -145,22 +144,22 @@ static BYTE     aAsyncFrameSwapBuf_l[C_DLL_MAX_ASYNC_MTU];  // Array to store AS
 // local function prototypes
 //------------------------------------------------------------------------------
 
-static int __init   powerlinkInit(void);
-static void __exit  powerlinkExit(void);
+static int __init   plkIntfInit(void);
+static void __exit  plkIntfExit(void);
 
-static int          powerlinkOpen(struct inode* pDeviceFile_p, struct file* pInstance_p);
-static int          powerlinkRelease(struct inode* pDeviceFile_p, struct file* pInstance_p);
-static ssize_t      powerlinkRead(struct file* pInstance_p, char* pDstBuff_p, size_t BuffSize_p, loff_t* pFileOffs_p);
-static ssize_t      powerlinkWrite(struct file* pInstance_p, const char* pSrcBuff_p, size_t BuffSize_p, loff_t* pFileOffs_p);
+static int          plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p);
+static int          plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p);
+static ssize_t      plkIntfRead(struct file* pInstance_p, char* pDstBuff_p, size_t BuffSize_p, loff_t* pFileOffs_p);
+static ssize_t      plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p, size_t BuffSize_p, loff_t* pFileOffs_p);
 #ifdef HAVE_UNLOCKED_IOCTL
-static long         powerlinkIoctl(struct file* filp, unsigned int cmd, unsigned long arg);
+static long         plkIntfIoctl(struct file* filp, unsigned int cmd, unsigned long arg);
 #else
-static int          powerlinkIoctl(struct inode* dev, struct file* filp, unsigned int cmd, unsigned long arg);
+static int          plkIntfIoctl(struct inode* dev, struct file* filp, unsigned int cmd, unsigned long arg);
 #endif
 
-static int          powerlinkMmap(struct file* filp, struct vm_area_struct* vma);
-static void         powerlinkVmaOpen(struct vm_area_struct* vma);
-static void         powerlinkVmaClose(struct vm_area_struct* vma);
+static int          plkIntfMmap(struct file* filp, struct vm_area_struct* vma);
+static void         plkIntfVmaOpen(struct vm_area_struct* vma);
+static void         plkVmaClose(struct vm_area_struct* vma);
 
 static int          executeCmd(unsigned long arg);
 static int          readInitParam(unsigned long arg);
@@ -178,35 +177,35 @@ static int          mapMemoryForUserIoctl(unsigned long arg_p);
 //static int          mapMemoryForUserMmap(BYTE** ppUserBuf_p, ULONGLONG* pKernelBuf_p);
 //TODO Remove this. This is the signature for older(< 2.6.19) kernels' <.nopage> implementation
 //struct page*        powerlinkNoPage(struct vm_area_struct *vma, unsigned long address, int *type);
-static int          powerlinkNoPage(struct vm_area_struct*vma, struct vm_fault*vmf);
+static int          plkIntfNoPage(struct vm_area_struct*vma, struct vm_fault*vmf);
 
 //------------------------------------------------------------------------------
 //  Kernel module specific data structures
 //------------------------------------------------------------------------------
 //FIXME Change this module's function names as this is not the main powerlink module
-module_init(powerlinkInit);
-module_exit(powerlinkExit);
+module_init(plkIntfInit);
+module_exit(plkIntfExit);
 
 static struct file_operations           powerlinkFileOps_g =
 {
     .owner =     THIS_MODULE,
-    .open =      powerlinkOpen,
-    .release =   powerlinkRelease,
-    .read =      powerlinkRead,
-    .write =     powerlinkWrite,
+    .open =      plkIntfOpen,
+    .release =   plkIntfRelease,
+    .read =      plkIntfRead,
+    .write =     plkIntfWrite,
 #ifdef HAVE_UNLOCKED_IOCTL
-    .unlocked_ioctl = powerlinkIoctl,
+    .unlocked_ioctl = plkIntfIoctl,
 #else
-    .ioctl =     powerlinkIoctl,
+    .ioctl =     plkIntfIoctl,
 #endif
-    .mmap =      powerlinkMmap,
+    .mmap =      plkIntfMmap,
 };
 
 static struct vm_operations_struct      powerlinkVmOps =
 {
-    .open = powerlinkVmaOpen,
-    .close = powerlinkVmaClose,
-    .fault = powerlinkNoPage,
+    .open = plkIntfVmaOpen,
+    .close = plkVmaClose,
+    .fault = plkIntfNoPage,
 };
 
 //============================================================================//
@@ -227,12 +226,12 @@ initialization function.
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static int __init powerlinkInit(void)
+static int __init plkIntfInit(void)
 {
     int    err;
 
-    DEBUG_LVL_ALWAYS_TRACE("PLK: powerlinkInit()  Driver build: %s / %s\n", __DATE__, __TIME__);
-    DEBUG_LVL_ALWAYS_TRACE("PLK: powerlinkInit()  Stack version: %s\n", PLK_DEFINED_STRING_VERSION);
+    DEBUG_LVL_ALWAYS_TRACE("PLK: plkIntfInit()  Driver build: %s / %s\n", __DATE__, __TIME__);
+    DEBUG_LVL_ALWAYS_TRACE("PLK: plkIntfInit()  Stack version: %s\n", PLK_DEFINED_STRING_VERSION);
     plkDev_g = 0;
     atomic_set(&openCount_g, 0);
 
@@ -282,9 +281,9 @@ The function implements openPOWERLINK kernel pcie interface module exit function
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static void __exit powerlinkExit(void)
+static void __exit plkIntfExit(void)
 {
-    DEBUG_LVL_ALWAYS_TRACE("PLK: powerlinkExit...\n");
+    DEBUG_LVL_ALWAYS_TRACE("PLK: plkIntfExit...\n");
 
     cdev_del(&plkCdev_g);
     device_destroy(plkClass_g, plkDev_g);
@@ -303,7 +302,7 @@ The function implements openPOWERLINK kernel pcie interface module open function
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static int powerlinkOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
+static int plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
 {
     DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkOpen...\n");
 
@@ -346,7 +345,7 @@ static int powerlinkOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static int powerlinkNoPage(struct vm_area_struct*vma, struct vm_fault*vmf)
+static int plkIntfNoPage(struct vm_area_struct*vma, struct vm_fault*vmf)
 {
     struct page*        page;
     unsigned long       pfn;
@@ -370,7 +369,7 @@ The function implements openPOWERLINK kernel module close function.
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static int  powerlinkRelease(struct inode* pDeviceFile_p, struct file* pInstance_p)
+static int  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p)
 {
     DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkRelease...\n");
 
@@ -395,7 +394,7 @@ The function implements openPOWERLINK kernel pcie interface module read function
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static ssize_t powerlinkRead(struct file* pInstance_p, char* pDstBuff_p,
+static ssize_t plkIntfRead(struct file* pInstance_p, char* pDstBuff_p,
                              size_t BuffSize_p, loff_t* pFileOffs_p)
 {
     int    ret;
@@ -416,7 +415,7 @@ The function implements openPOWERLINK kernel pcie interface module write functio
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static ssize_t powerlinkWrite(struct file* pInstance_p, const char* pSrcBuff_p,
+static ssize_t plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p,
                               size_t BuffSize_p, loff_t* pFileOffs_p)
 {
     int    ret;
@@ -438,10 +437,10 @@ The function implements openPOWERLINK kernel pcie interface module ioctl functio
 */
 //------------------------------------------------------------------------------
 #ifdef HAVE_UNLOCKED_IOCTL
-static long powerlinkIoctl(struct file* filp, unsigned int cmd,
+static long plkIntfIoctl(struct file* filp, unsigned int cmd,
                            unsigned long arg)
 #else
-static int  powerlinkIoctl(struct inode* dev, struct file* filp,
+static int  plkIntfIoctl(struct inode* dev, struct file* filp,
                            unsigned int cmd, unsigned long arg)
 #endif
 {
@@ -547,7 +546,7 @@ The function implements openPOWERLINK kernel pcie interface module mmap function
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static int powerlinkMmap(struct file* filp, struct vm_area_struct* vma)
+static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 {
     BYTE*           pPdoMem = NULL;
     UINT16          memSize = 0;
@@ -596,13 +595,13 @@ static int powerlinkMmap(struct file* filp, struct vm_area_struct* vma)
     }
     /*///FIXME Align the memory to be mapped to PAGE boundary than a fixed random offset of 4095
     if (io_remap_pfn_range(vma, vma->vm_start, (pfn >> PAGE_SHIFT),
-                           vma->vm_end - vma->vm_start + (ULONG)instance_l.pdoBufOffset - 4095, vma->vm_page_prot))
+                           vma->vm_end - vma->vm_start + (ULONG)instance_l.pdoBufOffset - PAGE_SIZE, vma->vm_page_prot))
     {
         DEBUG_LVL_ERROR_TRACE("%s() remap_pfn_range failed\n", __func__);
         return -EAGAIN;
     } //*/
 
-    powerlinkVmaOpen(vma);
+    plkIntfVmaOpen(vma);
     return 0;
 }
 
@@ -615,7 +614,7 @@ The function implements openPOWERLINK kernel module VMA open function.
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static void powerlinkVmaOpen(struct vm_area_struct* vma)
+static void plkIntfVmaOpen(struct vm_area_struct* vma)
 {
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
                            __func__, vma->vm_start, vma->vm_end, vma->vm_pgoff);
@@ -630,7 +629,7 @@ The function implements openPOWERLINK kernel module VMA close function.
 \ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
-static void powerlinkVmaClose(struct vm_area_struct* vma)
+static void plkVmaClose(struct vm_area_struct* vma)
 {
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
                            __func__, vma->vm_start, vma->vm_end, vma->vm_pgoff);
@@ -1003,7 +1002,7 @@ static int mapMemoryForUserIoctl(unsigned long arg_p)
     if ((instance_l.pShmMemLocal == NULL) || (instance_l.pShmMemRemote == NULL))
         retVal = drv_mapKernelMem((UINT8**)&instance_l.pShmMemRemote,
                                   (UINT8**)&instance_l.pShmMemLocal,
-                                  (UINT8*)&instance_l.shmSize);
+                                  (UINT32*)&instance_l.shmSize);
 
     if (retVal != kErrorOk)
     {

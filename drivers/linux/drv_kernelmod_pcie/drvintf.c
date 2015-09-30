@@ -871,7 +871,7 @@ tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p, UINT32* 
     dualRet = dualprocshm_getSharedMemInfo(drvIntfInstance_l.dualProcDrvInst,
                                            localProcInst, &localProcSharedMemInst);
 
-    if (dualRet != kDualprocSuccessful || localProcSharedMemInst.baseAddr == (UINT64)NULL)
+    if (dualRet != kDualprocSuccessful || localProcSharedMemInst.baseAddr == (UINT64)0)
     {
         DEBUG_LVL_ERROR_TRACE("%s() Unable to map kernel memory error %x\n",
                               __func__, dualRet);
@@ -882,7 +882,7 @@ tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p, UINT32* 
     dualRet = dualprocshm_getSharedMemInfo(drvIntfInstance_l.dualProcDrvInst,
                                            remoteProcInst, &remoteProcSharedMemInst);
 
-    if (dualRet != kDualprocSuccessful || remoteProcSharedMemInst.baseAddr == (UINT64)NULL)
+    if (dualRet != kDualprocSuccessful || remoteProcSharedMemInst.baseAddr == (UINT64)0)
     {
         DEBUG_LVL_ERROR_TRACE("%s() Unable to map kernel memory error %x\n",
                               __func__, dualRet);

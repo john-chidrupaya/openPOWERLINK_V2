@@ -154,10 +154,9 @@ The function allocates shared memory for the user needed to transfer the PDOs.
 tOplkError pdoucal_allocateMem(size_t memSize_p, BYTE** ppPdoMem_p)
 {
     INT                         ret = 0;
-    tPdoMemRegion*              pPdoMem_l = NULL;
 
     //TODO Align the memsize to be mapped to page boundaries rather than adding a fixed buffer
-    *ppPdoMem_p = mmap(NULL, memSize_p + 4095, PROT_READ | PROT_WRITE, MAP_SHARED,
+    *ppPdoMem_p = mmap(NULL, memSize_p + getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED,
                        fd_l, 0);
     if (*ppPdoMem_p == MAP_FAILED)
     {
@@ -173,10 +172,8 @@ tOplkError pdoucal_allocateMem(size_t memSize_p, BYTE** ppPdoMem_p)
     }
     else
     {
-        *ppPdoMem_p = (size_t)(*ppPdoMem_p) + (size_t)offset;
+        *ppPdoMem_p = (UINT8*)((size_t)(*ppPdoMem_p) + (size_t)offset);
     }
-
-    pPdoMem_l = (tPdoMemRegion*)ppPdoMem_p;
 
     return kErrorOk;
 }
@@ -198,7 +195,7 @@ transfering the PDOs.
 //------------------------------------------------------------------------------
 tOplkError pdoucal_freeMem(BYTE* pMem_p, size_t memSize_p)
 {
-    pMem_p = (size_t)(pMem_p) - (size_t)offset;
+    pMem_p = (UINT8*)((size_t)(pMem_p) - (size_t)offset);
     if (munmap(pMem_p, memSize_p + 4095) != 0)
     {
         DEBUG_LVL_ERROR_TRACE("%s() munmap failed (%s)\n", __func__, strerror(errno));
