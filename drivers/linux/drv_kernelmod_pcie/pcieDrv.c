@@ -2,14 +2,14 @@
 ********************************************************************************
 \file   pcieDrv.c
 
-\brief  openPOWERLINK PCIe driver for Linux kernel
+\brief  Linux kernel driver for openPOWERLINK PCIe interface card
 
-This module handles all the application request forwarded to the daemon
-in Linux kernel. It uses dualprocshm and circbuf libraries to manage PDO
-memory, error objects shared memory, event and DLL queues.
+This module handles initialization and hardware specific operations of the
+openPOWERLINK PCIe interface card.
 
-The module also implements mapping of kernel memory into user space to provide
-direct access to user application for specific shared memory regions.
+It initializes and cleans up the PCIe hardware and maps the bus memory into
+kernel space. It also enables and handles the PCIe interrupts from the
+openPOWERLINK driver.
 
 \ingroup module_driver_linux_kernel_pcie
 *******************************************************************************/
@@ -83,6 +83,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
+
 //------------------------------------------------------------------------------
 // global function prototypes
 //------------------------------------------------------------------------------
@@ -94,9 +95,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
-
-//FIXME Change the driver names and update also in the driver headers.
-#define DRV_NAME                "plk"                   // driver name to be used by linux
+#define DRV_NAME                "plk"                   // driver name to be used by Linux
 
 //------------------------------------------------------------------------------
 // local types
@@ -105,13 +104,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 \brief PCIe BAR information
 
-The structure holds the information of the PCIe BAR mapped by the NDIS miniport.
+The structure holds the information of the PCIe BAR mapped by this driver.
 
 */
 typedef struct
 {
-    ULONG       phyAddr;                                ///< Physical address of the BAR. XXX ignored for now
-    phys_t      phyMap;
+    ULONG       phyAddr;                                ///< Physical address of the BAR.
+    phys_t      phyMap;                                 ///< TODO @J Remove or add description
     ULONG       virtualAddr;                            ///< Virtual address of the BAR in kernel memory.
     ULONG       length;                                 ///< Length of the BAR.
 } tBarInfo;
@@ -125,7 +124,7 @@ The structure holds the information of this PCIe driver instance.
 */
 typedef struct
 {
-    struct pci_dev*     pPciDev;                        ///< pointer to PCI device structure.
+    struct pci_dev*     pPciDev;                        ///< Pointer to PCI device structure.
     tBarInfo            barInfo[OPLK_MAX_BAR_COUNT];    ///< Bar instances of the PCIe interface.
     irqCallback         cbSync;                         ///< Sync irq callback function of the upper user layer.
     BOOL                fSyncEnabled;                   ///< Flag to check if sync irq for user has been enabled.
@@ -153,15 +152,9 @@ static struct pci_device_id     aDriverPciTbl_l[] =
 
 MODULE_DEVICE_TABLE(pci, aDriverPciTbl_l);
 
-static struct pci_driver        oplkPcieDriver_l =
-{
-    .name         = DRV_NAME,
-    .id_table     = aDriverPciTbl_l,
-    .probe        = initOnePciDev,
-    .remove       = removeOnePciDev,
-};
+static struct pci_driver        oplkPcieDriver_l;
 
-static tPcieDrvInstance            pcieDrvInstance_l;
+static tPcieDrvInstance         pcieDrvInstance_l;
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -185,19 +178,17 @@ tOplkError pcieDrv_init(void)
 
     ret = kErrorOk;
 
-    // clear instance structure
+    // Clear instance structure
     OPLK_MEMSET(&pcieDrvInstance_l, 0, sizeof(pcieDrvInstance_l));
 
-    // save the init data
-
-    // clear driver structure
+    // Clear driver structure
     OPLK_MEMSET(&oplkPcieDriver_l, 0, sizeof(oplkPcieDriver_l));
-    oplkPcieDriver_l.name         = DRV_NAME,
-    oplkPcieDriver_l.id_table     = aDriverPciTbl_l,
-    oplkPcieDriver_l.probe        = initOnePciDev,
-    oplkPcieDriver_l.remove       = removeOnePciDev,
+    oplkPcieDriver_l.name         = DRV_NAME;
+    oplkPcieDriver_l.id_table     = aDriverPciTbl_l;
+    oplkPcieDriver_l.probe        = initOnePciDev;
+    oplkPcieDriver_l.remove       = removeOnePciDev;
 
-    // register PCI driver
+    // Register PCI driver
     result = pci_register_driver(&oplkPcieDriver_l);
     if (result != 0)
     {
@@ -330,13 +321,14 @@ ULONG pcieDrv_getBarLength(ULONG barCount_p)
 
 //------------------------------------------------------------------------------
 /**
-\brief
+\brief  Register user sync interrupt callback
 
+This function stores the user sync event callback function tobe called from
+the PCIe sync ISR.
 
+\param cbSync_p     Pinter to the user sync callback function.
 
-\param
-
-\return
+\return The function returns a tOplkError error code.
 
 \ingroup module_driver_linux_kernel_pcie
 */
@@ -348,13 +340,14 @@ tOplkError pcieDrv_regSyncHandler(irqCallback cbSync_p)
 
 //------------------------------------------------------------------------------
 /**
-\brief
+\brief  Enable/Disable user sync interrupt
 
+Enables or disable the forwarding of sync interrupt to user.
 
+\param fEnable_p    Boolean value indicating whether or not to forward sync irq
+                    to user.
 
-\param
-
-\return
+\return The function returns a tOplkError error code.
 
 \ingroup module_driver_linux_kernel_pcie
 */
@@ -384,14 +377,22 @@ This function is the interrupt service routine for the openPOWERLINK PCIe driver
 //------------------------------------------------------------------------------
 static irqreturn_t pcieDrvIrqHandler(INT irqNum_p, void* ppDevInstData_p)
 {
-    UINT16      status;
-    INT         handled = IRQ_HANDLED;
+    INT         ret = IRQ_HANDLED;
 
-    if ((pcieDrvInstance_l.cbSync != NULL) && (pcieDrvInstance_l.fSyncEnabled == TRUE))
+    UNUSED_PARAMETER(irqNum_p);
+    UNUSED_PARAMETER(ppDevInstData_p);
+
+    // Currently only sync interrupt is produced by the PCIe, check if the user
+    // wants he irq to be forwarded
+    if ((pcieDrvInstance_l.cbSync != NULL) &&
+        (pcieDrvInstance_l.fSyncEnabled == TRUE))
+    {
+        // User wants the interrupt, forward it without any argument
         pcieDrvInstance_l.cbSync(NULL);
+    }
 
 Exit:
-    return handled;
+    return ret;
 }
 
 //------------------------------------------------------------------------------
@@ -423,6 +424,8 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
     UINT8       barCount = 0;
     tBarInfo*   pBarInfo = NULL;
 
+    UNUSED_PARAMETER(pId_p);
+
     if (pcieDrvInstance_l.pPciDev != NULL)
     {
         // This driver is already connected to a PCIe device
@@ -433,7 +436,7 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
 
     pcieDrvInstance_l.pPciDev = pPciDev_p;
 
-    // enable the PCIe device
+    // Enable the PCIe device
     printk("%s enable device\n", __FUNCTION__);
     result = pci_enable_device(pPciDev_p);
     if (result != 0)
@@ -441,14 +444,14 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
         goto Exit;
     }
 
-    printk("%s request regions\n", __FUNCTION__);
+    printk("%s request PCIe regions\n", __FUNCTION__);
     result = pci_request_regions(pPciDev_p, DRV_NAME);
     if (result != 0)
     {
         goto ExitFail;
     }
 
-    //XXX Ignoring whether or not any BAR is accessible
+    // Ignoring whether or not any BAR is accessible
     for (barCount = 0; barCount < OPLK_MAX_BAR_COUNT; barCount++)
     {
         pBarInfo = &pcieDrvInstance_l.barInfo[barCount];
@@ -469,32 +472,26 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
         // get the size of this field
         pBarInfo->length = pci_resource_len(pPciDev_p, barCount);
 
-        // check for weird broken IO regions
-        //FIXME Use this
-        //if (pBarInfo->length < PCI_DRV_REGS_SIZE)
-        //{
-        //    result = -ENODEV;
-        //    goto Exit;
-        //}
+        // $$: Add check for weird broken IO regions
 
-        printk("%s() --> ioremap\n", __FUNCTION__);
-        printk("\tbar#\t%u\n", barCount);
-        printk("\tbarLen\t%lu\n", pBarInfo->length);
         pBarInfo->virtualAddr = ioremap_nocache(pci_resource_start(pPciDev_p, barCount),
                                                 pBarInfo->length);
-
-        printk("\tbarMap\t0x%lX\n", pBarInfo->virtualAddr);
         if (pBarInfo->virtualAddr == NULL)
         {
-            // remap of controller's register space failed
+            // Remap of controller's register space failed
             result = -EIO;
             goto ExitFail;
         }
 
         pBarInfo->phyAddr = readl(pBarInfo->virtualAddr);
         pBarInfo->phyAddr &= PCI_BASE_ADDRESS_MEM_MASK;
-        printk("\tbarPhy\t0x%lX\n", pBarInfo->phyAddr);
         pBarInfo->phyMap = pci_resource_start(pPciDev_p, barCount);
+
+        printk("%s() --> ioremap\n", __FUNCTION__);
+        printk("\tbar#\t%u\n", barCount);
+        printk("\tbarLen\t%lu\n", pBarInfo->length);
+        printk("\tbarMap\t0x%lX\n", pBarInfo->virtualAddr);
+        printk("\tbarPhy\t0x%lX\n", pBarInfo->phyAddr);
         printk("\tbarPhy\t0x%lX\n", pBarInfo->phyMap);
     }
 
@@ -510,7 +507,7 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
         printk("%s Could not enable MSI\n", __FUNCTION__);
     }
 
-    // install interrupt handler
+    // Install interrupt handler
     printk("%s install interrupt handler\n", __FUNCTION__);
     result = request_irq(pPciDev_p->irq,
                          pcieDrvIrqHandler,
@@ -552,13 +549,14 @@ static void removeOnePciDev(struct pci_dev* pPciDev_p)
 
     if (pcieDrvInstance_l.pPciDev != pPciDev_p)
     {
-        // trying to remove unknown device
+        // Trying to remove unknown device
         BUG_ON(pcieDrvInstance_l.pPciDev != pPciDev_p);
         goto Exit;
     }
 
-    // remove interrupt handler
-    free_irq(pPciDev_p->irq, pPciDev_p);
+    // Remove interrupt handler
+    if (pPciDev_p->irq != NULL)
+        free_irq(pPciDev_p->irq, pPciDev_p);
 
     // Disable Message Signaled Interrupt
     printk("%s Disable MSI\n", __FUNCTION__);

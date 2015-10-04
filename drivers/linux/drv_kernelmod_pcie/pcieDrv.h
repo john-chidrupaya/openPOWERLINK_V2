@@ -51,6 +51,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 typedef ULONG phys_t;               //TODO If not needed remove the physical bar address
 typedef tOplkError (*irqCallback)(void*); ///< Function signature of PCIe ISR callback for upper layer
+
 //------------------------------------------------------------------------------
 // function prototypes
 //------------------------------------------------------------------------------

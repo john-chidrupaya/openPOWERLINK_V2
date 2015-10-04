@@ -161,7 +161,7 @@ static int          plkIntfIoctl(struct inode* dev, struct file* filp, unsigned 
 
 static int          plkIntfMmap(struct file* filp, struct vm_area_struct* vma);
 static void         plkIntfVmaOpen(struct vm_area_struct* vma);
-static void         plkVmaClose(struct vm_area_struct* vma);
+static void         plkIntfVmaClose(struct vm_area_struct* vma);
 
 static int          executeCmd(unsigned long arg_p);
 static int          readInitParam(unsigned long arg);
@@ -202,7 +202,7 @@ static struct file_operations powerlinkFileOps_g =
 static struct vm_operations_struct powerlinkVmOps =
 {
     .open = plkIntfVmaOpen,
-    .close = plkVmaClose,
+    .close = plkIntfVmaClose,
 };
 
 //============================================================================//
@@ -577,7 +577,7 @@ The function implements openPOWERLINK kernel module VMA close function.
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-static void plkVmaClose(struct vm_area_struct* vma)
+static void plkIntfVmaClose(struct vm_area_struct* vma)
 {
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
                            __func__, vma->vm_start, vma->vm_end, vma->vm_pgoff);
