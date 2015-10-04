@@ -116,6 +116,8 @@ atomic_t                openCount_g;
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
+#define QUEUE_WAIT_TIMEOUT          (10 * HZ / 1000)    // 10ms timeout
+#define K2U_EVENT_WAIT_TIMEOUT      (500 * HZ / 1000)
 
 //------------------------------------------------------------------------------
 // local types
@@ -161,9 +163,9 @@ static int          plkIntfMmap(struct file* filp, struct vm_area_struct* vma);
 static void         plkIntfVmaOpen(struct vm_area_struct* vma);
 static void         plkVmaClose(struct vm_area_struct* vma);
 
-static int          executeCmd(unsigned long arg);
+static int          executeCmd(unsigned long arg_p);
 static int          readInitParam(unsigned long arg);
-static int          storeInitParam(unsigned long arg);
+static int          storeInitParam(unsigned long arg_p);
 static int          getStatus(unsigned long arg);
 static int          getHeartbeat(unsigned long arg);
 static int          sendAsyncFrame(unsigned long arg);
@@ -175,18 +177,14 @@ static int          postEventFromUser(unsigned long arg);
 
 static int          mapMemoryForUserIoctl(unsigned long arg_p);
 //static int          mapMemoryForUserMmap(BYTE** ppUserBuf_p, ULONGLONG* pKernelBuf_p);
-//TODO Remove this. This is the signature for older(< 2.6.19) kernels' <.nopage> implementation
-//struct page*        powerlinkNoPage(struct vm_area_struct *vma, unsigned long address, int *type);
-static int          plkIntfNoPage(struct vm_area_struct*vma, struct vm_fault*vmf);
 
 //------------------------------------------------------------------------------
 //  Kernel module specific data structures
 //------------------------------------------------------------------------------
-//FIXME Change this module's function names as this is not the main powerlink module
 module_init(plkIntfInit);
 module_exit(plkIntfExit);
 
-static struct file_operations           powerlinkFileOps_g =
+static struct file_operations powerlinkFileOps_g =
 {
     .owner =     THIS_MODULE,
     .open =      plkIntfOpen,
@@ -201,20 +199,15 @@ static struct file_operations           powerlinkFileOps_g =
     .mmap =      plkIntfMmap,
 };
 
-static struct vm_operations_struct      powerlinkVmOps =
+static struct vm_operations_struct powerlinkVmOps =
 {
     .open = plkIntfVmaOpen,
     .close = plkVmaClose,
-    .fault = plkIntfNoPage,
 };
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
 //============================================================================//
-
-//---------------------------------------------------------------------------
-//  Initailize driver
-//---------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 /**
@@ -223,7 +216,7 @@ static struct vm_operations_struct      powerlinkVmOps =
 The function implements openPOWERLINK kernel pcie interface module
 initialization function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static int __init plkIntfInit(void)
@@ -278,7 +271,7 @@ static int __init plkIntfInit(void)
 
 The function implements openPOWERLINK kernel pcie interface module exit function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static void __exit plkIntfExit(void)
@@ -299,12 +292,12 @@ static void __exit plkIntfExit(void)
 
 The function implements openPOWERLINK kernel pcie interface module open function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static int plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
 {
-    DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkOpen...\n");
+    DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfOpen...\n");
 
     if (atomic_inc_return(&openCount_g) > 1)
     {
@@ -332,30 +325,7 @@ static int plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
 
     init_waitqueue_head(&instance_l.userWaitQueue);
 
-    DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkOpen - OK\n");
-
-    return 0;
-}
-
-//------------------------------------------------------------------------------
-/**
-\brief
-
-
-\ingroup module_driver_linux_kernel
-*/
-//------------------------------------------------------------------------------
-static int plkIntfNoPage(struct vm_area_struct*vma, struct vm_fault*vmf)
-{
-    struct page*        page;
-    unsigned long       pfn;
-
-    printk("%s() --> vma_start: 0x%X, vma_end: 0x%X, vma_pgoff: 0x%X, vmf_pgoff: 0x%X, vmf_page: 0x%X\n",
-           __func__, (UINT)vma->vm_start, (UINT)vma->vm_end, (UINT)vma->vm_pgoff, (UINT)vmf->pgoff, (UINT)vmf->page);
-    pfn = virt_to_phys(instance_l.pPdoMem);
-    page = virt_to_page(instance_l.pPdoMem);
-    vmf->page = page + (vmf->pgoff << PAGE_SHIFT);
-    get_page(vmf->page);
+    DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfOpen - OK\n");
 
     return 0;
 }
@@ -366,12 +336,12 @@ static int plkIntfNoPage(struct vm_area_struct*vma, struct vm_fault*vmf)
 
 The function implements openPOWERLINK kernel module close function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static int  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p)
 {
-    DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkRelease...\n");
+    DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRelease...\n");
 
     instance_l.pdoBufOffset = NULL;
     instance_l.pPdoMem = NULL;
@@ -381,7 +351,7 @@ static int  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p
     drv_exit();
     pcieDrv_shutdown();
     atomic_dec(&openCount_g);
-    DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkRelease - OK\n");
+    DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRelease - OK\n");
     return 0;
 }
 
@@ -391,7 +361,7 @@ static int  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p
 
 The function implements openPOWERLINK kernel pcie interface module read function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static ssize_t plkIntfRead(struct file* pInstance_p, char* pDstBuff_p,
@@ -399,10 +369,10 @@ static ssize_t plkIntfRead(struct file* pInstance_p, char* pDstBuff_p,
 {
     int    ret;
 
-    DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkRead...\n");
+    DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRead...\n");
     DEBUG_LVL_ALWAYS_TRACE("PLK:   Sorry, this operation isn't supported.\n");
     ret = -EINVAL;
-    DEBUG_LVL_ALWAYS_TRACE("PLK: - powerlinkRead (iRet=%d)\n", ret);
+    DEBUG_LVL_ALWAYS_TRACE("PLK: - plkIntfRead (iRet=%d)\n", ret);
     return ret;
 }
 
@@ -412,7 +382,7 @@ static ssize_t plkIntfRead(struct file* pInstance_p, char* pDstBuff_p,
 
 The function implements openPOWERLINK kernel pcie interface module write function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static ssize_t plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p,
@@ -420,10 +390,10 @@ static ssize_t plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p,
 {
     int    ret;
 
-    DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkWrite...\n");
+    DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfWrite...\n");
     DEBUG_LVL_ALWAYS_TRACE("PLK:   Sorry, this operation isn't supported.\n");
     ret = -EINVAL;
-    DEBUG_LVL_ALWAYS_TRACE("PLK: - powerlinkWrite (iRet=%d)\n", ret);
+    DEBUG_LVL_ALWAYS_TRACE("PLK: - plkIntfWrite (iRet=%d)\n", ret);
     return ret;
 }
 
@@ -433,7 +403,7 @@ static ssize_t plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p,
 
 The function implements openPOWERLINK kernel pcie interface module ioctl function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 #ifdef HAVE_UNLOCKED_IOCTL
@@ -444,13 +414,8 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
                            unsigned int cmd, unsigned long arg)
 #endif
 {
-    int             ret;
+    int             ret = -EINVAL;
     tOplkError      oplRet;
-
-    //DEBUG_LVL_ALWAYS_TRACE("PLK: + powerlinkIoctl (cmd=%d type=%d)...\n", _IOC_NR(cmd), _IOC_TYPE(cmd));
-    ret = -EINVAL;
-
-    // Add some checks for valid commands here
 
     switch (cmd)
     {
@@ -533,7 +498,6 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
             break;
     }
 
-    //TRACE("PLK: - powerlinkIoctl (cmd=%d type=%d)..(ret=%d)\n", _IOC_NR(cmd), _IOC_TYPE(cmd), ret);
     return ret;
 }
 
@@ -543,7 +507,7 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
 
 The function implements openPOWERLINK kernel pcie interface module mmap function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
@@ -551,7 +515,6 @@ static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     BYTE*           pPdoMem = NULL;
     UINT16          memSize = 0;
     tOplkError      ret = kErrorOk;
-    tPdoMemRegion*  pPdoMem_l = NULL;
     ULONG           pfn = 0;
 
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
@@ -564,14 +527,7 @@ static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     // via an ioctl call made before the mmap() call. This way both pdo and memmap modules
     // can use mmap and multiple mmap() calls to this driver would be possible.
 
-    // if (vma->vm_pgoff == 0)
-    //{
     ret = drv_getPdoMem(&pPdoMem, memSize);
-    //}
-    //else
-    //{
-    //    ret = mapMemoryForUserMmap(&pPdoMem, (ULONGLONG*) &vma->vm_pgoff);
-    //}
 
     if ((pPdoMem == NULL) || (ret != kErrorOk))
     {
@@ -579,27 +535,19 @@ static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
         return -ENOMEM;
     }
 
-    pPdoMem_l = (tPdoMemRegion*)pPdoMem;
-
-    //pfn = virt_to_phys(pPdoMem);
+    // Get the bus address of the PDO memory
     pfn = pcieDrv_getBarInst(0) + ((ULONG)pPdoMem - pcieDrv_getBarAddr(0));
+
+    // Save the offset of the PDO memory address from the start of page boundary
     instance_l.pdoBufOffset = (BYTE*)(pfn - ((pfn >> PAGE_SHIFT) << PAGE_SHIFT));
     instance_l.pPdoMem = pPdoMem;
-    printk("virt MAP addr: 0x%lX --> 0x%lX --> 0x%lX\n", (ULONG)pPdoMem, pfn, (pfn >> PAGE_SHIFT));
-    /*
-    if (remap_pfn_range(vma, vma->vm_start, (pfn >> PAGE_SHIFT),
-                        vma->vm_end - vma->vm_start + instance_l.pdoBufOffset - 4095, vma->vm_page_prot))
-    {
-            DEBUG_LVL_ERROR_TRACE("%s() remap_pfn_range failed\n", __func__);
-            return -EAGAIN;
-    }
-    /*///FIXME Align the memory to be mapped to PAGE boundary than a fixed random offset of 4095
+
     if (io_remap_pfn_range(vma, vma->vm_start, (pfn >> PAGE_SHIFT),
                            vma->vm_end - vma->vm_start + (ULONG)instance_l.pdoBufOffset - PAGE_SIZE, vma->vm_page_prot))
     {
         DEBUG_LVL_ERROR_TRACE("%s() remap_pfn_range failed\n", __func__);
         return -EAGAIN;
-    } //*/
+    }
 
     plkIntfVmaOpen(vma);
     return 0;
@@ -607,11 +555,11 @@ static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 
 //------------------------------------------------------------------------------
 /**
-\brief  openPOWERLINK pcie driver VMA open functionnet
+\brief  openPOWERLINK pcie driver VMA open function
 
 The function implements openPOWERLINK kernel module VMA open function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static void plkIntfVmaOpen(struct vm_area_struct* vma)
@@ -626,7 +574,7 @@ static void plkIntfVmaOpen(struct vm_area_struct* vma)
 
 The function implements openPOWERLINK kernel module VMA close function.
 
-\ingroup module_driver_linux_kernel
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static void plkVmaClose(struct vm_area_struct* vma)
@@ -650,22 +598,18 @@ This function waits for events to the user.
 \param  arg                Ioctl argument. Contains the received event.
 
 \return The function returns Linux error code.
-
-\ingroup module_eventkcal
 */
 //------------------------------------------------------------------------------
 int getEventForUser(ULONG arg)
 {
     int             ret;
     size_t          readSize;
-    signed long     timeout = 10 * HZ / 1000;   // 10ms timeout
-    signed long     loopTimeout = 500 * HZ / 1000;
-    int             loopCount = (loopTimeout / timeout);
+    int             loopCount = (K2U_EVENT_WAIT_TIMEOUT / QUEUE_WAIT_TIMEOUT);
     int             i = 0;
 
     for (i = 0; i < loopCount; i++)
     {
-        ret = wait_event_interruptible_timeout(instance_l.userWaitQueue, 0, timeout);
+        ret = wait_event_interruptible_timeout(instance_l.userWaitQueue, 0, QUEUE_WAIT_TIMEOUT);
 
         // ignore timeout (ret = 0) condition as we are using it to sleep
 
@@ -707,13 +651,11 @@ int getEventForUser(ULONG arg)
 /**
 \brief    Post event from user
 
-This function posts a event from the user layer to a queue.
+This function posts an event from the user layer to the kernel queue.
 
 \param  arg                Ioctl argument. Contains the event to post.
 
 \return The function returns Linux error code.
-
-\ingroup module_eventkcal
 */
 //------------------------------------------------------------------------------
 int postEventFromUser(ULONG arg)
@@ -727,17 +669,13 @@ int postEventFromUser(ULONG arg)
 
     if (event.eventArgSize != 0)
     {
-        //order = get_order(event.eventArgSize);
-        //pArg = (BYTE*)__get_free_pages(GFP_KERNEL, order);
         //TODO Find a way to not allocate memory every time a U2K event is posted
         pArg = (BYTE*)OPLK_MALLOC(event.eventArgSize);
         if (pArg == NULL)
             return -EIO;
 
-        //TRACE("%s() allocated %d Bytes at %p\n", __func__, event.eventArgSize, pArg);
         if (copy_from_user(pArg, (const void __user*)event.eventArg.pEventArg, event.eventArgSize))
         {
-            //free_pages((ULONG)pArg, order);
             OPLK_FREE(pArg);
             return -EFAULT;
         }
@@ -754,15 +692,10 @@ int postEventFromUser(ULONG arg)
         case kEventSinkPdok:
         case kEventSinkPdokCal:
         case kEventSinkErrk:
-            /*TRACE("U2K  type:%s(%d) sink:%s(%d) size:%d!\n",
-                   debugstr_getEventTypeStr(event.eventType), event.eventType,
-                   debugstr_getEventSinkStr(event.eventSink), event.eventSink,
-                   event.eventArgSize);*/
-            /*
-              TRACE("U2K  type:(%d) sink:(%d) size:%d!\n",
-                   event.eventType,
-                   event.eventSink,
-                   event.eventArgSize);//*/
+            /* TRACE("U2K  type:(%d) sink:(%d) size:%d!\n",
+                     event.eventType,
+                     event.eventSink,
+                     event.eventArgSize); */
             drv_postEvent(&event);
             break;
 
@@ -772,17 +705,12 @@ int postEventFromUser(ULONG arg)
         case kEventSinkApi:
         case kEventSinkDlluCal:
         case kEventSinkErru:
-        /*TRACE("UINT type:%s(%d) sink:%s(%d) size:%d!\n",
-               debugstr_getEventTypeStr(event.eventType), event.eventType,
-               debugstr_getEventSinkStr(event.eventSink), event.eventSink,
-               event.eventArgSize);*/
         default:
             ret = -EIO;
             break;
     }
 
     if (event.eventArgSize != 0)
-        //free_pages((ULONG)pArg, order);
         OPLK_FREE(pArg);
 
     return 0;
@@ -793,21 +721,20 @@ int postEventFromUser(ULONG arg)
 \brief  Execute control command ioctl
 
 The function implements the calling of the executeCmd function in the control
-module using the ioctl interface.
-
-\ingroup module_driver_linux_kernel
+module using the ioctl interface and forwards it to the driver using via the
+shared memory interface.
 */
 //------------------------------------------------------------------------------
-static int executeCmd(unsigned long arg)
+static int executeCmd(unsigned long arg_p)
 {
     tCtrlCmd    ctrlCmd;
 
-    if (copy_from_user(&ctrlCmd, (const void __user*)arg, sizeof(tCtrlCmd)))
+    if (copy_from_user(&ctrlCmd, (const void __user*)arg_p, sizeof(tCtrlCmd)))
         return -EFAULT;
 
     drv_executeCmd(&ctrlCmd);
 
-    if (copy_to_user((void __user*)arg, &ctrlCmd, sizeof(tCtrlCmd)))
+    if (copy_to_user((void __user*)arg_p, &ctrlCmd, sizeof(tCtrlCmd)))
         return -EFAULT;
 
     return 0;
@@ -818,16 +745,15 @@ static int executeCmd(unsigned long arg)
 \brief  Store init param ioctl
 
 The function implements the calling of the storeInitParam function in the
-control module using the ioctl interface.
-
-\ingroup module_driver_linux_kernel
+control module using the ioctl interface and forwards it to the driver using
+via the shared memory interface.
 */
 //------------------------------------------------------------------------------
-static int storeInitParam(unsigned long arg)
+static int storeInitParam(unsigned long arg_p)
 {
     tCtrlInitParam    initParam;
 
-    if (copy_from_user(&initParam, (const void __user*)arg, sizeof(tCtrlInitParam)))
+    if (copy_from_user(&initParam, (const void __user*)arg_p, sizeof(tCtrlInitParam)))
         return -EFAULT;
 
     drv_storeInitParam(&initParam);
@@ -840,9 +766,8 @@ static int storeInitParam(unsigned long arg)
 \brief  Read init param ioctl
 
 The function implements the calling of the readInitParam function in the control
-module using the ioctl interface.
-
-\ingroup module_driver_linux_kernel
+module using the ioctl interface and forwards it to the driver using via the
+shared memory interface.
 */
 //------------------------------------------------------------------------------
 static int readInitParam(unsigned long arg)
@@ -861,9 +786,8 @@ static int readInitParam(unsigned long arg)
 \brief  Get status ioctl
 
 The function implements the calling of the getStatus function in the control
-module using the ioctl interface.
-
-\ingroup module_driver_linux_kernel
+module using the ioctl interface and forwards it to the driver using via the
+shared memory interface.
 */
 //------------------------------------------------------------------------------
 static int getStatus(unsigned long arg)
@@ -880,9 +804,8 @@ static int getStatus(unsigned long arg)
 \brief  Get heartbeat ioctl
 
 The function implements the calling of the getHeartbeat function in the control
-module using the ioctl interface.
-
-\ingroup module_driver_linux_kernel
+module using the ioctl interface and forwards it to the driver using via the
+shared memory interface.
 */
 //------------------------------------------------------------------------------
 static int getHeartbeat(unsigned long arg)
@@ -899,8 +822,6 @@ static int getHeartbeat(unsigned long arg)
 \brief  Sending async frame ioctl
 
 The function implements the ioctl used for sending asynchronous frames.
-
-\ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
 static int sendAsyncFrame(unsigned long arg)
@@ -924,8 +845,6 @@ static int sendAsyncFrame(unsigned long arg)
         return -EFAULT;
     }
 
-    //TRACE("%s() Received frame size:%d\n", __func__, asyncFrame.size);
-
     asyncFrameInfo.pData = pBuf;
     drv_sendAsyncFrame((unsigned char*)&asyncFrameInfo);
 
@@ -939,8 +858,6 @@ static int sendAsyncFrame(unsigned long arg)
 \brief  Write error object ioctl
 
 The function implements the ioctl for writing an error object.
-
-\ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
 static int writeErrorObject(unsigned long arg)
@@ -960,8 +877,6 @@ static int writeErrorObject(unsigned long arg)
 \brief  Read error object ioctl
 
 The function implements the ioctl for reading error objects.
-
-\ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
 static int readErrorObject(unsigned long arg)
@@ -984,8 +899,6 @@ static int readErrorObject(unsigned long arg)
 \brief  Map PCP memory into user memory
 
 The function implements the ioctl for mapping the PCP memory into user memory.
-
-\ingroup module_driver_linux_kernel
 */
 //------------------------------------------------------------------------------
 static int mapMemoryForUserIoctl(unsigned long arg_p)
@@ -1007,13 +920,12 @@ static int mapMemoryForUserIoctl(unsigned long arg_p)
     if (retVal != kErrorOk)
     {
         DEBUG_LVL_ERROR_TRACE("%s() --> Error: Unable to locate shared memory region\n");
-        //memMapParams.pUserBuf = NULL; // Not needed, let user free its own memory; just return error.
+        // Let user free its own memory; just return error.
         ret = -EFAULT;
     }
     else if (memMapParams.pKernelBuf <= instance_l.pShmMemRemote)
     {
         DEBUG_LVL_ERROR_TRACE("%s() --> Error: PCP buffer pointer lies outside the shared memory region\n");
-        //memMapParams.pUserBuf = NULL;
         ret = -EFAULT;
     }
     else
@@ -1031,38 +943,4 @@ static int mapMemoryForUserIoctl(unsigned long arg_p)
 
     return ret;
 }
-
-////------------------------------------------------------------------------------
-///**
-//\brief  Map PCP memory into user memory
-//
-//The function maps the PCP memory into user memory
-////FIXME Remove this function after mmap finalization.
-//
-//\ingroup module_driver_linux_kernel
-//*/
-////------------------------------------------------------------------------------
-//static int mapMemoryForUserMmap(BYTE** ppUserBuf_p, ULONGLONG* pKernelBuf_p)
-//{
-//    void*           pShmMemLocal = NULL;
-//    ULONGLONG       pShmMemRemote = (ULONGLONG)NULL;
-//    int             ret = 0;
-//
-//    drv_mapKernelMem((UINT8**)&pShmMemRemote, (UINT8**)&pShmMemLocal);
-//
-//    if (*pKernelBuf_p <= (ULONG)pShmMemRemote)
-//    {
-//        *ppUserBuf_p = NULL;
-//        ret = -EFAULT;
-//    }
-//    else
-//    {
-//        *pKernelBuf_p = *pKernelBuf_p - pShmMemRemote; // change the actual offset of vm struct
-//        *ppUserBuf_p = (void*)(*pKernelBuf_p + (ULONGLONG)pShmMemLocal);
-//        ret = 0;
-//    }
-//
-//    return ret;
-//}
-
 ///\}
