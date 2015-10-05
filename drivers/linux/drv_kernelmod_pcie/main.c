@@ -164,15 +164,15 @@ static void         plkIntfVmaOpen(struct vm_area_struct* vma);
 static void         plkIntfVmaClose(struct vm_area_struct* vma);
 
 static int          executeCmd(unsigned long arg_p);
-static int          readInitParam(unsigned long arg);
+static int          readInitParam(unsigned long arg_p);
 static int          storeInitParam(unsigned long arg_p);
-static int          getStatus(unsigned long arg);
+static int          getStatus(unsigned long arg_p);
 static int          getHeartbeat(unsigned long arg);
 static int          sendAsyncFrame(unsigned long arg);
 static int          writeErrorObject(unsigned long arg);
 static int          readErrorObject(unsigned long arg);
 
-static int          getEventForUser(unsigned long arg);
+static int          getEventForUser(unsigned long arg_p);
 static int          postEventFromUser(unsigned long arg);
 
 static int          mapMemoryForUserIoctl(unsigned long arg_p);
@@ -462,19 +462,16 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
         case PLK_CMD_PDO_SYNC:
             if (instance_l.fSyncEnabled == FALSE)
             {
-                //TODO Solve the callback type mismatch warning and replace the pdo module if necessary.
+                //TODO @J Solve the callback type mismatch warning and replace the pdo module if necessary.
                 pcieDrv_regSyncHandler(pdokcal_sendSyncEvent);
                 pcieDrv_enableSync(TRUE);
             }
 
+            //TODO @J blocked waiting!!!
             if ((oplRet = drv_waitSyncEvent()) == kErrorRetry)
-            {
                 ret = -ERESTARTSYS;
-            }
             else
-            {
                 ret = 0;
-            }
 
             break;
 
@@ -489,6 +486,7 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
                 ret = -EFAULT;
             }
 
+            //FIXME @J remove
             ret = 0;
             break;
 
@@ -600,7 +598,7 @@ This function waits for events to the user.
 \return The function returns Linux error code.
 */
 //------------------------------------------------------------------------------
-int getEventForUser(ULONG arg)
+int getEventForUser(ULONG arg_p)
 {
     int             ret;
     size_t          readSize;
@@ -619,12 +617,16 @@ int getEventForUser(ULONG arg)
             break;
         }
 
-        drv_getEvent(instance_l.aK2URxBuffer, &readSize);
+        if (drv_getEvent(instance_l.aK2URxBuffer, &readSize) != kErrorOk)
+        {
+            ret = -EFAULT;
+            break;
+        }
 
         if (readSize > 0)
         {
             DEBUG_INTF("%s() copy kernel event to user: %d Bytes\n", __func__, readSize);
-            if (copy_to_user((void __user*)arg, instance_l.aK2URxBuffer, readSize))
+            if (copy_to_user((void __user*)arg_p, instance_l.aK2URxBuffer, readSize))
             {
                 printk("Event fetch Error!!\n");
                 ret = -EFAULT;
@@ -696,7 +698,8 @@ int postEventFromUser(ULONG arg)
                      event.eventType,
                      event.eventSink,
                      event.eventArgSize); */
-            drv_postEvent(&event);
+            if (drv_postEvent(&event) != kErrorOk)
+                ret = -EIO;
             break;
 
         case kEventSinkNmtMnu:
@@ -723,6 +726,8 @@ int postEventFromUser(ULONG arg)
 The function implements the calling of the executeCmd function in the control
 module using the ioctl interface and forwards it to the driver using via the
 shared memory interface.
+
+\param arg_p    Control command argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
 static int executeCmd(unsigned long arg_p)
@@ -732,7 +737,8 @@ static int executeCmd(unsigned long arg_p)
     if (copy_from_user(&ctrlCmd, (const void __user*)arg_p, sizeof(tCtrlCmd)))
         return -EFAULT;
 
-    drv_executeCmd(&ctrlCmd);
+    if (drv_executeCmd(&ctrlCmd) != kErrorOk)
+        return -EFAULT;
 
     if (copy_to_user((void __user*)arg_p, &ctrlCmd, sizeof(tCtrlCmd)))
         return -EFAULT;
@@ -747,6 +753,9 @@ static int executeCmd(unsigned long arg_p)
 The function implements the calling of the storeInitParam function in the
 control module using the ioctl interface and forwards it to the driver using
 via the shared memory interface.
+
+\param arg_p    Control module initialization parameters argument passed by
+                the ioctl interface.
 */
 //------------------------------------------------------------------------------
 static int storeInitParam(unsigned long arg_p)
@@ -756,7 +765,8 @@ static int storeInitParam(unsigned long arg_p)
     if (copy_from_user(&initParam, (const void __user*)arg_p, sizeof(tCtrlInitParam)))
         return -EFAULT;
 
-    drv_storeInitParam(&initParam);
+    if (drv_storeInitParam(&initParam) != kErrorOk)
+        return -EFAULT;
 
     return 0;
 }
@@ -768,14 +778,19 @@ static int storeInitParam(unsigned long arg_p)
 The function implements the calling of the readInitParam function in the control
 module using the ioctl interface and forwards it to the driver using via the
 shared memory interface.
+
+\param arg_p    Pointer to the control module initialization parameters
+                argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int readInitParam(unsigned long arg)
+static int readInitParam(unsigned long arg_p)
 {
     tCtrlInitParam    initParam;
 
-    drv_readInitParam(&initParam);
-    if (copy_to_user((void __user*)arg, &initParam, sizeof(tCtrlInitParam)))
+    if (drv_readInitParam(&initParam) != kErrorOk)
+        return -EFAULT;
+
+    if (copy_to_user((void __user*)arg_p, &initParam, sizeof(tCtrlInitParam)))
         return -EFAULT;
 
     return 0;
@@ -788,14 +803,18 @@ static int readInitParam(unsigned long arg)
 The function implements the calling of the getStatus function in the control
 module using the ioctl interface and forwards it to the driver using via the
 shared memory interface.
+
+\param arg_p    Pointer to the control status argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int getStatus(unsigned long arg)
+static int getStatus(unsigned long arg_p)
 {
     UINT16    status;
 
-    drv_getStatus(&status);
-    put_user(status, (unsigned short __user*)arg);
+    if (drv_getStatus(&status) != kErrorOk)
+        return -EFAULT;
+
+    put_user(status, (unsigned short __user*)arg_p);
     return 0;
 }
 
@@ -806,13 +825,17 @@ static int getStatus(unsigned long arg)
 The function implements the calling of the getHeartbeat function in the control
 module using the ioctl interface and forwards it to the driver using via the
 shared memory interface.
+
+\param arg_p    Pointer to the PCP heartbeat argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
 static int getHeartbeat(unsigned long arg)
 {
     UINT16    heartbeat;
 
-    drv_getHeartbeat(&heartbeat);
+    if (drv_getHeartbeat(&heartbeat) != kErrorOk)
+        return -EFAULT;
+
     put_user(heartbeat, (unsigned short __user*)arg);
     return 0;
 }
@@ -822,6 +845,8 @@ static int getHeartbeat(unsigned long arg)
 \brief  Sending async frame ioctl
 
 The function implements the ioctl used for sending asynchronous frames.
+
+\param arg_p    Pointer to the async send argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
 static int sendAsyncFrame(unsigned long arg)
@@ -829,6 +854,7 @@ static int sendAsyncFrame(unsigned long arg)
     BYTE*                   pBuf;
     tIoctlDllCalAsync       asyncFrameInfo;
     int                     order;
+    int                     ret = 0;
 
     order = get_order(C_DLL_MAX_ASYNC_MTU);
     pBuf = (BYTE*)__get_free_pages(GFP_KERNEL, order);
@@ -846,11 +872,12 @@ static int sendAsyncFrame(unsigned long arg)
     }
 
     asyncFrameInfo.pData = pBuf;
-    drv_sendAsyncFrame((unsigned char*)&asyncFrameInfo);
+    if (drv_sendAsyncFrame((unsigned char*)&asyncFrameInfo) != kErrorOk)
+        ret = -EFAULT;
 
     free_pages((ULONG)pBuf, order);
 
-    return 0;
+    return ret;
 }
 
 //------------------------------------------------------------------------------
@@ -858,6 +885,8 @@ static int sendAsyncFrame(unsigned long arg)
 \brief  Write error object ioctl
 
 The function implements the ioctl for writing an error object.
+
+\param arg_p    Pointer to the error object argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
 static int writeErrorObject(unsigned long arg)
@@ -867,7 +896,8 @@ static int writeErrorObject(unsigned long arg)
     if (copy_from_user(&writeObject, (const void __user*)arg, sizeof(tErrHndIoctl)))
         return -EFAULT;
 
-    drv_writeErrorObject(&writeObject);
+    if (drv_writeErrorObject(&writeObject) != kErrorOk)
+        return -EFAULT;
 
     return 0;
 }
@@ -877,6 +907,8 @@ static int writeErrorObject(unsigned long arg)
 \brief  Read error object ioctl
 
 The function implements the ioctl for reading error objects.
+
+\param arg_p    Pointer to the error object argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
 static int readErrorObject(unsigned long arg)
@@ -886,7 +918,8 @@ static int readErrorObject(unsigned long arg)
     if (copy_from_user(&readObject, (const void __user*)arg, sizeof(tErrHndIoctl)))
         return -EFAULT;
 
-    drv_readErrorObject(&readObject);
+    if (drv_readErrorObject(&readObject) != kErrorOk)
+        return -EFAULT;
 
     if (copy_to_user((void __user*)arg, &readObject, sizeof(tErrHndIoctl)))
         return -EFAULT;
@@ -899,6 +932,8 @@ static int readErrorObject(unsigned long arg)
 \brief  Map PCP memory into user memory
 
 The function implements the ioctl for mapping the PCP memory into user memory.
+
+\param arg_p    Pointer to the memmap instance argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
 static int mapMemoryForUserIoctl(unsigned long arg_p)

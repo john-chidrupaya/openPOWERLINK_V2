@@ -449,7 +449,7 @@ tOplkError drv_sendAsyncFrame(unsigned char* pArg_p)
 {
     tIoctlDllCalAsync*      asyncFrameInfo;
     tFrameInfo              frameInfo;
-    tOplkError              ret;
+    tOplkError              ret = kErrorOk;
 
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
@@ -466,6 +466,8 @@ tOplkError drv_sendAsyncFrame(unsigned char* pArg_p)
     {
         DEBUG_LVL_ERROR_TRACE("Error sending async frame queue %d\n", asyncFrameInfo->queue);
     }
+
+    return ret;
 }
 
 //------------------------------------------------------------------------------
@@ -512,6 +514,7 @@ tOplkError drv_readErrorObject(tErrHndIoctl* pReadObject_p)
         return kErrorNoResource;
 
     pReadObject_p->errVal = *((UINT32*)((char*)errorObjects + pReadObject_p->offset));
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -934,7 +937,7 @@ void drv_unmapKernelMem(UINT8* pUserMem_p)
 /**
 \brief  Initialize dual processor shared memory driver instance
 
-This routine initializes the driver instance of dualprocshm for HOST processor.
+This routine initializes the driver instance of dualprocshm for host processor.
 
 \return Returns tOplkError error code.
 
@@ -953,7 +956,7 @@ static tOplkError initDualProcShm(void)
     dualRet = dualprocshm_create(&dualProcConfig, &drvIntfInstance_l.dualProcDrvInst);
     if (dualRet != kDualprocSuccessful)
     {
-        DEBUG_LVL_ERROR_TRACE(" {%s} Could not create dual processor driver instance (0x%X)\n",
+        DEBUG_LVL_ERROR_TRACE(" %s(): Could not create dual processor driver instance (0x%X)\n",
                               __func__, dualRet);
         dualprocshm_delete(drvIntfInstance_l.dualProcDrvInst);
         return kErrorNoResource;
@@ -969,7 +972,7 @@ static tOplkError initDualProcShm(void)
 
     if (dualRet != kDualprocshmIntfEnabled)
     {
-        DEBUG_LVL_ERROR_TRACE("%s Dual processor interface is not enabled (0x%X)\n",
+        DEBUG_LVL_ERROR_TRACE("%s(): Dual processor interface is not enabled (0x%X)\n",
                               __func__, dualRet);
         return kErrorNoResource;
     }
@@ -998,7 +1001,11 @@ static void exitDualProcShm(void)
     tDualprocReturn    dualRet;
 
     // disable system irq
-    dualprocshm_freeInterrupts(drvIntfInstance_l.dualProcDrvInst);
+    dualRet = dualprocshm_freeInterrupts(drvIntfInstance_l.dualProcDrvInst);
+    if (dualRet != kDualprocSuccessful)
+    {
+        DEBUG_LVL_ERROR_TRACE("Could not free dual processor interrupts (0x%X)\n", dualRet);
+    }
 
     dualRet = dualprocshm_delete(drvIntfInstance_l.dualProcDrvInst);
     if (dualRet != kDualprocSuccessful)
