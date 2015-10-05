@@ -536,7 +536,7 @@ static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     }
 
     // Get the bus address of the PDO memory
-    pfn = pcieDrv_getBarInst(0) + ((ULONG)pPdoMem - pcieDrv_getBarAddr(0));
+    pfn = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPdoMem - pcieDrv_getBarAddr(0));
 
     // Save the offset of the PDO memory address from the start of page boundary
     instance_l.pdoBufOffset = (BYTE*)(pfn - ((pfn >> PAGE_SHIFT) << PAGE_SHIFT));

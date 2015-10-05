@@ -110,7 +110,6 @@ The structure holds the information of the PCIe BAR mapped by this driver.
 typedef struct
 {
     ULONG       phyAddr;                                ///< Physical address of the BAR.
-    phys_t      phyMap;                                 ///< TODO @J Remove or add description
     ULONG       virtualAddr;                            ///< Virtual address of the BAR in kernel memory.
     ULONG       length;                                 ///< Length of the BAR.
 } tBarInfo;
@@ -174,7 +173,6 @@ tOplkError pcieDrv_init(void)
 {
     tOplkError      ret;
     INT             result;
-    UINT            index;
 
     ret = kErrorOk;
 
@@ -277,29 +275,6 @@ ULONG pcieDrv_getBarPhyAddr(UINT8 barCount_p)
 
 //------------------------------------------------------------------------------
 /**
-\brief
-
-//FIXME Remove this function if not required anymore.
-
-\param
-
-\return
-
-\ingroup module_driver_linux_kernel_pcie
-*/
-//------------------------------------------------------------------------------
-phys_t pcieDrv_getBarInst(UINT8 barCount_p)
-{
-    if (barCount_p >= OPLK_MAX_BAR_COUNT)
-    {
-        return 0;
-    }
-
-    return pcieDrvInstance_l.barInfo[barCount_p].phyMap;
-}
-
-//------------------------------------------------------------------------------
-/**
 \brief  Get BAR Length
 
 \param  barCount_p     ID of the requested BAR.
@@ -336,6 +311,7 @@ the PCIe sync ISR.
 tOplkError pcieDrv_regSyncHandler(irqCallback cbSync_p)
 {
     pcieDrvInstance_l.cbSync = cbSync_p;
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -355,6 +331,7 @@ Enables or disable the forwarding of sync interrupt to user.
 tOplkError pcieDrv_enableSync(BOOL fEnable_p)
 {
     pcieDrvInstance_l.fSyncEnabled = fEnable_p;
+    return kErrorOk;
 }
 
 //============================================================================//
@@ -391,7 +368,6 @@ static irqreturn_t pcieDrvIrqHandler(INT irqNum_p, void* ppDevInstData_p)
         pcieDrvInstance_l.cbSync(NULL);
     }
 
-Exit:
     return ret;
 }
 
@@ -412,15 +388,7 @@ This function initializes one PCI device.
 static INT initOnePciDev(struct pci_dev* pPciDev_p,
                          const struct pci_device_id* pId_p)
 {
-    UINT        index;
-    UINT32      temp;
     INT         result = 0;
-    UINT16      regValue;
-    UINT64      descAddr;
-    UINT        order;
-    UINT        rxBuffersInAllocation;
-    UINT        rxBufferCount;
-    UINT32      flags_le;
     UINT8       barCount = 0;
     tBarInfo*   pBarInfo = NULL;
 
@@ -456,7 +424,7 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
     {
         pBarInfo = &pcieDrvInstance_l.barInfo[barCount];
 
-        if (pBarInfo->virtualAddr != NULL)
+        if (pBarInfo->virtualAddr != (ULONG)NULL)
         {
             // The instance is already present
             result = -EIO;
@@ -474,25 +442,22 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
 
         // $$: Add check for weird broken IO regions
 
-        pBarInfo->virtualAddr = ioremap_nocache(pci_resource_start(pPciDev_p, barCount),
-                                                pBarInfo->length);
-        if (pBarInfo->virtualAddr == NULL)
+        pBarInfo->virtualAddr = (ULONG)ioremap_nocache(pci_resource_start(pPciDev_p, barCount),
+                                                       pBarInfo->length);
+        if (pBarInfo->virtualAddr == (ULONG)NULL)
         {
             // Remap of controller's register space failed
             result = -EIO;
             goto ExitFail;
         }
 
-        pBarInfo->phyAddr = readl(pBarInfo->virtualAddr);
-        pBarInfo->phyAddr &= PCI_BASE_ADDRESS_MEM_MASK;
-        pBarInfo->phyMap = pci_resource_start(pPciDev_p, barCount);
+        pBarInfo->phyAddr = (ULONG)pci_resource_start(pPciDev_p, barCount);
 
         printk("%s() --> ioremap\n", __FUNCTION__);
         printk("\tbar#\t%u\n", barCount);
         printk("\tbarLen\t%lu\n", pBarInfo->length);
         printk("\tbarMap\t0x%lX\n", pBarInfo->virtualAddr);
         printk("\tbarPhy\t0x%lX\n", pBarInfo->phyAddr);
-        printk("\tbarPhy\t0x%lX\n", pBarInfo->phyMap);
     }
 
     // Enable PCI busmaster
@@ -540,10 +505,6 @@ This function removes one PCI device.
 //------------------------------------------------------------------------------
 static void removeOnePciDev(struct pci_dev* pPciDev_p)
 {
-    UINT32      temp;
-    UINT        order;
-    ULONG       bufferPointer;
-    UINT        rxBufferCount;
     UINT8       barCount = 0;
     tBarInfo*   pBarInfo = NULL;
 
@@ -555,7 +516,7 @@ static void removeOnePciDev(struct pci_dev* pPciDev_p)
     }
 
     // Remove interrupt handler
-    if (pPciDev_p->irq != NULL)
+    if (pPciDev_p->irq != (INT)NULL)
         free_irq(pPciDev_p->irq, pPciDev_p);
 
     // Disable Message Signaled Interrupt
@@ -567,10 +528,10 @@ static void removeOnePciDev(struct pci_dev* pPciDev_p)
     {
         pBarInfo = &pcieDrvInstance_l.barInfo[barCount];
 
-        if (pBarInfo->virtualAddr != NULL)
+        if (pBarInfo->virtualAddr != (ULONG)NULL)
         {
-            iounmap(pBarInfo->virtualAddr);
-            pBarInfo->virtualAddr = NULL;
+            iounmap((void __iomem*)pBarInfo->virtualAddr);
+            pBarInfo->virtualAddr = (ULONG)NULL;
         }
     }
 

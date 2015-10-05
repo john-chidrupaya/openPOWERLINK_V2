@@ -49,7 +49,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // typedef
 //------------------------------------------------------------------------------
-typedef ULONG phys_t;               //TODO If not needed remove the physical bar address
 typedef tOplkError (*irqCallback)(void*); ///< Function signature of PCIe ISR callback for upper layer
 
 //------------------------------------------------------------------------------
@@ -61,7 +60,6 @@ tOplkError  pcieDrv_shutdown(void);
 ULONG       pcieDrv_getBarLength(ULONG barCount_p);
 ULONG       pcieDrv_getBarAddr(UINT8 barCount_p);
 ULONG       pcieDrv_getBarPhyAddr(UINT8 barCount_p);
-phys_t      pcieDrv_getBarInst(UINT8 barCount_p);
 tOplkError  pcieDrv_regSyncHandler(irqCallback cbSync_p);
 tOplkError  pcieDrv_enableSync(BOOL fEnable_p);
 
