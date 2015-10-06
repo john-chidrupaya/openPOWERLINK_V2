@@ -274,7 +274,7 @@ tOplkError eventucal_postUserEvent(tEvent* pEvent_p)
     tOplkError    ret = kErrorOk;
 
     //FIXME Call the circular buffer post function here
-    ret = eventucal_postEventCircbuf(kEventQueueUInt);
+    ret = eventucal_postEventCircbuf(kEventQueueUInt, pEvent_p);
     if (ret != kErrorOk)
     {
         DEBUG_LVL_ERROR_TRACE("UInt event could not be posted!!\n");
