@@ -104,8 +104,8 @@ static BYTE*                offset = NULL;
 The function performs all actions needed to setup the shared memory at the
 start of the stack.
 
-For the Linux kernel driver shared memory acces we need to get the device
-descriptor of the kernel driver.
+For the PCIe driver shared memory access we need to get the device
+descriptor of the kernel PCIe interface driver.
 
 \return The function returns a tOplkError error code.
 
@@ -125,7 +125,8 @@ tOplkError pdoucal_openMem(void)
 The function performs all actions needed to clean up the shared memory at
 shutdown.
 
-For the Linux kernel mmap implementation nothing needs to be done.
+For the mmap implementation nothing needs to be done, as the memory is only
+remapped to the user space.
 
 \return The function returns a tOplkError error code.
 
@@ -155,7 +156,6 @@ tOplkError pdoucal_allocateMem(size_t memSize_p, BYTE** ppPdoMem_p)
 {
     INT                         ret = 0;
 
-    //TODO Align the memsize to be mapped to page boundaries rather than adding a fixed buffer
     *ppPdoMem_p = mmap(NULL, memSize_p + getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED,
                        fd_l, 0);
     if (*ppPdoMem_p == MAP_FAILED)
@@ -183,7 +183,7 @@ tOplkError pdoucal_allocateMem(size_t memSize_p, BYTE** ppPdoMem_p)
 \brief  Free PDO shared memory
 
 The function frees shared memory which was allocated in the user layer for
-transfering the PDOs.
+transferring the PDOs.
 
 \param  pMem_p                  Pointer to the shared memory segment.
 \param  memSize_p               Size of PDO memory.
@@ -196,11 +196,12 @@ transfering the PDOs.
 tOplkError pdoucal_freeMem(BYTE* pMem_p, size_t memSize_p)
 {
     pMem_p = (UINT8*)((size_t)(pMem_p) - (size_t)offset);
-    if (munmap(pMem_p, memSize_p + 4095) != 0)
+    if (munmap(pMem_p, memSize_p + getpagesize()) != 0)
     {
         DEBUG_LVL_ERROR_TRACE("%s() munmap failed (%s)\n", __func__, strerror(errno));
         return kErrorGeneralError;
     }
+
     return kErrorOk;
 }
 

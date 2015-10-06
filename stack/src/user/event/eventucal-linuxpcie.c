@@ -4,8 +4,8 @@
 
 \brief  User event CAL module for openPOWERLINK PCIe driver on Linux
 
-This file implements the user event CAL module implementation uses ioctl calls
-on Linux to communicate with the openPOWERLINK PCIe driver.
+This file implements the user event CAL module implementation and uses ioctl
+calls on Linux to communicate with the openPOWERLINK PCIe driver.
 
 \ingroup module_eventucal
 *******************************************************************************/
@@ -90,15 +90,15 @@ CAL module.
 */
 typedef struct
 {
-    int                 fd;
-    pthread_t           kernelEventThreadId;
-    pthread_t           userEventThreadId;
-    pthread_mutex_t     userEventMutex;
-    pthread_cond_t      userEventCondition;
-    OPLK_ATOMIC_T       userEventCount;
-    BOOL                fStopKernelThread;
-    BOOL                fStopUserThread;
-    BOOL                fInitialized;
+    int                 fd;                     ///< File descriptor for the kernel PCIe driver
+    pthread_t           kernelEventThreadId;    ///< K2U event processing thread Id
+    pthread_t           userEventThreadId;      ///< UInt event processing thread Id
+    pthread_mutex_t     userEventMutex;         ///< Mutex for accessing pending user event counter
+    pthread_cond_t      userEventCondition;     ///< Conditional variable for signalling UInt event
+    OPLK_ATOMIC_T       userEventCount;         ///< Pending user event counter
+    BOOL                fStopKernelThread;      ///< Flag to start stop K2U event thread
+    BOOL                fStopUserThread;        ///< Flag to start stop UInt event thread
+    BOOL                fInitialized;           ///< Flag indicate the valid state of this module
 } tEventuCalInstance;
 
 //------------------------------------------------------------------------------
@@ -123,7 +123,7 @@ static tOplkError   postEvent(tEvent* pEvent_p);
 \brief    Initialize user event CAL module
 
 The function initializes the user event CAL module. Depending on the
-configuration it gets the function pointer interface of the used queue
+configuration, it gets the function pointer interface of the used queue
 implementations and calls the appropriate init functions.
 
 \return The function returns a tOplkError error code.
@@ -160,7 +160,7 @@ tOplkError eventucal_init(void)
         goto Exit;
     }
 
-    //create thread for signaling new data
+    // Create thread for signalling new user data from kernel
     if (pthread_create(&instance_l.kernelEventThreadId, NULL, eventKThread, NULL) != 0)
     {
         goto Exit;
@@ -169,7 +169,7 @@ tOplkError eventucal_init(void)
     schedParam.__sched_priority = USER_EVENT_THREAD_PRIORITY;
     if (pthread_setschedparam(instance_l.kernelEventThreadId, SCHED_FIFO, &schedParam) != 0)
     {
-        DEBUG_LVL_ERROR_TRACE("%s(): couldn't set thread scheduling parameters! %d\n",
+        DEBUG_LVL_ERROR_TRACE("%s(): couldn't set K2U thread scheduling parameters! %d\n",
                               __func__, schedParam.__sched_priority);
     }
 
@@ -177,6 +177,7 @@ tOplkError eventucal_init(void)
     pthread_setname_np(instance_l.kernelEventThreadId, "oplk-eventu");
 #endif
 
+    // Create thread for signalling new user internal data
     if (pthread_create(&instance_l.userEventThreadId, NULL, eventUThread, NULL) != 0)
     {
         goto Exit;
@@ -185,7 +186,7 @@ tOplkError eventucal_init(void)
     schedParam.__sched_priority = USER_EVENT_THREAD_PRIORITY;
     if (pthread_setschedparam(instance_l.userEventThreadId, SCHED_FIFO, &schedParam) != 0)
     {
-        DEBUG_LVL_ERROR_TRACE("%s(): couldn't set thread scheduling parameters! %d\n",
+        DEBUG_LVL_ERROR_TRACE("%s(): couldn't set UInt thread scheduling parameters! %d\n",
                               __func__, schedParam.__sched_priority);
     }
 
@@ -226,7 +227,7 @@ tOplkError eventucal_exit(void)
             target_msleep(10);
             if (timeout++ > 1000)
             {
-                TRACE("User-Kernel Event Thread is not terminating, continue shutdown...!\n");
+                DEBUG_LVL_ERROR_TRACE("Kernel-User Event Thread is not terminating, continue shutdown...!\n");
                 break;
             }
         }
@@ -242,7 +243,7 @@ tOplkError eventucal_exit(void)
             target_msleep(10);
             if (timeout++ > 1000)
             {
-                TRACE("UInt Event Thread is not terminating, continue shutdown...!\n");
+                DEBUG_LVL_ERROR_TRACE("UInt Event Thread is not terminating, continue shutdown...!\n");
                 break;
             }
         }
@@ -256,9 +257,8 @@ tOplkError eventucal_exit(void)
 /**
 \brief    Post user event
 
-This function posts an event to a queue. It is called from the generic user
-event post function in the event handler. Depending on the sink the appropriate
-queue post function is called.
+This function is called from the generic user event post function in the
+event handler and posts an user event to the UInt queue using circular buffer.
 
 \param  pEvent_p                Event to be posted.
 
@@ -273,10 +273,11 @@ tOplkError eventucal_postUserEvent(tEvent* pEvent_p)
 {
     tOplkError    ret = kErrorOk;
 
+    //FIXME Call the circular buffer post function here
     ret = eventu_process(pEvent_p);
     if (ret != kErrorOk)
     {
-        printf("UInt event could not be posted!!\n");
+        DEBUG_LVL_ERROR_TRACE("UInt event could not be posted!!\n");
     }
 
     return ret;
@@ -286,9 +287,9 @@ tOplkError eventucal_postUserEvent(tEvent* pEvent_p)
 /**
 \brief    Post kernel event
 
-This function posts an event to a queue. It is called from the generic user
-event post function in the event handler. Depending on the sink the appropriate
-queue post function is called.
+This function is called from the generic user event post function in the
+event handler and posts an user event to the U2K queue using the ioctl
+interface.
 
 \param  pEvent_p                Event to be posted.
 
@@ -328,9 +329,8 @@ void eventucal_process(void)
 /**
 \brief    Post event
 
-This function posts an event to a queue. It is called from the generic user
-event post function in the event handler. Depending on the sink the appropriate
-queue post function is called.
+This function posts an user event to the U2K queue via the PCIe interface
+driver using ioctl interface.
 
 \param  pEvent_p                Event to be posted.
 
@@ -343,10 +343,10 @@ static tOplkError postEvent(tEvent* pEvent_p)
 {
     int    ioctlret;
 
-    /*TRACE("%s() Event type:%s(%d) sink:%s(%d) size:%d!\n", __func__,
-           debugstr_getEventTypeStr(pEvent_p->eventType), pEvent_p->eventType,
-           debugstr_getEventSinkStr(pEvent_p->eventSink), pEvent_p->eventSink,
-           pEvent_p->eventArgSize);*/
+    /* TRACE("%s() Event type:%s(%d) sink:%s(%d) size:%d!\n", __func__,
+             debugstr_getEventTypeStr(pEvent_p->eventType), pEvent_p->eventType,
+             debugstr_getEventSinkStr(pEvent_p->eventSink), pEvent_p->eventSink,
+             pEvent_p->eventArgSize); */
 
     ioctlret = ioctl(instance_l.fd, PLK_CMD_POST_EVENT, pEvent_p);
     if (ioctlret != 0)
@@ -359,7 +359,8 @@ static tOplkError postEvent(tEvent* pEvent_p)
 /**
 \brief    Event thread function
 
-This function implements the event thread.
+This function implements the K2U event thread. The thread uses the ioctl
+interface to the PCIe driver to wait for an event to be posted from the PCP.
 
 \param  arg_p                Thread argument.
 
@@ -389,9 +390,8 @@ static void* eventKThread(void* arg_p)
 
             ret = eventu_process(pEvent);
         }
-        /*
-         else
-                 DEBUG_LVL_EVENTK_TRACE("%s() ret = %d\n", __func__, ret);//*/
+
+        // Ignore errors from kernel
     }
 
     instance_l.fStopKernelThread = FALSE;
@@ -403,7 +403,8 @@ static void* eventKThread(void* arg_p)
 /**
 \brief    Event thread function
 
-This function implements the event thread.
+This function implements the UInt event thread. The thread waits for an user
+event to be posted to the circular buffer and then processes it, once signalled.
 
 \param  arg_p                Thread argument.
 
@@ -442,7 +443,7 @@ static void* eventUThread(void* arg_p)
 \brief  Signal a user event
 
 This function signals that a user event was posted. It will be registered in
-the circular buffer library as signal callback function
+the circular buffer library as signal callback function.
 */
 //------------------------------------------------------------------------------
 void signalUserEvent(void)

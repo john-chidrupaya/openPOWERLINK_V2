@@ -86,6 +86,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 static INT fd_l;
 static BYTE aAsyncFrameSwapBuf_l[C_DLL_MAX_ASYNC_MTU];
+
 //------------------------------------------------------------------------------
 // local function prototypes
 //------------------------------------------------------------------------------
@@ -133,6 +134,8 @@ tMemMapReturn memmap_shutdown(void)
 \brief  Map kernel buffer
 
 The function maps a kernel buffer address.
+\note   This implementation uses the ioctl interface to the PCIe driver to copy
+        the data from kernel space to the user space.
 
 \param  pKernelBuffer_p     The pointer to the kernel buffer.
 \param  bufferSize_p        The size of the kernel buffer.

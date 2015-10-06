@@ -155,7 +155,7 @@ This function initializes necessary resources required for driver interface.
 
 \return Returns tOplkError error code.
 
-\ingroup module_driver_ndispcie
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 tOplkError drv_init(void)
@@ -189,7 +189,7 @@ tOplkError drv_init(void)
 This function frees all the resources used by the driver interface and shuts down
 the interface.
 
-\ingroup module_driver_ndispcie
+\ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 void drv_exit(void)
