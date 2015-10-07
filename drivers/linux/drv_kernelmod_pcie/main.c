@@ -662,7 +662,8 @@ INT postEventFromUser(ULONG arg)
 
         if (copy_from_user(pArg, (const void __user*)event.eventArg.pEventArg, event.eventArgSize))
         {
-            OPLK_FREE(pArg);
+            //OPLK_FREE(pArg);
+            free_pages((ULONG)pArg, order);
             return -EFAULT;
         }
 
@@ -698,7 +699,8 @@ INT postEventFromUser(ULONG arg)
     }
 
     if (event.eventArgSize != 0)
-        OPLK_FREE(pArg);
+        //OPLK_FREE(pArg);
+        free_pages((ULONG)pArg, order);
 
     return 0;
 }
