@@ -462,6 +462,8 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
                 printk("PDO Offset fetch Error!!\n");
                 ret = -EFAULT;
             }
+            else
+                ret = 0;
 
             break;
 
@@ -648,21 +650,14 @@ INT postEventFromUser(ULONG arg)
 
     if (event.eventArgSize != 0)
     {
-        //TODO Find a way to not allocate memory every time a U2K event is posted
-
         order = get_order(event.eventArgSize);
-        pArg = (BYTE*)__get_free_pages(GFP_KERNEL, order);
+        pArg = (UINT8*)__get_free_pages(GFP_KERNEL, order);
 
         if (!pArg)
             return -EIO;
 
-//        pArg = (BYTE*)OPLK_MALLOC(event.eventArgSize);
-//        if (pArg == NULL)
-//            return -EIO;
-
         if (copy_from_user(pArg, (const void __user*)event.eventArg.pEventArg, event.eventArgSize))
         {
-            //OPLK_FREE(pArg);
             free_pages((ULONG)pArg, order);
             return -EFAULT;
         }
@@ -699,7 +694,6 @@ INT postEventFromUser(ULONG arg)
     }
 
     if (event.eventArgSize != 0)
-        //OPLK_FREE(pArg);
         free_pages((ULONG)pArg, order);
 
     return 0;
