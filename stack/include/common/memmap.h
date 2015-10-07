@@ -76,7 +76,7 @@ The structure holds the kernel pointer and the mapped user memory pointer.
 typedef struct
 {
     UINT32      memSize;
-    BYTE*       pKernelBuf;
+    UINT8*      pKernelBuf;
     void*       pUserBuf;
 } tMemmap;
 

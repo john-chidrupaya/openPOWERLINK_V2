@@ -49,7 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // typedef
 //------------------------------------------------------------------------------
-typedef tOplkError (*irqCallback)(void*); ///< Function signature of PCIe ISR callback for upper layer
+typedef tOplkError (*irqCallback)(void); ///< Function signature of PCIe ISR callback for upper layer
 
 //------------------------------------------------------------------------------
 // function prototypes

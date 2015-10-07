@@ -70,16 +70,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define DPSHM_WRITE16(base, val)                writew(val, (UINT16*)base)
 #define DPSHM_READ32(base)                      readl((UINT32*)base)
 #define DPSHM_WRITE32(base, val)                writel(val, (UINT32*)base)
-#define DPSHM_ENABLE_INTR(fEnable)              // TODO
-#define DPSHM_DMB()                             // no data barriers used
+#define DPSHM_ENABLE_INTR(fEnable)              // No operations on Linux host
+#define DPSHM_DMB()                             // No data barriers used //TODO wmb()??
 
 /// cache handling
 #define DUALPROCSHM_FLUSH_DCACHE_RANGE(base, range)
 
 #define DUALPROCSHM_INVALIDATE_DCACHE_RANGE(base, range)
 
-#define DPSHM_REG_SYNC_INTR(callback, arg)      pcieDrv_regSyncHandler(callback)
-#define DPSHM_UNREG_SYNC_INTR(callback, arg)    //TODO register a NULL callback
+#define DPSHM_REG_SYNC_INTR(callback, arg)      // No operation on Linux host as irq is handled through the PCIe driver
+#define DPSHM_UNREG_SYNC_INTR(callback, arg)    // No operation on Linux host
 
 #define DPSHM_ENABLE_SYNC_INTR()                pcieDrv_enableSync(TRUE)
 #define DPSHM_DISABLE_SYNC_INTR()               pcieDrv_enableSync(FALSE)

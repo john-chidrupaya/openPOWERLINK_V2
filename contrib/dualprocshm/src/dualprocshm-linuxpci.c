@@ -331,7 +331,7 @@ void dualprocshm_targetAcquireLock(tDualprocLock* pBase_p, tDualProcInstance pro
     DPSHM_WRITE8(&pLock->turn, otherProcInstance);
     DUALPROCSHM_FLUSH_DCACHE_RANGE(&pLock->turn, sizeof(pLock->turn));
 
-    DPSHM_DMB(); //TODO @J: wmb
+    DPSHM_DMB();
 
     do
     {

@@ -365,7 +365,7 @@ static irqreturn_t pcieDrvIrqHandler(INT irqNum_p, void* ppDevInstData_p)
         (pcieDrvInstance_l.fSyncEnabled == TRUE))
     {
         // User wants the interrupt, forward it without any argument
-        pcieDrvInstance_l.cbSync(NULL);
+        pcieDrvInstance_l.cbSync();
     }
 
     return ret;

@@ -67,7 +67,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // const defines
 //------------------------------------------------------------------------------
 
-//FIXME Take lock id from platform header that using hard coded value
+// $$ Take lock id from platform header that using hard coded value
 #define LOCK_LOCAL_ID    1
 
 // Define unlock value or take predefined one...

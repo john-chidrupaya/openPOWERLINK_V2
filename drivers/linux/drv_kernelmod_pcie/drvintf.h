@@ -75,25 +75,25 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C"
 {
 #endif
-tOplkError drv_init(void);
-void       drv_exit(void);
-tOplkError drv_executeCmd(tCtrlCmd* ctrlCmd_p);
-tOplkError drv_readInitParam(tCtrlInitParam* pInitParam_p);
-tOplkError drv_storeInitParam(tCtrlInitParam* pInitParam_p);
-tOplkError drv_getStatus(UINT16* pStatus_p);
-tOplkError drv_getHeartbeat(UINT16* pHeartbeat_p);
-tOplkError drv_sendAsyncFrame(unsigned char* pArg_p);
-tOplkError drv_writeErrorObject(tErrHndIoctl* pWriteObject_p);
-tOplkError drv_readErrorObject(tErrHndIoctl* pReadObject_p);
-tOplkError drv_postEvent(void* pEvent_p);
-tOplkError drv_getEvent(void* pEvent_p, size_t* pSize_p);
-tOplkError  drv_getPdoMem(UINT8** ppPdoMem_p, size_t memSize_p);
-void        drv_freePdoMem(UINT8* pPdoMem_p, size_t memSize_p);
-tOplkError drv_getBenchmarkMem(UINT8** ppBenchmarkMem_p);
-void       drv_freeBenchmarkMem(UINT8* pBenchmarkMem_p);
-tOplkError drv_mapKernelMem(UINT8** ppKernelMem_p, UINT8** ppUserMem_p, UINT32* pSize_p);
-void       drv_unmapKernelMem(UINT8* pUserMem_p);
-tOplkError  drv_waitSyncEvent(void);
+tOplkError drvintf_init(void);
+void       drvintf_exit(void);
+tOplkError drvintf_executeCmd(tCtrlCmd* ctrlCmd_p);
+tOplkError drvintf_readInitParam(tCtrlInitParam* pInitParam_p);
+tOplkError drvintf_storeInitParam(tCtrlInitParam* pInitParam_p);
+tOplkError drvintf_getStatus(UINT16* pStatus_p);
+tOplkError drvintf_getHeartbeat(UINT16* pHeartbeat_p);
+tOplkError drvintf_sendAsyncFrame(unsigned char* pArg_p);
+tOplkError drvintf_writeErrorObject(tErrHndIoctl* pWriteObject_p);
+tOplkError drvintf_readErrorObject(tErrHndIoctl* pReadObject_p);
+tOplkError drvintf_postEvent(void* pEvent_p);
+tOplkError drvintf_getEvent(void* pEvent_p, size_t* pSize_p);
+tOplkError drvintf_getPdoMem(UINT8** ppPdoMem_p, size_t* pMemSize_p);
+tOplkError drvintf_freePdoMem(UINT8* pPdoMem_p, size_t memSize_p);
+tOplkError drvintf_getBenchmarkMem(UINT8** ppBenchmarkMem_p);
+tOplkError drvintf_freeBenchmarkMem(UINT8** ppBenchmarkMem_p);
+tOplkError drvintf_mapKernelMem(UINT8* pKernelMem_p, UINT8** ppUserMem_p, size_t size_p);
+void       drvintf_unmapKernelMem(UINT8** ppUserMem_p);
+tOplkError drvintf_waitSyncEvent(void);
 
 #ifdef __cplusplus
 }

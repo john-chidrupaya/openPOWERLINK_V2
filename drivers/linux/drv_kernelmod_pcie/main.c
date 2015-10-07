@@ -129,10 +129,8 @@ typedef struct
     BYTE                    aK2URxBuffer[sizeof(tEvent) + MAX_EVENT_ARG_SIZE];
     BYTE*                   pdoBufOffset;
     BYTE*                   pPdoMem;
+    size_t                  pdoMemSize;
     BOOL                    fSyncEnabled;
-    BYTE*                   pShmMemLocal;
-    BYTE*                   pShmMemRemote;
-    UINT32                  shmSize;
 } tDrvInstance;
 
 //------------------------------------------------------------------------------
@@ -308,8 +306,6 @@ static int plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
     instance_l.pdoBufOffset = NULL;
     instance_l.pPdoMem = NULL;
     instance_l.fSyncEnabled = FALSE;
-    instance_l.pShmMemLocal = NULL;
-    instance_l.pShmMemRemote = NULL;
 
     if (pcieDrv_init() != kErrorOk)
     {
@@ -317,7 +313,7 @@ static int plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
         return -EIO;
     }
 
-    if (drv_init() != kErrorOk)
+    if (drvintf_init() != kErrorOk)
     {
         atomic_dec(&openCount_g);
         return -EIO;
@@ -346,9 +342,8 @@ static int  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p
     instance_l.pdoBufOffset = NULL;
     instance_l.pPdoMem = NULL;
     instance_l.fSyncEnabled = FALSE;
-    instance_l.pShmMemLocal = NULL;
-    instance_l.pShmMemRemote = NULL;
-    drv_exit();
+
+    drvintf_exit();
     pcieDrv_shutdown();
     atomic_dec(&openCount_g);
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRelease - OK\n");
@@ -462,13 +457,12 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
         case PLK_CMD_PDO_SYNC:
             if (instance_l.fSyncEnabled == FALSE)
             {
-                //TODO @J Solve the callback type mismatch warning and replace the pdo module if necessary.
                 pcieDrv_regSyncHandler(pdokcal_sendSyncEvent);
                 pcieDrv_enableSync(TRUE);
             }
 
             //TODO @J blocked waiting!!!
-            if ((oplRet = drv_waitSyncEvent()) == kErrorRetry)
+            if ((oplRet = drvintf_waitSyncEvent()) == kErrorRetry)
                 ret = -ERESTARTSYS;
             else
                 ret = 0;
@@ -511,7 +505,7 @@ The function implements openPOWERLINK kernel pcie interface module mmap function
 static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 {
     BYTE*           pPdoMem = NULL;
-    UINT16          memSize = 0;
+    size_t          memSize = 0;
     tOplkError      ret = kErrorOk;
     ULONG           pfn = 0;
 
@@ -525,7 +519,7 @@ static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     // via an ioctl call made before the mmap() call. This way both pdo and memmap modules
     // can use mmap and multiple mmap() calls to this driver would be possible.
 
-    ret = drv_getPdoMem(&pPdoMem, memSize);
+    ret = drvintf_getPdoMem(&pPdoMem, &memSize);
 
     if ((pPdoMem == NULL) || (ret != kErrorOk))
     {
@@ -539,6 +533,7 @@ static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     // Save the offset of the PDO memory address from the start of page boundary
     instance_l.pdoBufOffset = (BYTE*)(pfn - ((pfn >> PAGE_SHIFT) << PAGE_SHIFT));
     instance_l.pPdoMem = pPdoMem;
+    instance_l.pdoMemSize = memSize;
 
     if (io_remap_pfn_range(vma, vma->vm_start, (pfn >> PAGE_SHIFT),
                            vma->vm_end - vma->vm_start + (ULONG)instance_l.pdoBufOffset - PAGE_SIZE, vma->vm_page_prot))
@@ -617,7 +612,7 @@ int getEventForUser(ULONG arg_p)
             break;
         }
 
-        if (drv_getEvent(instance_l.aK2URxBuffer, &readSize) != kErrorOk)
+        if (drvintf_getEvent(instance_l.aK2URxBuffer, &readSize) != kErrorOk)
         {
             ret = -EFAULT;
             break;
@@ -698,7 +693,7 @@ int postEventFromUser(ULONG arg)
                      event.eventType,
                      event.eventSink,
                      event.eventArgSize); */
-            if (drv_postEvent(&event) != kErrorOk)
+            if (drvintf_postEvent(&event) != kErrorOk)
                 ret = -EIO;
             break;
 
@@ -737,7 +732,7 @@ static int executeCmd(unsigned long arg_p)
     if (copy_from_user(&ctrlCmd, (const void __user*)arg_p, sizeof(tCtrlCmd)))
         return -EFAULT;
 
-    if (drv_executeCmd(&ctrlCmd) != kErrorOk)
+    if (drvintf_executeCmd(&ctrlCmd) != kErrorOk)
         return -EFAULT;
 
     if (copy_to_user((void __user*)arg_p, &ctrlCmd, sizeof(tCtrlCmd)))
@@ -765,7 +760,7 @@ static int storeInitParam(unsigned long arg_p)
     if (copy_from_user(&initParam, (const void __user*)arg_p, sizeof(tCtrlInitParam)))
         return -EFAULT;
 
-    if (drv_storeInitParam(&initParam) != kErrorOk)
+    if (drvintf_storeInitParam(&initParam) != kErrorOk)
         return -EFAULT;
 
     return 0;
@@ -787,7 +782,7 @@ static int readInitParam(unsigned long arg_p)
 {
     tCtrlInitParam    initParam;
 
-    if (drv_readInitParam(&initParam) != kErrorOk)
+    if (drvintf_readInitParam(&initParam) != kErrorOk)
         return -EFAULT;
 
     if (copy_to_user((void __user*)arg_p, &initParam, sizeof(tCtrlInitParam)))
@@ -811,7 +806,7 @@ static int getStatus(unsigned long arg_p)
 {
     UINT16    status;
 
-    if (drv_getStatus(&status) != kErrorOk)
+    if (drvintf_getStatus(&status) != kErrorOk)
         return -EFAULT;
 
     put_user(status, (unsigned short __user*)arg_p);
@@ -833,7 +828,7 @@ static int getHeartbeat(unsigned long arg)
 {
     UINT16    heartbeat;
 
-    if (drv_getHeartbeat(&heartbeat) != kErrorOk)
+    if (drvintf_getHeartbeat(&heartbeat) != kErrorOk)
         return -EFAULT;
 
     put_user(heartbeat, (unsigned short __user*)arg);
@@ -872,7 +867,7 @@ static int sendAsyncFrame(unsigned long arg)
     }
 
     asyncFrameInfo.pData = pBuf;
-    if (drv_sendAsyncFrame((unsigned char*)&asyncFrameInfo) != kErrorOk)
+    if (drvintf_sendAsyncFrame((unsigned char*)&asyncFrameInfo) != kErrorOk)
         ret = -EFAULT;
 
     free_pages((ULONG)pBuf, order);
@@ -896,7 +891,7 @@ static int writeErrorObject(unsigned long arg)
     if (copy_from_user(&writeObject, (const void __user*)arg, sizeof(tErrHndIoctl)))
         return -EFAULT;
 
-    if (drv_writeErrorObject(&writeObject) != kErrorOk)
+    if (drvintf_writeErrorObject(&writeObject) != kErrorOk)
         return -EFAULT;
 
     return 0;
@@ -918,7 +913,7 @@ static int readErrorObject(unsigned long arg)
     if (copy_from_user(&readObject, (const void __user*)arg, sizeof(tErrHndIoctl)))
         return -EFAULT;
 
-    if (drv_readErrorObject(&readObject) != kErrorOk)
+    if (drvintf_readErrorObject(&readObject) != kErrorOk)
         return -EFAULT;
 
     if (copy_to_user((void __user*)arg, &readObject, sizeof(tErrHndIoctl)))
@@ -941,16 +936,15 @@ static int mapMemoryForUserIoctl(unsigned long arg_p)
     tMemmap         memMapParams;
     int             ret = 0;
     tOplkError      retVal = kErrorOk;
-    void*           mappedUserBuf = NULL;
+    void*           pMappedUserBuf = NULL;
 
     //FIXME Rework this function to return the ioremapped PCP memory offset alone,
     // so that mmap() can be called from user layer using the offset. This will avoid
     // the copying of the entire async frame memory.
     copy_from_user(&memMapParams, (const void __user*)arg_p, sizeof(tMemmap));
-    if ((instance_l.pShmMemLocal == NULL) || (instance_l.pShmMemRemote == NULL))
-        retVal = drv_mapKernelMem((UINT8**)&instance_l.pShmMemRemote,
-                                  (UINT8**)&instance_l.pShmMemLocal,
-                                  (UINT32*)&instance_l.shmSize);
+    retVal = drvintf_mapKernelMem((UINT8*)memMapParams.pKernelBuf,
+                                  (UINT8**)&pMappedUserBuf,
+                                  (size_t)memMapParams.memSize);
 
     if (retVal != kErrorOk)
     {
@@ -958,19 +952,9 @@ static int mapMemoryForUserIoctl(unsigned long arg_p)
         // Let user free its own memory; just return error.
         ret = -EFAULT;
     }
-    else if (memMapParams.pKernelBuf <= instance_l.pShmMemRemote)
-    {
-        DEBUG_LVL_ERROR_TRACE("%s() --> Error: PCP buffer pointer lies outside the shared memory region\n");
-        ret = -EFAULT;
-    }
     else
     {
-        mappedUserBuf = (void*)(((UINT32)memMapParams.pKernelBuf - (ULONG)instance_l.pShmMemRemote) +
-                                (ULONG)instance_l.pShmMemLocal);
-        DEBUG_INTF("LA: 0x%lX, RA: 0x%lX, KA: 0x%lX, UA: 0x%lX\n",
-                   (ULONG)instance_l.pShmMemLocal, (ULONG)instance_l.pShmMemRemote,
-                   (ULONG)memMapParams.pKernelBuf, (ULONG)mappedUserBuf);
-        OPLK_MEMCPY(aAsyncFrameSwapBuf_l, mappedUserBuf, sizeof(aAsyncFrameSwapBuf_l));
+        OPLK_MEMCPY(aAsyncFrameSwapBuf_l, pMappedUserBuf, sizeof(aAsyncFrameSwapBuf_l));
         ret = 0;
     }
 
