@@ -112,8 +112,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define OPLK_LOCK_T                 UINT8
 
 #define OPLK_ATOMIC_T    UINT8
+
+#ifdef __PCIE__
+#define OPLK_ATOMIC_INIT(base) \
+                        if (target_initLock(&base->lock) != 0) \
+                            return kErrorNoResource
+#define OPLK_ATOMIC_EXCHANGE(address, newval, oldval) \
+                        target_lock();                \
+                        oldval = OPLK_IO_RD8(address);\
+                        __sync_synchronize();         \
+                        OPLK_IO_WR8(address, newval); \
+                        __sync_synchronize();         \
+                        target_unlock()
+#else
 #define OPLK_ATOMIC_EXCHANGE(address, newval, oldval) \
     oldval = __sync_lock_test_and_set(address, newval);
+#endif
 
 #ifndef __KERNEL__
 #define OPLK_MUTEX_T                sem_t*

@@ -229,6 +229,11 @@ SET(PDO_UCAL_LINUXMMAPIOCTL_SOURCES
     ${USER_SOURCE_DIR}/pdo/pdoucalmem-linuxmmap.c
     )
 
+SET(PDO_UCAL_LINUXPCIE_SOURCES
+    ${USER_SOURCE_DIR}/timesync/timesyncucal-ioctl.c
+    ${USER_SOURCE_DIR}/pdo/pdoucalmem-linuxpcie.c
+    )
+
 SET(PDO_UCAL_HOSTIF_SOURCES
     ${USER_SOURCE_DIR}/timesync/timesyncucal-hostif.c
     ${USER_SOURCE_DIR}/pdo/pdoucalmem-hostif.c
