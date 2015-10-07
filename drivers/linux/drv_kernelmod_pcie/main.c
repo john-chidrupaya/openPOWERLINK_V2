@@ -486,7 +486,7 @@ The function implements openPOWERLINK kernel pcie interface module mmap function
 //------------------------------------------------------------------------------
 static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 {
-    UINT8*          pPdoMem = NULL;
+    UINT8*          pPciMem = NULL;
     size_t          memSize = 0;
     tOplkError      ret = kErrorOk;
     ULONG           pfn = 0;
@@ -501,20 +501,25 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     // via an ioctl call made before the mmap() call. This way both pdo and memmap modules
     // can use mmap and multiple mmap() calls to this driver would be possible.
 
-    ret = drvintf_getPdoMem(&pPdoMem, &memSize);
-
-    if ((pPdoMem == NULL) || (ret != kErrorOk))
+    if (vma->vm_pgoff == 0)
     {
-        DEBUG_LVL_ERROR_TRACE("%s() no pdo memory allocated!\n", __func__);
-        return -ENOMEM;
+        ret = drvintf_getPdoMem(&pPciMem, &memSize);
+
+        if ((pPciMem == NULL) || (ret != kErrorOk))
+        {
+            DEBUG_LVL_ERROR_TRACE("%s() no pdo memory allocated!\n", __func__);
+            return -ENOMEM;
+        }
     }
+    else
+        pPciMem = (UINT8*)vma->vm_pgoff;
 
     // Get the bus address of the PDO memory
-    pfn = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPdoMem - pcieDrv_getBarAddr(0));
+    pfn = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPciMem - pcieDrv_getBarAddr(0));
 
     // Save the offset of the PDO memory address from the start of page boundary
     instance_l.pdoBufOffset = (ULONG)(pfn - ((pfn >> PAGE_SHIFT) << PAGE_SHIFT));
-    instance_l.pPdoMem = pPdoMem;
+    instance_l.pPdoMem = pPciMem;
     instance_l.pdoMemSize = memSize;
 
     if (io_remap_pfn_range(vma, vma->vm_start, (pfn >> PAGE_SHIFT),

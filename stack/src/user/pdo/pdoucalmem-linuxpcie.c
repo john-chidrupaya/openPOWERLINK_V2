@@ -87,7 +87,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // local vars
 //------------------------------------------------------------------------------
 static int                  fd_l;
-static BYTE*                offset = NULL;
+static ULONG                pdoMemOffset = 0;
 
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -165,14 +165,14 @@ tOplkError pdoucal_allocateMem(size_t memSize_p, BYTE** ppPdoMem_p)
         return kErrorNoResource;
     }
 
-    if ((ret = ioctl(fd_l, PLK_CMD_PDO_MAP_OFFSET, &offset)) != 0)
+    if ((ret = ioctl(fd_l, PLK_CMD_PDO_MAP_OFFSET, &pdoMemOffset)) != 0)
     {
         DEBUG_LVL_ERROR_TRACE("%s() error %d\n", __func__, ret);
         return kErrorNoResource;
     }
     else
     {
-        *ppPdoMem_p = (UINT8*)((size_t)(*ppPdoMem_p) + (size_t)offset);
+        *ppPdoMem_p = (UINT8*)((size_t)(*ppPdoMem_p) + (size_t)pdoMemOffset);
     }
 
     return kErrorOk;
@@ -195,7 +195,7 @@ transferring the PDOs.
 //------------------------------------------------------------------------------
 tOplkError pdoucal_freeMem(BYTE* pMem_p, size_t memSize_p)
 {
-    pMem_p = (UINT8*)((size_t)(pMem_p) - (size_t)offset);
+    pMem_p = (UINT8*)((size_t)(pMem_p) - (size_t)pdoMemOffset);
     if (munmap(pMem_p, memSize_p + getpagesize()) != 0)
     {
         DEBUG_LVL_ERROR_TRACE("%s() munmap failed (%s)\n", __func__, strerror(errno));

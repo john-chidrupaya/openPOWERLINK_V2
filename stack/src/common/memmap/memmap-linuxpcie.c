@@ -42,10 +42,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 #include <common/oplkinc.h>
 #include <common/memmap.h>
-#include <oplk/targetsystem.h>
 #include <common/driver.h>
 #include <user/ctrlucal.h>
-
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
@@ -85,7 +84,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // local vars
 //------------------------------------------------------------------------------
 static INT fd_l;
-static BYTE aAsyncFrameSwapBuf_l[C_DLL_MAX_ASYNC_MTU];
+static UINT8 aAsyncFrameSwapBuf_l[C_DLL_MAX_ASYNC_MTU];
+tMemmap     memmap;
+ULONG offset;
 
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -147,7 +148,9 @@ The function maps a kernel buffer address.
 //------------------------------------------------------------------------------
 void* memmap_mapKernelBuffer(void* pKernelBuffer_p, UINT bufferSize_p)
 {
-    int         ret = 0;
+    INT         ret = 0;
+
+    /*
     tMemmap     memmap;
 
     memmap.pKernelBuf = pKernelBuffer_p;
@@ -159,7 +162,31 @@ void* memmap_mapKernelBuffer(void* pKernelBuffer_p, UINT bufferSize_p)
         DEBUG_LVL_ERROR_TRACE("%s() error %d\n", __func__, ret);
         memmap.pUserBuf = NULL;
     }
+     /*/
 
+    memmap.pKernelBuf = pKernelBuffer_p;
+    memmap.pUserBuf = aAsyncFrameSwapBuf_l;
+    memmap.memSize = bufferSize_p;
+
+    memmap.pUserBuf = mmap(NULL, memmap.memSize + getpagesize(), PROT_READ, MAP_SHARED,
+                       fd_l, (ULONG)memmap.pKernelBuf);
+    if (memmap.pUserBuf == MAP_FAILED)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s() mmap failed!\n", __func__);
+        memmap.pUserBuf = NULL;
+    }
+
+    if ((ret = ioctl(fd_l, PLK_CMD_PDO_MAP_OFFSET, &offset)) != 0)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s() error %d\n", __func__, ret);
+        memmap.pUserBuf = NULL;
+    }
+    else
+    {
+        memmap.pUserBuf = (UINT8*)((size_t)(memmap.pUserBuf) + (size_t)offset);
+    }
+
+    //*/
     return memmap.pUserBuf;
 }
 
@@ -176,7 +203,23 @@ The function disconnects from a memory mapping.
 //------------------------------------------------------------------------------
 void memmap_unmapKernelBuffer(void* pBuffer_p)
 {
+    /*
     UNUSED_PARAMETER(pBuffer_p);
+    /*/
+    if (memmap.pUserBuf != pBuffer_p)
+    {
+        DEBUG_LVL_ERROR_TRACE("munmap called with unknown memory address\n");
+    }
+
+    pBuffer_p = (UINT8*)((size_t)(pBuffer_p) - (size_t)offset);
+    if (munmap(pBuffer_p, memmap.memSize + getpagesize()) != 0)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s() munmap failed (%s)\n", __func__, strerror(errno));
+    }
+
+    memmap.pUserBuf = NULL;
+    memmap.pKernelBuf = NULL;
+    //*/
 }
 
 //============================================================================//
