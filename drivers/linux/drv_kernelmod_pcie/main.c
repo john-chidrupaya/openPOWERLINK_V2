@@ -636,11 +636,12 @@ This function posts an event from the user layer to the kernel queue.
 \return The function returns Linux error code.
 */
 //------------------------------------------------------------------------------
-int postEventFromUser(ULONG arg)
+INT postEventFromUser(ULONG arg)
 {
     tOplkError      ret = kErrorOk;
     tEvent          event;
-    BYTE*           pArg = NULL;
+    UINT8*          pArg = NULL;
+    INT             order = 0;
 
     if (copy_from_user(&event, (const void __user*)arg, sizeof(tEvent)))
         return -EFAULT;
