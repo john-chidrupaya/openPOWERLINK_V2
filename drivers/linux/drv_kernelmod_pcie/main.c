@@ -109,9 +109,10 @@ typedef struct
 {
     wait_queue_head_t       userWaitQueue;
     UINT8                   aK2URxBuffer[sizeof(tEvent) + MAX_EVENT_ARG_SIZE];
-    ULONG                   pdoBufOffset;
+    ULONG                   bufPageOffset;
     UINT8*                  pPdoMem;
     size_t                  pdoMemSize;
+    ULONG                   pdoMappedMem;
     BOOL                    fSyncEnabled;
 } tDrvInstance;
 
@@ -284,7 +285,7 @@ static INT plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
         return -ENOTTY;
     }
 
-    instance_l.pdoBufOffset = 0;
+    instance_l.bufPageOffset = 0;
     instance_l.pPdoMem = NULL;
     instance_l.fSyncEnabled = FALSE;
 
@@ -320,7 +321,7 @@ static INT  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p
 {
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRelease...\n");
 
-    instance_l.pdoBufOffset = 0;
+    instance_l.bufPageOffset = 0;
     instance_l.pPdoMem = NULL;
     instance_l.fSyncEnabled = FALSE;
 
@@ -456,7 +457,7 @@ static INT  plkIntfIoctl(struct inode* dev, struct file* filp,
             break;
 
         case PLK_CMD_PDO_MAP_OFFSET:
-            if (copy_to_user((void __user*)arg, &instance_l.pdoBufOffset, sizeof(ULONG)))
+            if (copy_to_user((void __user*)arg, &instance_l.bufPageOffset, sizeof(ULONG)))
             {
                 printk("PDO Offset fetch Error!!\n");
                 ret = -EFAULT;
@@ -490,6 +491,7 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     size_t          memSize = 0;
     tOplkError      ret = kErrorOk;
     ULONG           pfn = 0;
+    ULONG           pageAddr = 0;
 
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
                            __func__, vma->vm_start, vma->vm_end, vma->vm_pgoff);
@@ -510,25 +512,42 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
             DEBUG_LVL_ERROR_TRACE("%s() no pdo memory allocated!\n", __func__);
             return -ENOMEM;
         }
+
+        instance_l.pPdoMem = pPciMem;
+        instance_l.pdoMemSize = memSize;
     }
     else
         pPciMem = (UINT8*)vma->vm_pgoff;
 
     // Get the bus address of the PDO memory
-    pfn = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPciMem - pcieDrv_getBarAddr(0));
+    pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPciMem - pcieDrv_getBarAddr(0));
+    pfn  = pageAddr >> PAGE_SHIFT;
 
     // Save the offset of the PDO memory address from the start of page boundary
-    instance_l.pdoBufOffset = (ULONG)(pfn - ((pfn >> PAGE_SHIFT) << PAGE_SHIFT));
-    instance_l.pPdoMem = pPciMem;
-    instance_l.pdoMemSize = memSize;
+    instance_l.bufPageOffset = (ULONG)(pageAddr - (pfn << PAGE_SHIFT));
 
-    if (io_remap_pfn_range(vma, vma->vm_start, (pfn >> PAGE_SHIFT),
-                           vma->vm_end - vma->vm_start + instance_l.pdoBufOffset - PAGE_SIZE, vma->vm_page_prot))
+    printk("virt MAP addr: 0x%lX --> 0x%lX --> 0x%lX\n", (ULONG)pPdoMem, pageAddr, pfn);
+    if (vma->vm_pgoff == 0)
+    {
+        instance_l.pdoMappedMem = pfn;
+    }
+    else
+    {
+        if (instance_l.pdoMappedMem == pfn)
+        {
+            instance_l.bufPageOffset += instance_l.pdoMappedMem;
+            goto Exit;  // The page has already been mapped as PDO
+        }
+    }
+
+    if (io_remap_pfn_range(vma, vma->vm_start, pfn,
+                           vma->vm_end - vma->vm_start + instance_l.bufPageOffset - PAGE_SIZE, vma->vm_page_prot))
     {
         DEBUG_LVL_ERROR_TRACE("%s() remap_pfn_range failed\n", __func__);
         return -EAGAIN;
     }
 
+Exit:
     plkIntfVmaOpen(vma);
     return 0;
 }
