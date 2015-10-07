@@ -3,7 +3,7 @@
 # File lists for openPOWERLINK stack sources
 #
 # Copyright (c) 2015, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
-# Copyright (c) 2014, Kalycito Infotech Private Limited
+# Copyright (c) 2015, Kalycito Infotech Private Limited
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -185,6 +185,11 @@ SET(EVENT_UCAL_LINUXUSER_SOURCES
 
 SET(EVENT_UCAL_LINUXIOCTL_SOURCES
     ${USER_SOURCE_DIR}/event/eventucal-linuxioctl.c
+    )
+
+SET(EVENT_UCAL_LINUXPCIE_SOURCES
+    ${USER_SOURCE_DIR}/event/eventucal-linuxpcie.c
+    ${USER_SOURCE_DIR}/event/eventucalintf-circbuf.c
     )
 
 SET(EVENT_UCAL_WINDOWS_SOURCES
@@ -492,6 +497,10 @@ SET(MEMMAP_NOOSHOSTIF_SOURCES
 
 SET(MEMMAP_WINIOCTL_SOURCES
     ${COMMON_SOURCE_DIR}/memmap/memmap-winioctl.c
+    )
+
+SET(MEMMAP_LINUXPCIE_SOURCES
+    ${COMMON_SOURCE_DIR}/memmap/memmap-linuxpcie.c
     )
 
 SET(MEMMAP_NULL_SOURCES
