@@ -8,6 +8,7 @@ This file contains target definitions for Linux systems
 *******************************************************************************/
 
 /*------------------------------------------------------------------------------
+Copyright (c) 2015, Kalycito Infotech Private Limited
 Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
 Copyright (c) 2013, SYSTEC electronic GmbH
 All rights reserved.
@@ -114,16 +115,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define OPLK_ATOMIC_T    UINT8
 
 #ifdef __PCIE__
-#define OPLK_ATOMIC_INIT(base) \
-                        if (target_initLock(&base->lock) != 0) \
-                            return kErrorNoResource
+#define ATOMIC_MEM_OFFSET           0x80000 // $$ Get the atomic memory base address from config header
+#define OPLK_ATOMIC_INIT(base)
 #define OPLK_ATOMIC_EXCHANGE(address, newval, oldval) \
-                        target_lock();                \
-                        oldval = OPLK_IO_RD8(address);\
-                        __sync_synchronize();         \
-                        OPLK_IO_WR8(address, newval); \
-                        __sync_synchronize();         \
-                        target_unlock()
+                        OPLK_IO_WR8((address + ATOMIC_MEM_OFFSET), newval); \
+                        oldval = OPLK_IO_RD8((address + ATOMIC_MEM_OFFSET))
 #else
 #define OPLK_ATOMIC_EXCHANGE(address, newval, oldval) \
     oldval = __sync_lock_test_and_set(address, newval);
