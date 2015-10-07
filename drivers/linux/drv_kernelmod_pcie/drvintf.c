@@ -45,11 +45,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // includes
 //------------------------------------------------------------------------------
-//TODO Remove unnecessary headers
 #include <oplk/oplk.h>
 
-#include <kernel/eventk.h>
-#include <kernel/eventkcal.h>
 #include <errhndkcal.h>
 #include <dualprocshm.h>
 #include <common/circbuffer.h>
@@ -70,10 +67,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
-//TODO get these values from stack headers
+// $$ Get the follwing value from configuration header files
 #define DUALPROCSHM_BUFF_ID_ERRHDLR     12
 #define DUALPROCSHM_BUFF_ID_PDO         13
-#define BENCHMARK_OFFSET                0x00001000 //TODO: Get this value from PCIe header files
+#define BENCHMARK_OFFSET                0x00001000
 
 //------------------------------------------------------------------------------
 // global function prototypes

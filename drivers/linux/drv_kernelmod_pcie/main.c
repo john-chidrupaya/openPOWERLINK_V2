@@ -52,31 +52,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/atomic.h>
-
-//TODO Remove these headers
-#include <oplk/oplk.h>
-#include <common/oplkinc.h>
-#include <common/driver.h>
-
-#include <common/ctrl.h>
-#include <common/ctrlcal-mem.h>
-#include <kernel/ctrlk.h>
-#include <kernel/ctrlkcal.h>
-#include <kernel/dllkcal.h>
-#include <kernel/pdokcal.h>
-
-#include <kernel/eventk.h>
-#include <kernel/eventkcal.h>
-#include <errhndkcal.h>
-#include <drvintf.h>
-#include <pcieDrv.h>
-
 #include <linux/kthread.h>
-
 #include <linux/delay.h>
 
-#include <common/timer.h>
+#include <common/driver.h>
 #include <common/memmap.h>
+#include <drvintf.h>
+#include <pcieDrv.h>
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
 //============================================================================//
@@ -126,8 +108,8 @@ atomic_t                openCount_g;
 typedef struct
 {
     wait_queue_head_t       userWaitQueue;
-    BYTE                    aK2URxBuffer[sizeof(tEvent) + MAX_EVENT_ARG_SIZE];
-    BYTE*                   pdoBufOffset;
+    UINT8                   aK2URxBuffer[sizeof(tEvent) + MAX_EVENT_ARG_SIZE];
+    ULONG                   pdoBufOffset;
     BYTE*                   pPdoMem;
     size_t                  pdoMemSize;
     BOOL                    fSyncEnabled;
@@ -303,7 +285,7 @@ static int plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
         return -ENOTTY;
     }
 
-    instance_l.pdoBufOffset = NULL;
+    instance_l.pdoBufOffset = 0;
     instance_l.pPdoMem = NULL;
     instance_l.fSyncEnabled = FALSE;
 
@@ -339,7 +321,7 @@ static int  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p
 {
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRelease...\n");
 
-    instance_l.pdoBufOffset = NULL;
+    instance_l.pdoBufOffset = 0;
     instance_l.pPdoMem = NULL;
     instance_l.fSyncEnabled = FALSE;
 
@@ -462,7 +444,7 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
                 instance_l.fSyncEnabled = TRUE;
             }
 
-            //TODO @J blocked waiting!!!
+            // $$ Handle other errors
             if ((oplRet = drvintf_waitSyncEvent()) == kErrorRetry)
                 ret = -ERESTARTSYS;
             else
@@ -474,15 +456,13 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
             ret = mapMemoryForUserIoctl(arg);
             break;
 
-        case PLK_CMD_PDO_MAP_OFFSET: //TODO Check if PDO is initialized!!
-            if (copy_to_user((void __user*)arg, &instance_l.pdoBufOffset, sizeof(BYTE*)))
+        case PLK_CMD_PDO_MAP_OFFSET:
+            if (copy_to_user((void __user*)arg, &instance_l.pdoBufOffset, sizeof(ULONG)))
             {
                 printk("PDO Offset fetch Error!!\n");
                 ret = -EFAULT;
             }
 
-            //FIXME @J remove
-            ret = 0;
             break;
 
         default:
@@ -532,12 +512,12 @@ static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     pfn = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPdoMem - pcieDrv_getBarAddr(0));
 
     // Save the offset of the PDO memory address from the start of page boundary
-    instance_l.pdoBufOffset = (BYTE*)(pfn - ((pfn >> PAGE_SHIFT) << PAGE_SHIFT));
+    instance_l.pdoBufOffset = (ULONG)(pfn - ((pfn >> PAGE_SHIFT) << PAGE_SHIFT));
     instance_l.pPdoMem = pPdoMem;
     instance_l.pdoMemSize = memSize;
 
     if (io_remap_pfn_range(vma, vma->vm_start, (pfn >> PAGE_SHIFT),
-                           vma->vm_end - vma->vm_start + (ULONG)instance_l.pdoBufOffset - PAGE_SIZE, vma->vm_page_prot))
+                           vma->vm_end - vma->vm_start + instance_l.pdoBufOffset - PAGE_SIZE, vma->vm_page_prot))
     {
         DEBUG_LVL_ERROR_TRACE("%s() remap_pfn_range failed\n", __func__);
         return -EAGAIN;
@@ -668,9 +648,16 @@ int postEventFromUser(ULONG arg)
     if (event.eventArgSize != 0)
     {
         //TODO Find a way to not allocate memory every time a U2K event is posted
-        pArg = (BYTE*)OPLK_MALLOC(event.eventArgSize);
-        if (pArg == NULL)
+
+        order = get_order(event.eventArgSize);
+        pArg = (BYTE*)__get_free_pages(GFP_KERNEL, order);
+
+        if (!pArg)
             return -EIO;
+
+//        pArg = (BYTE*)OPLK_MALLOC(event.eventArgSize);
+//        if (pArg == NULL)
+//            return -EIO;
 
         if (copy_from_user(pArg, (const void __user*)event.eventArg.pEventArg, event.eventArgSize))
         {
