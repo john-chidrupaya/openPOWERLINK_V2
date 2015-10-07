@@ -459,6 +459,7 @@ static int  plkIntfIoctl(struct inode* dev, struct file* filp,
             {
                 pcieDrv_regSyncHandler(pdokcal_sendSyncEvent);
                 pcieDrv_enableSync(TRUE);
+                instance_l.fSyncEnabled = TRUE;
             }
 
             //TODO @J blocked waiting!!!

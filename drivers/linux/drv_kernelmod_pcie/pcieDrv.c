@@ -109,7 +109,7 @@ The structure holds the information of the PCIe BAR mapped by this driver.
 */
 typedef struct
 {
-    ULONG       phyAddr;                                ///< Physical address of the BAR.
+    ULONG       busAddr;                                ///< Physical address of the BAR.
     ULONG       virtualAddr;                            ///< Virtual address of the BAR in kernel memory.
     ULONG       length;                                 ///< Length of the BAR.
 } tBarInfo;
@@ -270,7 +270,7 @@ ULONG pcieDrv_getBarPhyAddr(UINT8 barCount_p)
         return 0;
     }
 
-    return pcieDrvInstance_l.barInfo[barCount_p].phyAddr;
+    return pcieDrvInstance_l.barInfo[barCount_p].busAddr;
 }
 
 //------------------------------------------------------------------------------
@@ -451,13 +451,13 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
             goto ExitFail;
         }
 
-        pBarInfo->phyAddr = (ULONG)pci_resource_start(pPciDev_p, barCount);
+        pBarInfo->busAddr = (ULONG)pci_resource_start(pPciDev_p, barCount);
 
         printk("%s() --> ioremap\n", __FUNCTION__);
         printk("\tbar#\t%u\n", barCount);
         printk("\tbarLen\t%lu\n", pBarInfo->length);
         printk("\tbarMap\t0x%lX\n", pBarInfo->virtualAddr);
-        printk("\tbarPhy\t0x%lX\n", pBarInfo->phyAddr);
+        printk("\tbarPhy\t0x%lX\n", pBarInfo->busAddr);
     }
 
     // Enable PCI busmaster

@@ -91,18 +91,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // local types
 //------------------------------------------------------------------------------
-/**
-\brief Mapped memory information
-
-This structure stores the information for a memory shared between user layer
-and PCP.
-*/
-typedef struct
-{
-    size_t      memSize;                                        ///< Size of memory
-    void*       pKernelVa;                                      ///< Pointer to memory in kernel space.
-    void*       pUserVa;                                        ///< Pointer to memory mapped in user space.
-} tMemInfo;
 
 /**
 \brief Interface module instance - User Layer
@@ -113,7 +101,6 @@ interface module during runtime.
 typedef struct
 {
     tDualprocDrvInstance    dualProcDrvInst;                    ///< Dual processor driver instance.
-    BOOL                    fIrqMasterEnable;                   ///< Master interrupts status.
     tCircBufInstance*       apEventQueueInst[kEventQueueNum];       ///< Event queue instances.
     tCircBufInstance*       apDllQueueInst[kDllCalQueueTxVeth + 1]; ///< DLL queue instances.
     tErrHndObjects*         pErrorObjects;                      ///< Pointer to error objects.
@@ -537,7 +524,7 @@ tOplkError drvintf_postEvent(void* pEvent_p)
     tCircBufError       circBufErr = kCircBufOk;
     tCircBufInstance*   pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueU2K];
 
-    if ((pEvent_p == NULL) || !drvIntfInstance_l.fDriverActive)
+    if ((pEvent_p == NULL) || (!drvIntfInstance_l.fDriverActive))
         return kErrorNoResource;
 
     if (((tEvent*)pEvent_p)->eventArgSize == 0)
@@ -579,7 +566,8 @@ tOplkError drvintf_getEvent(void* pEvent_p, size_t* pSize_p)
     tCircBufError       circBufErr = kCircBufOk;
     tCircBufInstance*   pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueK2U];
 
-    if ((pEvent_p == NULL) || (pSize_p == NULL) || !drvIntfInstance_l.fDriverActive)
+    if ((pEvent_p == NULL) || (pSize_p == NULL) ||
+        (!drvIntfInstance_l.fDriverActive))
         return kErrorNoResource;
 
     if (circbuf_getDataCount(pCircBufInstance) > 0)
