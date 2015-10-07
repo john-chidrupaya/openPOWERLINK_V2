@@ -79,9 +79,9 @@ MODULE_DESCRIPTION("openPOWERLINK pcie driver");
 // module global vars
 //------------------------------------------------------------------------------
 
-int                     plkMajor_g = 0;
-int                     plkMinor_g = 0;
-int                     plkNrDevs_g = 1;
+INT                     plkMajor_g = 0;
+INT                     plkMinor_g = 0;
+INT                     plkNrDevs_g = 1;
 dev_t                   plkDev_g;
 struct class*           plkClass_g;
 struct cdev             plkCdev_g;
@@ -110,7 +110,7 @@ typedef struct
     wait_queue_head_t       userWaitQueue;
     UINT8                   aK2URxBuffer[sizeof(tEvent) + MAX_EVENT_ARG_SIZE];
     ULONG                   pdoBufOffset;
-    BYTE*                   pPdoMem;
+    UINT8*                  pPdoMem;
     size_t                  pdoMemSize;
     BOOL                    fSyncEnabled;
 } tDrvInstance;
@@ -119,44 +119,43 @@ typedef struct
 // local vars
 //------------------------------------------------------------------------------
 tDrvInstance    instance_l;                                 // Instance of this driver
-static BYTE     aAsyncFrameSwapBuf_l[C_DLL_MAX_ASYNC_MTU];  // Array to store ASync frame data
+static UINT8    aAsyncFrameSwapBuf_l[C_DLL_MAX_ASYNC_MTU];  // Array to store ASync frame data
 //FIXME Update the mmap call handling in this driver so that the above swap array
 // is not required as there would no copying of data anymore.
 //------------------------------------------------------------------------------
 // local function prototypes
 //------------------------------------------------------------------------------
 
-static int __init   plkIntfInit(void);
+static INT __init   plkIntfInit(void);
 static void __exit  plkIntfExit(void);
 
-static int          plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p);
-static int          plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p);
+static INT          plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p);
+static INT          plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p);
 static ssize_t      plkIntfRead(struct file* pInstance_p, char* pDstBuff_p, size_t BuffSize_p, loff_t* pFileOffs_p);
 static ssize_t      plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p, size_t BuffSize_p, loff_t* pFileOffs_p);
 #ifdef HAVE_UNLOCKED_IOCTL
-static long         plkIntfIoctl(struct file* filp, unsigned int cmd, unsigned long arg);
+static long         plkIntfIoctl(struct file* filp, unsigned INT cmd, ULONG arg);
 #else
-static int          plkIntfIoctl(struct inode* dev, struct file* filp, unsigned int cmd, unsigned long arg);
+static INT          plkIntfIoctl(struct inode* dev, struct file* filp, unsigned INT cmd, ULONG arg);
 #endif
 
-static int          plkIntfMmap(struct file* filp, struct vm_area_struct* vma);
+static INT          plkIntfMmap(struct file* filp, struct vm_area_struct* vma);
 static void         plkIntfVmaOpen(struct vm_area_struct* vma);
 static void         plkIntfVmaClose(struct vm_area_struct* vma);
 
-static int          executeCmd(unsigned long arg_p);
-static int          readInitParam(unsigned long arg_p);
-static int          storeInitParam(unsigned long arg_p);
-static int          getStatus(unsigned long arg_p);
-static int          getHeartbeat(unsigned long arg);
-static int          sendAsyncFrame(unsigned long arg);
-static int          writeErrorObject(unsigned long arg);
-static int          readErrorObject(unsigned long arg);
+static INT          executeCmd(ULONG arg_p);
+static INT          readInitParam(ULONG arg_p);
+static INT          storeInitParam(ULONG arg_p);
+static INT          getStatus(ULONG arg_p);
+static INT          getHeartbeat(ULONG arg);
+static INT          sendAsyncFrame(ULONG arg);
+static INT          writeErrorObject(ULONG arg);
+static INT          readErrorObject(ULONG arg);
 
-static int          getEventForUser(unsigned long arg_p);
-static int          postEventFromUser(unsigned long arg);
+static INT          getEventForUser(ULONG arg_p);
+static INT          postEventFromUser(ULONG arg);
 
-static int          mapMemoryForUserIoctl(unsigned long arg_p);
-//static int          mapMemoryForUserMmap(BYTE** ppUserBuf_p, ULONGLONG* pKernelBuf_p);
+static INT          mapMemoryForUserIoctl(ULONG arg_p);
 
 //------------------------------------------------------------------------------
 //  Kernel module specific data structures
@@ -199,9 +198,9 @@ initialization function.
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-static int __init plkIntfInit(void)
+static INT __init plkIntfInit(void)
 {
-    int    err;
+    INT    err;
 
     DEBUG_LVL_ALWAYS_TRACE("PLK: plkIntfInit()  Driver build: %s / %s\n", __DATE__, __TIME__);
     DEBUG_LVL_ALWAYS_TRACE("PLK: plkIntfInit()  Stack version: %s\n", PLK_DEFINED_STRING_VERSION);
@@ -275,7 +274,7 @@ The function implements openPOWERLINK kernel pcie interface module open function
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-static int plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
+static INT plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
 {
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfOpen...\n");
 
@@ -317,7 +316,7 @@ The function implements openPOWERLINK kernel module close function.
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-static int  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p)
+static INT  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p)
 {
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRelease...\n");
 
@@ -344,7 +343,7 @@ The function implements openPOWERLINK kernel pcie interface module read function
 static ssize_t plkIntfRead(struct file* pInstance_p, char* pDstBuff_p,
                              size_t BuffSize_p, loff_t* pFileOffs_p)
 {
-    int    ret;
+    INT    ret;
 
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRead...\n");
     DEBUG_LVL_ALWAYS_TRACE("PLK:   Sorry, this operation isn't supported.\n");
@@ -365,7 +364,7 @@ The function implements openPOWERLINK kernel pcie interface module write functio
 static ssize_t plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p,
                               size_t BuffSize_p, loff_t* pFileOffs_p)
 {
-    int    ret;
+    INT    ret;
 
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfWrite...\n");
     DEBUG_LVL_ALWAYS_TRACE("PLK:   Sorry, this operation isn't supported.\n");
@@ -384,14 +383,14 @@ The function implements openPOWERLINK kernel pcie interface module ioctl functio
 */
 //------------------------------------------------------------------------------
 #ifdef HAVE_UNLOCKED_IOCTL
-static long plkIntfIoctl(struct file* filp, unsigned int cmd,
-                           unsigned long arg)
+static long plkIntfIoctl(struct file* filp, UINT cmd,
+                         ULONG arg)
 #else
-static int  plkIntfIoctl(struct inode* dev, struct file* filp,
-                           unsigned int cmd, unsigned long arg)
+static INT  plkIntfIoctl(struct inode* dev, struct file* filp,
+                           UINT cmd, ULONG arg)
 #endif
 {
-    int             ret = -EINVAL;
+    INT             ret = -EINVAL;
     tOplkError      oplRet;
 
     switch (cmd)
@@ -485,9 +484,9 @@ The function implements openPOWERLINK kernel pcie interface module mmap function
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-static int plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
+static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 {
-    BYTE*           pPdoMem = NULL;
+    UINT8*          pPdoMem = NULL;
     size_t          memSize = 0;
     tOplkError      ret = kErrorOk;
     ULONG           pfn = 0;
@@ -576,12 +575,12 @@ This function waits for events to the user.
 \return The function returns Linux error code.
 */
 //------------------------------------------------------------------------------
-int getEventForUser(ULONG arg_p)
+INT getEventForUser(ULONG arg_p)
 {
-    int             ret;
+    INT             ret;
     size_t          readSize;
-    int             loopCount = (K2U_EVENT_WAIT_TIMEOUT / QUEUE_WAIT_TIMEOUT);
-    int             i = 0;
+    INT             loopCount = (K2U_EVENT_WAIT_TIMEOUT / QUEUE_WAIT_TIMEOUT);
+    INT             i = 0;
 
     for (i = 0; i < loopCount; i++)
     {
@@ -710,7 +709,7 @@ shared memory interface.
 \param arg_p    Control command argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int executeCmd(unsigned long arg_p)
+static INT executeCmd(ULONG arg_p)
 {
     tCtrlCmd    ctrlCmd;
 
@@ -738,7 +737,7 @@ via the shared memory interface.
                 the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int storeInitParam(unsigned long arg_p)
+static INT storeInitParam(ULONG arg_p)
 {
     tCtrlInitParam    initParam;
 
@@ -763,7 +762,7 @@ shared memory interface.
                 argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int readInitParam(unsigned long arg_p)
+static INT readInitParam(ULONG arg_p)
 {
     tCtrlInitParam    initParam;
 
@@ -787,7 +786,7 @@ shared memory interface.
 \param arg_p    Pointer to the control status argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int getStatus(unsigned long arg_p)
+static INT getStatus(ULONG arg_p)
 {
     UINT16    status;
 
@@ -809,7 +808,7 @@ shared memory interface.
 \param arg_p    Pointer to the PCP heartbeat argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int getHeartbeat(unsigned long arg)
+static INT getHeartbeat(ULONG arg)
 {
     UINT16    heartbeat;
 
@@ -829,15 +828,15 @@ The function implements the ioctl used for sending asynchronous frames.
 \param arg_p    Pointer to the async send argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int sendAsyncFrame(unsigned long arg)
+static INT sendAsyncFrame(ULONG arg)
 {
-    BYTE*                   pBuf;
+    UINT8*                  pBuf;
     tIoctlDllCalAsync       asyncFrameInfo;
-    int                     order;
-    int                     ret = 0;
+    INT                     order;
+    INT                     ret = 0;
 
     order = get_order(C_DLL_MAX_ASYNC_MTU);
-    pBuf = (BYTE*)__get_free_pages(GFP_KERNEL, order);
+    pBuf = (UINT8*)__get_free_pages(GFP_KERNEL, order);
 
     if (copy_from_user(&asyncFrameInfo, (const void __user*)arg, sizeof(tIoctlDllCalAsync)))
     {
@@ -869,7 +868,7 @@ The function implements the ioctl for writing an error object.
 \param arg_p    Pointer to the error object argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int writeErrorObject(unsigned long arg)
+static INT writeErrorObject(ULONG arg)
 {
     tErrHndIoctl        writeObject;
 
@@ -891,7 +890,7 @@ The function implements the ioctl for reading error objects.
 \param arg_p    Pointer to the error object argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int readErrorObject(unsigned long arg)
+static INT readErrorObject(ULONG arg)
 {
     tErrHndIoctl        readObject;
 
@@ -916,10 +915,10 @@ The function implements the ioctl for mapping the PCP memory into user memory.
 \param arg_p    Pointer to the memmap instance argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static int mapMemoryForUserIoctl(unsigned long arg_p)
+static INT mapMemoryForUserIoctl(ULONG arg_p)
 {
     tMemmap         memMapParams;
-    int             ret = 0;
+    INT             ret = 0;
     tOplkError      retVal = kErrorOk;
     void*           pMappedUserBuf = NULL;
 

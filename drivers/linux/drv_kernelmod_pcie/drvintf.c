@@ -123,7 +123,7 @@ static void         exitEvent(void);
 static void         exitDllQueues(void);
 static void         exitErrHndl(void);
 static tOplkError   insertAsyncDataBlock(tCircBufInstance* pDllCircBuffInst_p,
-                                         BYTE* pData_p, UINT* pDataSize_p);
+                                         UINT8* pData_p, UINT* pDataSize_p);
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
