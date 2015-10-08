@@ -168,7 +168,7 @@ void* memmap_mapKernelBuffer(void* pKernelBuffer_p, UINT bufferSize_p)
     memmapInstance_l.pUserBuf = mmap(NULL,
                                      memmapInstance_l.memSize + 2* sysconf(_SC_PAGE_SIZE),
                                      PROT_READ,
-                                     MAP_PRIVATE,
+                                     MAP_SHARED,
                                      fd_l,
                                      (ULONG)memmapInstance_l.pKernelBuf);
     if (memmapInstance_l.pUserBuf == MAP_FAILED)
