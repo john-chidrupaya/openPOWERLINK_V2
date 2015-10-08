@@ -451,7 +451,7 @@ static INT  plkIntfIoctl(struct inode* dev, struct file* filp,
         case PLK_CMD_PDO_MAP_OFFSET:
             if (copy_to_user((void __user*)arg, &instance_l.bufPageOffset, sizeof(ULONG)))
             {
-                printk("PDO Offset fetch Error!!\n");
+                DEBUG_LVL_ERROR_TRACE("PDO mmapped offset fetch Error!!\n");
                 ret = -EFAULT;
             }
             else
@@ -595,7 +595,7 @@ INT getEventForUser(ULONG arg_p)
 
         if (ret == -ERESTARTSYS)
         {
-            printk("%s() interrupted\n", __func__);
+            DEBUG_LVL_ERROR_TRACE("%s() interrupted\n", __func__);
             break;
         }
 
@@ -607,10 +607,10 @@ INT getEventForUser(ULONG arg_p)
 
         if (readSize > 0)
         {
-            DEBUG_INTF("%s() copy kernel event to user: %d Bytes\n", __func__, readSize);
+            DEBUG_LVL_DRVINTF_TRACE("%s() copy kernel event to user: %d Bytes\n", __func__, readSize);
             if (copy_to_user((void __user*)arg_p, instance_l.aK2URxBuffer, readSize))
             {
-                printk("Event fetch Error!!\n");
+                DEBUG_LVL_ERROR_TRACE("Event fetch Error!!\n");
                 ret = -EFAULT;
                 break;
             }

@@ -144,7 +144,7 @@ tOplkError drvintf_init(void)
 {
     tOplkError ret = kErrorOk;
 
-    TRACE("Initialize driver interface...");
+    DEBUG_LVL_DRVINTF_TRACE("Initialize driver interface...");
 
     OPLK_MEMSET(&drvIntfInstance_l, 0, sizeof(tDrvIntfInstance));
 
@@ -159,7 +159,7 @@ tOplkError drvintf_init(void)
 
     drvIntfInstance_l.fDriverActive = TRUE;
 
-    TRACE(" OK\n");
+    DEBUG_LVL_DRVINTF_TRACE(" OK\n");
 
     return ret;
 }
@@ -176,7 +176,7 @@ the interface.
 //------------------------------------------------------------------------------
 void drvintf_exit(void)
 {
-    TRACE("Exit driver interface...\n");
+    DEBUG_LVL_DRVINTF_TRACE("Exit driver interface...\n");
 
     if (drvIntfInstance_l.fDriverActive)
     {
@@ -772,9 +772,9 @@ tOplkError drvintf_mapKernelMem(UINT8* pKernelMem_p, UINT8** ppUserMem_p, size_t
     {
         *ppUserMem_p = (UINT8*)(((UINT32)pKernelMem_p - (ULONG)drvIntfInstance_l.shmMemRemote) +
                                 (ULONG)drvIntfInstance_l.shmMemLocal);
-        DEBUG_INTF("LA: 0x%lX, RA: 0x%lX, KA: 0x%lX, UA: 0x%lX\n",
-                   drvIntfInstance_l.shmMemLocal, drvIntfInstance_l.shmMemRemote,
-                   (ULONG)pKernelMem_p, (ULONG)(*ppUserMem_p));
+        DEBUG_LVL_DRVINTF_TRACE("LA: 0x%lX, RA: 0x%lX, KA: 0x%lX, UA: 0x%lX\n",
+                                drvIntfInstance_l.shmMemLocal, drvIntfInstance_l.shmMemRemote,
+                                (ULONG)pKernelMem_p, (ULONG)(*ppUserMem_p));
     }
 
     return kErrorOk;
@@ -905,14 +905,14 @@ static tOplkError initEvent(void)
     circError = circbuf_connect(CIRCBUF_USER_TO_KERNEL_QUEUE, &drvIntfInstance_l.apEventQueueInst[kEventQueueU2K]);
     if (circError != kCircBufOk)
     {
-        TRACE("PLK : Could not allocate CIRCBUF_USER_TO_KERNEL_QUEUE circbuffer\n");
+        DEBUG_LVL_DRVINTF_TRACE("PLK : Could not allocate CIRCBUF_USER_TO_KERNEL_QUEUE circbuffer\n");
         return kErrorNoResource;
     }
 
     circError = circbuf_connect(CIRCBUF_KERNEL_TO_USER_QUEUE, &drvIntfInstance_l.apEventQueueInst[kEventQueueK2U]);
     if (circError != kCircBufOk)
     {
-        TRACE("PLK : Could not allocate CIRCBUF_KERNEL_TO_USER_QUEUE circbuffer\n");
+        DEBUG_LVL_DRVINTF_TRACE("PLK : Could not allocate CIRCBUF_KERNEL_TO_USER_QUEUE circbuffer\n");
         return kErrorNoResource;
     }
 
@@ -1018,21 +1018,21 @@ static tOplkError initDllQueues(void)
     circError = circbuf_connect(CIRCBUF_DLLCAL_TXGEN, &drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxGen]);
     if (circError != kCircBufOk)
     {
-        TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXGEN circbuffer\n");
+        DEBUG_LVL_DRVINTF_TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXGEN circbuffer\n");
         return kErrorNoResource;
     }
 
     circError = circbuf_connect(CIRCBUF_DLLCAL_TXNMT, &drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxNmt]);
     if (circError != kCircBufOk)
     {
-        TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXNMT circbuffer\n");
+        DEBUG_LVL_DRVINTF_TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXNMT circbuffer\n");
         return kErrorNoResource;
     }
 
     circError = circbuf_connect(CIRCBUF_DLLCAL_TXSYNC, &drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxSync]);
     if (circError != kCircBufOk)
     {
-        TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXSYNC circbuffer\n");
+        DEBUG_LVL_DRVINTF_TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXSYNC circbuffer\n");
         return kErrorNoResource;
     }
 

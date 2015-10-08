@@ -190,14 +190,14 @@ tOplkError pcieDrv_init(void)
     result = pci_register_driver(&oplkPcieDriver_l);
     if (result != 0)
     {
-        printk("%s pci_register_driver failed with %d\n", __FUNCTION__, result);
+        DEBUG_LVL_ERROR_TRACE("%s pci_register_driver failed with %d\n", __FUNCTION__, result);
         ret = kErrorNoResource;
         goto Exit;
     }
 
     if (pcieDrvInstance_l.pPciDev == NULL)
     {
-        printk("%s pPciDev=NULL\n", __FUNCTION__);
+        DEBUG_LVL_ERROR_TRACE("%s pPciDev=NULL\n", __FUNCTION__);
         ret = pcieDrv_shutdown();
         ret = kErrorNoResource;
         goto Exit;
@@ -221,7 +221,7 @@ This function shuts down the openPOWERLINK PCIe driver.
 tOplkError pcieDrv_shutdown(void)
 {
     // Unregister PCI driver
-    printk("%s calling pci_unregister_driver()\n", __FUNCTION__);
+    DEBUG_LVL_DRVINTF_TRACE("%s calling pci_unregister_driver()\n", __FUNCTION__);
     pci_unregister_driver(&oplkPcieDriver_l);
 
     return kErrorOk;
@@ -397,7 +397,7 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
     if (pcieDrvInstance_l.pPciDev != NULL)
     {
         // This driver is already connected to a PCIe device
-        printk("%s device %s discarded\n", __FUNCTION__, pci_name(pPciDev_p));
+        DEBUG_LVL_DRVINTF_TRACE("%s device %s discarded\n", __FUNCTION__, pci_name(pPciDev_p));
         result = -ENODEV;
         goto Exit;
     }
@@ -405,14 +405,14 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
     pcieDrvInstance_l.pPciDev = pPciDev_p;
 
     // Enable the PCIe device
-    printk("%s enable device\n", __FUNCTION__);
+    DEBUG_LVL_DRVINTF_TRACE("%s enable device\n", __FUNCTION__);
     result = pci_enable_device(pPciDev_p);
     if (result != 0)
     {
         goto Exit;
     }
 
-    printk("%s request PCIe regions\n", __FUNCTION__);
+    DEBUG_LVL_DRVINTF_TRACE("%s request PCIe regions\n", __FUNCTION__);
     result = pci_request_regions(pPciDev_p, DRV_NAME);
     if (result != 0)
     {
@@ -453,27 +453,27 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
 
         pBarInfo->busAddr = (ULONG)pci_resource_start(pPciDev_p, barCount);
 
-        printk("%s() --> ioremap\n", __FUNCTION__);
-        printk("\tbar#\t%u\n", barCount);
-        printk("\tbarLen\t%lu\n", pBarInfo->length);
-        printk("\tbarMap\t0x%lX\n", pBarInfo->virtualAddr);
-        printk("\tbarPhy\t0x%lX\n", pBarInfo->busAddr);
+        DEBUG_LVL_DRVINTF_TRACE("%s() --> ioremap\n", __FUNCTION__);
+        DEBUG_LVL_DRVINTF_TRACE("\tbar#\t%u\n", barCount);
+        DEBUG_LVL_DRVINTF_TRACE("\tbarLen\t%lu\n", pBarInfo->length);
+        DEBUG_LVL_DRVINTF_TRACE("\tbarMap\t0x%lX\n", pBarInfo->virtualAddr);
+        DEBUG_LVL_DRVINTF_TRACE("\tbarPhy\t0x%lX\n", pBarInfo->busAddr);
     }
 
     // Enable PCI busmaster
-    printk("%s enable busmaster\n", __FUNCTION__);
+    DEBUG_LVL_DRVINTF_TRACE("%s enable busmaster\n", __FUNCTION__);
     pci_set_master(pPciDev_p);
 
     // Enable msi
-    printk("Enable MSI\n");
+    DEBUG_LVL_DRVINTF_TRACE("Enable MSI\n");
     result = pci_enable_msi(pPciDev_p);
     if (result != 0)
     {
-        printk("%s Could not enable MSI\n", __FUNCTION__);
+        DEBUG_LVL_DRVINTF_TRACE("%s Could not enable MSI\n", __FUNCTION__);
     }
 
     // Install interrupt handler
-    printk("%s install interrupt handler\n", __FUNCTION__);
+    DEBUG_LVL_DRVINTF_TRACE("%s install interrupt handler\n", __FUNCTION__);
     result = request_irq(pPciDev_p->irq,
                          pcieDrvIrqHandler,
                          IRQF_SHARED,
@@ -490,7 +490,7 @@ ExitFail:
     removeOnePciDev(pPciDev_p);
 
 Exit:
-    printk("%s finished with %d\n", __FUNCTION__, result);
+    DEBUG_LVL_DRVINTF_TRACE("%s finished with %d\n", __FUNCTION__, result);
     return result;
 }
 
@@ -520,7 +520,7 @@ static void removeOnePciDev(struct pci_dev* pPciDev_p)
         free_irq(pPciDev_p->irq, pPciDev_p);
 
     // Disable Message Signaled Interrupt
-    printk("%s Disable MSI\n", __FUNCTION__);
+    DEBUG_LVL_DRVINTF_TRACE("%s Disable MSI\n", __FUNCTION__);
     pci_disable_msi(pPciDev_p);
 
     // unmap controller's register space
