@@ -101,6 +101,9 @@ typedef struct
     tCircBufInstance*       apDllQueueInst[kDllCalQueueTxVeth + 1]; ///< DLL queue instances.
     tErrHndObjects*         pErrorObjects;                      ///< Pointer to error objects.
     BOOL                    fDriverActive;                      ///< Flag to identify status of driver interface.
+#if defined(CONFIG_INCLUDE_VETH)
+    BOOL                    fVEthActive;                        ///< Flag to indicate whether the VEth interface is intialized.
+#endif
     ULONG                   shmMemLocal;                        ///< Shared memory base address for local processor (OS).
     ULONG                   shmMemRemote;                       ///< Shared memory base address for remote processor (PCP).
     size_t                  shmSize;                            ///< Shared memory span.
@@ -205,7 +208,7 @@ copying it into the common control structure.
 //------------------------------------------------------------------------------
 tOplkError drvintf_executeCmd(tCtrlCmd* pCtrlCmd_p)
 {
-    tOplkError      ret = kErrorOk;
+    tOplkError    ret = kErrorOk;
     UINT16          cmd = pCtrlCmd_p->cmd;
     INT             timeout;
 
@@ -299,6 +302,22 @@ tOplkError drvintf_readInitParam(tCtrlInitParam* pInitParam_p)
         DEBUG_LVL_ERROR_TRACE("Cannot read initparam (0x%X)\n", dualRet);
         return kErrorNoResource;
     }
+
+#if defined(CONFIG_INCLUDE_VETH)
+    // Initialize virtual Ethernet interface
+    if (drvIntfInstance_l.fVEthActive == FALSE)
+    {
+        ret = veth_init((tCtrlInitParam*)pInitParam_p->aMacAddress);
+        if (ret != kErrorOk)
+        {
+            DEBUG_LVL_ERROR_TRACE("VEth Initialization Failed %x\n", ret);
+            pCtrlCmd_p->retVal = ret;
+            return ret;
+        }
+
+        drvIntfInstance_l.fVEthActive = TRUE;
+    }
+#endif
 
     return kErrorOk;
 }
@@ -920,6 +939,12 @@ static tOplkError initStackInterface(void)
         return ret;
     }
 
+#if defined(CONFIG_INCLUDE_VETH)
+    // Mark the VEth interface initialization state as pending
+    // This will be completed when the MAC address is read from the PCP
+    drvIntfInstance_l.fVEthActive = FALSE;
+#endif
+
     return kErrorOk;
 }
 
@@ -971,6 +996,11 @@ This function closes the stack dualprocshm interface to PCP, initialized earlier
 //------------------------------------------------------------------------------
 static void exitStackInterface(void)
 {
+#if defined(CONFIG_INCLUDE_VETH)
+    // Mark the VEth interface as inactive
+    veth_exit();
+    drvIntfInstance_l.fVEthActive = FALSE;
+#endif
     exitDllQueueInterface();
     exitErrHandleInterface();
     exitEventInterface();
@@ -1096,6 +1126,16 @@ static tOplkError initDllQueueInterface(void)
         return kErrorNoResource;
     }
 
+#if defined(CONFIG_INCLUDE_VETH)
+    circError = circbuf_connect(CIRCBUF_DLLCAL_TXVETH,
+                                &drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxVeth]);
+    if (circError != kCircBufOk)
+    {
+        DEBUG_LVL_DRVINTF_TRACE("PLK : Could not allocate CIRCBUF_DLLCAL_TXVETH circbuffer\n");
+        return kErrorNoResource;
+    }
+#endif
+
     return kErrorOk;
 }
 
@@ -1115,6 +1155,11 @@ static void exitDllQueueInterface(void)
 
     if (drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxSync] != NULL)
     circbuf_disconnect(drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxSync]);
+
+#if defined(CONFIG_INCLUDE_VETH)
+    if (drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxVeth] != NULL)
+    circbuf_disconnect(drvIntfInstance_l.apDllQueueInst[kDllCalQueueTxVeth]);
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1166,4 +1211,4 @@ Exit:
     return ret;
 }
 
-/// \}
+///\}
