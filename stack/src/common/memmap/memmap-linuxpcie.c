@@ -118,7 +118,7 @@ The function initializes the memory mapping service.
 tMemMapReturn memmap_init(void)
 {
     fd_l = ctrlucal_getFd();
-    OPLK_MEMSET(memmapInstance_l, 0, sizeof(memmapInstance_l));
+    OPLK_MEMSET(&memmapInstance_l, 0, sizeof(memmapInstance_l));
     return kMemMapOk;
 }
 
@@ -211,7 +211,7 @@ void memmap_unmapKernelBuffer(void* pBuffer_p)
     }
 
     pBuffer_p = NULL;
-    OPLK_MEMSET(memmapInstance_l, 0, sizeof(memmapInstance_l));
+    OPLK_MEMSET(&memmapInstance_l, 0, sizeof(memmapInstance_l));
 }
 
 //============================================================================//
