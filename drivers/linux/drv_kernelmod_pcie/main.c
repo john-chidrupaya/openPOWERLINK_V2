@@ -120,9 +120,7 @@ typedef struct
 // local vars
 //------------------------------------------------------------------------------
 tDrvInstance    instance_l;                                 // Instance of this driver
-static UINT8    aAsyncFrameSwapBuf_l[C_DLL_MAX_ASYNC_MTU];  // Array to store ASync frame data
-//FIXME Update the mmap call handling in this driver so that the above swap array
-// is not required as there would no copying of data anymore.
+
 //------------------------------------------------------------------------------
 // local function prototypes
 //------------------------------------------------------------------------------
@@ -155,8 +153,6 @@ static INT          readErrorObject(ULONG arg);
 
 static INT          getEventForUser(ULONG arg_p);
 static INT          postEventFromUser(ULONG arg);
-
-static INT          mapMemoryForUserIoctl(ULONG arg_p);
 
 //------------------------------------------------------------------------------
 //  Kernel module specific data structures
@@ -452,10 +448,6 @@ static INT  plkIntfIoctl(struct inode* dev, struct file* filp,
 
             break;
 
-        case PLK_CMD_MEMMAP_MAP_MEM:
-            ret = mapMemoryForUserIoctl(arg);
-            break;
-
         case PLK_CMD_PDO_MAP_OFFSET:
             if (copy_to_user((void __user*)arg, &instance_l.bufPageOffset, sizeof(ULONG)))
             {
@@ -490,7 +482,6 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     UINT8*          pPciMem = NULL;
     size_t          memSize = 0;
     tOplkError      ret = kErrorOk;
-    ULONG           pfn = 0;
     ULONG           pageAddr = 0;
 
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
@@ -498,10 +489,6 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 
     vma->vm_flags |= VM_RESERVED | VM_IO;
     vma->vm_ops = &powerlinkVmOps;
-
-    //FIXME Rework the function to map the offset passed from user that the user can get
-    // via an ioctl call made before the mmap() call. This way both pdo and memmap modules
-    // can use mmap and multiple mmap() calls to this driver would be possible.
 
     if (vma->vm_pgoff == 0)
     {
@@ -523,7 +510,7 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
         pPciMem = (UINT8*)(vma->vm_pgoff << PAGE_SHIFT);
         ret = drvintf_mapKernelMem((UINT8*)pPciMem,
                                    (UINT8**)&pageAddr,
-                                   (size_t)0);
+                                   (size_t)memSize);
         if (ret != kErrorOk)
             return -ENOMEM;
 
@@ -531,25 +518,9 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     }
 
     vma->vm_pgoff = pageAddr >> PAGE_SHIFT;
-
     // Save the offset of the PDO memory address from the start of page boundary
     instance_l.bufPageOffset = (ULONG)(pageAddr - (vma->vm_pgoff << PAGE_SHIFT));
 
-//    printk("virt MAP addr: 0x%lX --> 0x%lX --> 0x%lX\n", (ULONG)pPciMem, pageAddr, vma->vm_pgoff);
-//    if (vma->vm_pgoff == 0)
-//    {
-//        instance_l.pdoMappedMem = pfn;
-//    }
-//    else
-//    {
-//        if (instance_l.pdoMappedMem == pfn)
-//        {
-//            instance_l.bufPageOffset += instance_l.pdoMappedMem;
-//            goto Exit;  // The page has already been mapped as PDO
-//        }
-//    }
-
-    //vma->vm_pgoff
     if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
                            vma->vm_end - vma->vm_start + instance_l.bufPageOffset - PAGE_SIZE,
                            vma->vm_page_prot))
@@ -558,7 +529,6 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
         return -EAGAIN;
     }
 
-Exit:
     plkIntfVmaOpen(vma);
     return 0;
 }
@@ -941,46 +911,4 @@ static INT readErrorObject(ULONG arg)
     return 0;
 }
 
-//------------------------------------------------------------------------------
-/**
-\brief  Map PCP memory into user memory
-
-The function implements the ioctl for mapping the PCP memory into user memory.
-
-\param arg_p    Pointer to the memmap instance argument passed by the ioctl interface.
-*/
-//------------------------------------------------------------------------------
-static INT mapMemoryForUserIoctl(ULONG arg_p)
-{
-    tMemmap         memMapParams;
-    INT             ret = 0;
-    tOplkError      retVal = kErrorOk;
-    void*           pMappedUserBuf = NULL;
-
-    //FIXME Rework this function to return the ioremapped PCP memory offset alone,
-    // so that mmap() can be called from user layer using the offset. This will avoid
-    // the copying of the entire async frame memory.
-    copy_from_user(&memMapParams, (const void __user*)arg_p, sizeof(tMemmap));
-    retVal = drvintf_mapKernelMem((UINT8*)memMapParams.pKernelBuf,
-                                  (UINT8**)&pMappedUserBuf,
-                                  (size_t)memMapParams.memSize);
-
-    if (retVal != kErrorOk)
-    {
-        DEBUG_LVL_ERROR_TRACE("%s() --> Error: Unable to locate shared memory region\n");
-        // Let user free its own memory; just return error.
-        ret = -EFAULT;
-    }
-    else
-    {
-        OPLK_MEMCPY(aAsyncFrameSwapBuf_l, pMappedUserBuf, sizeof(aAsyncFrameSwapBuf_l));
-        ret = 0;
-    }
-
-    printk("%s(): kermem: %X, mmem: %X\n", __func__, memMapParams.pKernelBuf, pMappedUserBuf);
-
-    copy_to_user((void __user*)memMapParams.pUserBuf, aAsyncFrameSwapBuf_l, sizeof(aAsyncFrameSwapBuf_l));
-
-    return ret;
-}
 ///\}

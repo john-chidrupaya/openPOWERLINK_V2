@@ -42,12 +42,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 #include <common/oplkinc.h>
 #include <common/memmap.h>
-#include <common/driver.h>
 #include <user/ctrlucal.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <errno.h>
@@ -79,14 +77,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // local types
 //------------------------------------------------------------------------------
+/**
+\brief Structure holding the memory parameters
+
+The structure holds the kernel pointer and the mapped user memory pointer.
+*/
+typedef struct
+{
+    UINT32      memSize;
+    ULONG       offset;
+    UINT8*      pKernelBuf;
+    void*       pUserBuf;
+} tMemmapInstance;
 
 //------------------------------------------------------------------------------
 // local vars
 //------------------------------------------------------------------------------
 static INT fd_l;
-static UINT8 aAsyncFrameSwapBuf_l[C_DLL_MAX_ASYNC_MTU];
-tMemmap     memmap;
-ULONG offset;
+tMemmapInstance memmapInstance_l;
 
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -110,6 +118,7 @@ The function initializes the memory mapping service.
 tMemMapReturn memmap_init(void)
 {
     fd_l = ctrlucal_getFd();
+    OPLK_MEMSET(memmapInstance_l, 0, sizeof(memmapInstance_l));
     return kMemMapOk;
 }
 
@@ -148,50 +157,32 @@ The function maps a kernel buffer address.
 //------------------------------------------------------------------------------
 void* memmap_mapKernelBuffer(void* pKernelBuffer_p, UINT bufferSize_p)
 {
-    INT         ret = 0;
+    void* pMappedBuffer = NULL;
 
-    /*
-    tMemmap     memmap;
+    memmapInstance_l.memSize = bufferSize_p;
+    memmapInstance_l.pKernelBuf = (UINT8*)((ULONG)pKernelBuffer_p &
+                                           ~(sysconf(_SC_PAGE_SIZE) - 1));
+    memmapInstance_l.offset = (ULONG)pKernelBuffer_p &
+                                (sysconf(_SC_PAGE_SIZE) - 1);
 
-    memmap.pKernelBuf = pKernelBuffer_p;
-    memmap.pUserBuf = aAsyncFrameSwapBuf_l;
-    memmap.memSize = bufferSize_p;
-
-    if ((ret = ioctl(fd_l, PLK_CMD_MEMMAP_MAP_MEM, &memmap)) != 0)
-    {
-        DEBUG_LVL_ERROR_TRACE("%s() error %d\n", __func__, ret);
-        memmap.pUserBuf = NULL;
-    }
-     /*/
-
-    memmap.pKernelBuf = (UINT8*)((ULONG)pKernelBuffer_p & ~(sysconf(_SC_PAGE_SIZE) - 1));
-    memmap.pUserBuf = aAsyncFrameSwapBuf_l;
-    memmap.memSize = bufferSize_p;
-
-    offset = (ULONG)pKernelBuffer_p & (sysconf(_SC_PAGE_SIZE) - 1);
-    printf("memmap: of: 0x%X, kenPg: 0x%X\n", offset, (ULONG)memmap.pKernelBuf);
-    memmap.pUserBuf = mmap(NULL, memmap.memSize + 2* sysconf(_SC_PAGE_SIZE), PROT_READ, MAP_SHARED,
-                       fd_l, (ULONG)memmap.pKernelBuf);
-    if (memmap.pUserBuf == MAP_FAILED)
+    memmapInstance_l.pUserBuf = mmap(NULL,
+                                     memmapInstance_l.memSize + 2* sysconf(_SC_PAGE_SIZE),
+                                     PROT_READ,
+                                     MAP_PRIVATE,
+                                     fd_l,
+                                     (ULONG)memmapInstance_l.pKernelBuf);
+    if (memmapInstance_l.pUserBuf == MAP_FAILED)
     {
         DEBUG_LVL_ERROR_TRACE("%s() mmap failed!\n", __func__);
-        memmap.pUserBuf = NULL;
+        pMappedBuffer = NULL;
     }
     else
-        memmap.pUserBuf = (UINT8*)((ULONG)memmap.pUserBuf + offset);
+    {
+        pMappedBuffer = (UINT8*)((ULONG)memmapInstance_l.pUserBuf +
+                                 memmapInstance_l.offset);
+    }
 
-//    if ((ret = ioctl(fd_l, PLK_CMD_PDO_MAP_OFFSET, &offset)) != 0)
-//    {
-//        DEBUG_LVL_ERROR_TRACE("%s() error %d\n", __func__, ret);
-//        memmap.pUserBuf = NULL;
-//    }
-//    else
-//    {
-//        memmap.pUserBuf = (UINT8*)((size_t)(memmap.pUserBuf) + (size_t)offset);
-//    }
-
-    //*/
-    return memmap.pUserBuf;
+    return pMappedBuffer;
 }
 
 //------------------------------------------------------------------------------
@@ -207,23 +198,20 @@ The function disconnects from a memory mapping.
 //------------------------------------------------------------------------------
 void memmap_unmapKernelBuffer(void* pBuffer_p)
 {
-    /*
-    UNUSED_PARAMETER(pBuffer_p);
-    /*/
-    if (memmap.pUserBuf != pBuffer_p)
+    if ((ULONG)memmapInstance_l.pUserBuf +
+        memmapInstance_l.offset != (ULONG)pBuffer_p)
     {
-        DEBUG_LVL_ERROR_TRACE("munmap called with unknown memory address\n");
+        DEBUG_LVL_ERROR_TRACE("%s() called with unknown memory address\n", __func__);
     }
 
-    pBuffer_p = (UINT8*)((size_t)(pBuffer_p) - (size_t)offset);
-    if (munmap(pBuffer_p, memmap.memSize + 2 * sysconf(_SC_PAGE_SIZE)) != 0)
+    if (munmap(memmapInstance_l.pUserBuf,
+               memmapInstance_l.memSize + 2 * sysconf(_SC_PAGE_SIZE)) != 0)
     {
         DEBUG_LVL_ERROR_TRACE("%s() munmap failed (%s)\n", __func__, strerror(errno));
     }
 
-    memmap.pUserBuf = NULL;
-    memmap.pKernelBuf = NULL;
-    //*/
+    pBuffer_p = NULL;
+    OPLK_MEMSET(memmapInstance_l, 0, sizeof(memmapInstance_l));
 }
 
 //============================================================================//

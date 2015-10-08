@@ -63,8 +63,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PLK_CMD_ERRHND_WRITE                    _IOW (PLK_IOC_MAGIC, 8, tErrHndIoctl)
 #define PLK_CMD_ERRHND_READ                     _IOR (PLK_IOC_MAGIC, 9, tErrHndIoctl)
 #define PLK_CMD_PDO_SYNC                        _IO  (PLK_IOC_MAGIC, 10)
-#define PLK_CMD_MEMMAP_MAP_MEM                  _IOWR(PLK_IOC_MAGIC, 11, tMemmap)
-#define PLK_CMD_PDO_MAP_OFFSET                  _IOR (PLK_IOC_MAGIC, 12, ULONG)
+#define PLK_CMD_PDO_MAP_OFFSET                  _IOR (PLK_IOC_MAGIC, 11, ULONG)
 
 //------------------------------------------------------------------------------
 // typedef
