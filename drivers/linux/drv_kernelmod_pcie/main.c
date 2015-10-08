@@ -521,12 +521,12 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 
     // Get the bus address of the PDO memory
     pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPciMem - pcieDrv_getBarAddr(0));
-    pfn = pageAddr >> PAGE_SHIFT;
+    vma->vm_pgoff = pageAddr >> PAGE_SHIFT;
 
     // Save the offset of the PDO memory address from the start of page boundary
-    instance_l.bufPageOffset = (ULONG)(pageAddr - (pfn << PAGE_SHIFT));
+    instance_l.bufPageOffset = (ULONG)(pageAddr - (vma->vm_pgoff << PAGE_SHIFT));
 
-    printk("virt MAP addr: 0x%lX --> 0x%lX --> 0x%lX\n", (ULONG)pPciMem, pageAddr, pfn);
+    printk("virt MAP addr: 0x%lX --> 0x%lX --> 0x%lX\n", (ULONG)pPciMem, pageAddr, vma->vm_pgoff);
 //    if (vma->vm_pgoff == 0)
 //    {
 //        instance_l.pdoMappedMem = pfn;
@@ -540,7 +540,8 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 //        }
 //    }
 
-    if (io_remap_pfn_range(vma, vma->vm_start, pfn,
+    //vma->vm_pgoff
+    if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
                            vma->vm_end - vma->vm_start + instance_l.bufPageOffset - PAGE_SIZE,
                            vma->vm_page_prot))
     {
