@@ -164,27 +164,31 @@ void* memmap_mapKernelBuffer(void* pKernelBuffer_p, UINT bufferSize_p)
     }
      /*/
 
-    memmap.pKernelBuf = pKernelBuffer_p;
+    memmap.pKernelBuf = pKernelBuffer_p & ~(sysconf(_SC_PAGE_SIZE) - 1);
     memmap.pUserBuf = aAsyncFrameSwapBuf_l;
     memmap.memSize = bufferSize_p;
 
-    memmap.pUserBuf = mmap(NULL, memmap.memSize + getpagesize(), PROT_READ, MAP_SHARED,
+    offset = (ULONG)memmap.pKernelBuf - (ULONG)pKernelBuffer_p;
+    printf("memmap: of: 0x%X, kenPg: 0x%X\n", offset, (ULONG)memmap.pKernelBuf);
+    memmap.pUserBuf = mmap(NULL, memmap.memSize + 2* getpagesize(), PROT_READ, MAP_SHARED,
                        fd_l, (ULONG)memmap.pKernelBuf);
     if (memmap.pUserBuf == MAP_FAILED)
     {
         DEBUG_LVL_ERROR_TRACE("%s() mmap failed!\n", __func__);
         memmap.pUserBuf = NULL;
     }
-
-    if ((ret = ioctl(fd_l, PLK_CMD_PDO_MAP_OFFSET, &offset)) != 0)
-    {
-        DEBUG_LVL_ERROR_TRACE("%s() error %d\n", __func__, ret);
-        memmap.pUserBuf = NULL;
-    }
     else
-    {
-        memmap.pUserBuf = (UINT8*)((size_t)(memmap.pUserBuf) + (size_t)offset);
-    }
+        memmap.pUserBuf = (UINT8*)((ULONG)memmap.pUserBuf + offset);
+
+//    if ((ret = ioctl(fd_l, PLK_CMD_PDO_MAP_OFFSET, &offset)) != 0)
+//    {
+//        DEBUG_LVL_ERROR_TRACE("%s() error %d\n", __func__, ret);
+//        memmap.pUserBuf = NULL;
+//    }
+//    else
+//    {
+//        memmap.pUserBuf = (UINT8*)((size_t)(memmap.pUserBuf) + (size_t)offset);
+//    }
 
     //*/
     return memmap.pUserBuf;

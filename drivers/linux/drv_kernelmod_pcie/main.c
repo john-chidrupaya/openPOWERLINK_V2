@@ -517,31 +517,32 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
         instance_l.pdoMemSize = memSize;
     }
     else
-        pPciMem = (UINT8*)vma->vm_pgoff;
+        pPciMem = (UINT8*)(vma->vm_pgoff << PAGE_SHIFT);
 
     // Get the bus address of the PDO memory
     pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPciMem - pcieDrv_getBarAddr(0));
-    pfn  = pageAddr >> PAGE_SHIFT;
+    pfn = pageAddr >> PAGE_SHIFT;
 
     // Save the offset of the PDO memory address from the start of page boundary
     instance_l.bufPageOffset = (ULONG)(pageAddr - (pfn << PAGE_SHIFT));
 
-    printk("virt MAP addr: 0x%lX --> 0x%lX --> 0x%lX\n", (ULONG)pPdoMem, pageAddr, pfn);
-    if (vma->vm_pgoff == 0)
-    {
-        instance_l.pdoMappedMem = pfn;
-    }
-    else
-    {
-        if (instance_l.pdoMappedMem == pfn)
-        {
-            instance_l.bufPageOffset += instance_l.pdoMappedMem;
-            goto Exit;  // The page has already been mapped as PDO
-        }
-    }
+    printk("virt MAP addr: 0x%lX --> 0x%lX --> 0x%lX\n", (ULONG)pPciMem, pageAddr, pfn);
+//    if (vma->vm_pgoff == 0)
+//    {
+//        instance_l.pdoMappedMem = pfn;
+//    }
+//    else
+//    {
+//        if (instance_l.pdoMappedMem == pfn)
+//        {
+//            instance_l.bufPageOffset += instance_l.pdoMappedMem;
+//            goto Exit;  // The page has already been mapped as PDO
+//        }
+//    }
 
     if (io_remap_pfn_range(vma, vma->vm_start, pfn,
-                           vma->vm_end - vma->vm_start + instance_l.bufPageOffset - PAGE_SIZE, vma->vm_page_prot))
+                           vma->vm_end - vma->vm_start + instance_l.bufPageOffset - PAGE_SIZE,
+                           vma->vm_page_prot))
     {
         DEBUG_LVL_ERROR_TRACE("%s() remap_pfn_range failed\n", __func__);
         return -EAGAIN;
