@@ -54,14 +54,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
-
 #define FIELD_OFFSET(...)                       offsetof(__VA_ARGS__)
-
-#ifndef NDEBUG
-#define DEBUG_INTF(...)        printk(__VA_ARGS__)
-#else
-#define DEBUG_INTF(...)
-#endif
 
 //------------------------------------------------------------------------------
 // typedef
