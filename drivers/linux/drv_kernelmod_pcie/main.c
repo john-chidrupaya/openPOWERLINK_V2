@@ -515,18 +515,27 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 
         instance_l.pPdoMem = pPciMem;
         instance_l.pdoMemSize = memSize;
+        // Get the bus address of the PDO memory
+        pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPciMem - pcieDrv_getBarAddr(0));
     }
     else
+    {
         pPciMem = (UINT8*)(vma->vm_pgoff << PAGE_SHIFT);
+        ret = drvintf_mapKernelMem((UINT8*)pPciMem,
+                                   (UINT8**)&pageAddr,
+                                   (size_t)0);
+        if (ret != kErrorOk)
+            return -ENOMEM;
 
-    // Get the bus address of the PDO memory
-    pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPciMem - pcieDrv_getBarAddr(0));
+        pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pageAddr - pcieDrv_getBarAddr(0));
+    }
+
     vma->vm_pgoff = pageAddr >> PAGE_SHIFT;
 
     // Save the offset of the PDO memory address from the start of page boundary
     instance_l.bufPageOffset = (ULONG)(pageAddr - (vma->vm_pgoff << PAGE_SHIFT));
 
-    printk("virt MAP addr: 0x%lX --> 0x%lX --> 0x%lX\n", (ULONG)pPciMem, pageAddr, vma->vm_pgoff);
+//    printk("virt MAP addr: 0x%lX --> 0x%lX --> 0x%lX\n", (ULONG)pPciMem, pageAddr, vma->vm_pgoff);
 //    if (vma->vm_pgoff == 0)
 //    {
 //        instance_l.pdoMappedMem = pfn;
@@ -967,6 +976,8 @@ static INT mapMemoryForUserIoctl(ULONG arg_p)
         OPLK_MEMCPY(aAsyncFrameSwapBuf_l, pMappedUserBuf, sizeof(aAsyncFrameSwapBuf_l));
         ret = 0;
     }
+
+    printk("%s(): kermem: %X, mmem: %X\n", __func__, memMapParams.pKernelBuf, pMappedUserBuf);
 
     copy_to_user((void __user*)memMapParams.pUserBuf, aAsyncFrameSwapBuf_l, sizeof(aAsyncFrameSwapBuf_l));
 

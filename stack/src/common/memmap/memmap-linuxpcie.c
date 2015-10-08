@@ -170,7 +170,7 @@ void* memmap_mapKernelBuffer(void* pKernelBuffer_p, UINT bufferSize_p)
 
     offset = (ULONG)pKernelBuffer_p & (sysconf(_SC_PAGE_SIZE) - 1);
     printf("memmap: of: 0x%X, kenPg: 0x%X\n", offset, (ULONG)memmap.pKernelBuf);
-    memmap.pUserBuf = mmap(NULL, memmap.memSize + 2* getpagesize(), PROT_READ, MAP_SHARED,
+    memmap.pUserBuf = mmap(NULL, memmap.memSize + 2* sysconf(_SC_PAGE_SIZE), PROT_READ, MAP_SHARED,
                        fd_l, (ULONG)memmap.pKernelBuf);
     if (memmap.pUserBuf == MAP_FAILED)
     {
@@ -216,7 +216,7 @@ void memmap_unmapKernelBuffer(void* pBuffer_p)
     }
 
     pBuffer_p = (UINT8*)((size_t)(pBuffer_p) - (size_t)offset);
-    if (munmap(pBuffer_p, memmap.memSize + getpagesize()) != 0)
+    if (munmap(pBuffer_p, memmap.memSize + 2 * sysconf(_SC_PAGE_SIZE)) != 0)
     {
         DEBUG_LVL_ERROR_TRACE("%s() munmap failed (%s)\n", __func__, strerror(errno));
     }
