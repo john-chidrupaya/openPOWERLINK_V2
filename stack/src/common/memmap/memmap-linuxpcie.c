@@ -168,7 +168,7 @@ void* memmap_mapKernelBuffer(void* pKernelBuffer_p, UINT bufferSize_p)
     memmap.pUserBuf = aAsyncFrameSwapBuf_l;
     memmap.memSize = bufferSize_p;
 
-    offset = (ULONG)pKernelBuffer_p & ~(sysconf(_SC_PAGE_SIZE) - 1);
+    offset = (ULONG)pKernelBuffer_p & (sysconf(_SC_PAGE_SIZE) - 1);
     printf("memmap: of: 0x%X, kenPg: 0x%X\n", offset, (ULONG)memmap.pKernelBuf);
     memmap.pUserBuf = mmap(NULL, memmap.memSize + 2* getpagesize(), PROT_READ, MAP_SHARED,
                        fd_l, (ULONG)memmap.pKernelBuf);
