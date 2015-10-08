@@ -164,7 +164,7 @@ void* memmap_mapKernelBuffer(void* pKernelBuffer_p, UINT bufferSize_p)
     }
      /*/
 
-    memmap.pKernelBuf = pKernelBuffer_p & ~(sysconf(_SC_PAGE_SIZE) - 1);
+    memmap.pKernelBuf = (UINT8*)((ULONG)pKernelBuffer_p & ~(sysconf(_SC_PAGE_SIZE) - 1));
     memmap.pUserBuf = aAsyncFrameSwapBuf_l;
     memmap.memSize = bufferSize_p;
 
