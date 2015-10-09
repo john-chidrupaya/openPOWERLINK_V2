@@ -53,6 +53,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <kernel/pdokcal.h>
 #include <common/timer.h>
 
+#include <kernel/veth.h>
+
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
 //============================================================================//
@@ -97,12 +99,13 @@ interface module during runtime.
 typedef struct
 {
     tDualprocDrvInstance    dualProcDrvInst;                    ///< Dual processor driver instance.
-    tCircBufInstance*       apEventQueueInst[kEventQueueNum];       ///< Event queue instances.
+    tCircBufInstance*       apEventQueueInst[kEventQueueNum];   ///< Event queue instances.
     tCircBufInstance*       apDllQueueInst[kDllCalQueueTxVeth + 1]; ///< DLL queue instances.
     tErrHndObjects*         pErrorObjects;                      ///< Pointer to error objects.
     BOOL                    fDriverActive;                      ///< Flag to identify status of driver interface.
 #if defined(CONFIG_INCLUDE_VETH)
     BOOL                    fVEthActive;                        ///< Flag to indicate whether the VEth interface is intialized.
+    tDrvIntfCbVeth          pfnCbVeth;                          ///< Callback function to the VEth interface
 #endif
     ULONG                   shmMemLocal;                        ///< Shared memory base address for local processor (OS).
     ULONG                   shmMemRemote;                       ///< Shared memory base address for remote processor (PCP).
@@ -416,7 +419,70 @@ tOplkError drvintf_getHeartbeat(UINT16* pHeartbeat_p)
     return kErrorOk;
 }
 
+#if defined(CONFIG_INCLUDE_VETH)
+///------------------------------------------------------------------------------
+/**
+\brief  Write asynchronous frame
+
+This routines extracts the asynchronous frame from the IOCTL buffer and writes
+it into the specified DLL queue for processing by PCP.
+
+\param  pArg_p       Pointer to IOCTL buffer.
+
+\ingroup module_driver_linux_kernel_pcie
+*/
 //------------------------------------------------------------------------------
+tOplkError drvintf_sendVethFrame(tFrameInfo* pFrameInfo_p)
+{
+    tOplkError              ret = kErrorOk;
+    tIoctlDllCalAsync       asyncFrameInfo;
+    tEvent                  event;
+
+    if (!drvIntfInstance_l.fDriverActive)
+        return kErrorNoResource;
+
+    asyncFrameInfo.size = pFrameInfo_p->frameSize;
+    asyncFrameInfo.pData = pFrameInfo_p->frame.pBuffer;
+    asyncFrameInfo.queue = kDllCalQueueTxVeth;
+
+    ret = drvintf_sendAsyncFrame((UINT8*)&asyncFrameInfo);
+    if (ret != kErrorOk)
+    {
+        DEBUG_LVL_ERROR_TRACE("Error sending VEth frame queue %d\n",
+                              asyncFrameInfo.queue);
+    }
+
+    // post event to DLL
+    event.eventSink = kEventSinkDllk;
+    event.eventType = kEventTypeDllkFillTx;
+    OPLK_MEMSET(&event.netTime, 0x00, sizeof(event.netTime));
+    event.eventArg.pEventArg = &priority_p;
+    event.eventArgSize = sizeof(priority_p);
+    ret = drvintf_postEvent(&event);
+
+    return ret;
+}
+
+///------------------------------------------------------------------------------
+/**
+\brief  Write asynchronous frame
+
+This routines extracts the asynchronous frame from the IOCTL buffer and writes
+it into the specified DLL queue for processing by PCP.
+
+\param  pArg_p       Pointer to IOCTL buffer.
+
+\ingroup module_driver_linux_kernel_pcie
+*/
+//------------------------------------------------------------------------------
+tOplkError drvintf_regVethHandler(tDrvIntfCbVeth pfnDrvIntfCbVeth_p)
+{
+    drvIntfInstance_l.pfnCbVeth = pfnDrvIntfCbVeth_p;
+    return kErrorOk;
+}
+#endif
+
+///------------------------------------------------------------------------------
 /**
 \brief  Write asynchronous frame
 
@@ -565,8 +631,12 @@ Retrieves an event from kernel to user event(K2U) queue for the user layer.
 //------------------------------------------------------------------------------
 tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
 {
-    tCircBufError       circBufErr = kCircBufOk;
-    tCircBufInstance*   pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueK2U];
+    tCircBufError           circBufErr = kCircBufOk;
+    tCircBufInstance*       pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueK2U];
+    tFrameInfo*             pFrameInfo;
+    UINT16                  etherType;
+    tEdrvReleaseRxBuffer*   pReleaseRxBuffer;
+    tOplkError              ret = kErrorOk;
 
     if ((pEvent_p == NULL) || (pSize_p == NULL) ||
         (!drvIntfInstance_l.fDriverActive))
@@ -590,7 +660,26 @@ tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
         return kErrorInvalidInstanceParam;
     }
 
-    return kErrorOk;
+#if defined(CONFIG_INCLUDE_VETH)
+    // Check if this is a VEth event
+    if ((pEvent_p->eventType == kEventTypeAsndRxInfo) && 
+        (drvIntfInstance_l.pfnCbVeth != NULL)) // $$ Handle kEventTypeAsndRx
+    {
+        ret = drvintf_mapKernelMem((UINT8*)pEvent_p->eventArg.pEventArg,
+                                   (UINT8**)&pFrameInfo,
+                                   (size_t)pEvent_p->eventArgSize);
+        if (ret != kErrorOk)
+            return ret;
+
+        etherType = ami_getUint16Be(&pFrameInfo->frame.pBuffer->etherType);
+        if (etherType != C_DLL_ETHERTYPE_EPL)
+        {
+            ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo, pReleaseRxBuffer);
+        }
+    }
+#endif
+
+    return ret;
 }
 
 //------------------------------------------------------------------------------
