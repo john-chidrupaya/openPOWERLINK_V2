@@ -157,7 +157,7 @@ tOplkError pdoucal_allocateMem(size_t memSize_p, BYTE** ppPdoMem_p)
 {
     INT     ret = 0;
 
-    *ppPdoMem_p = mmap(NULL, memSize_p + getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED,
+    *ppPdoMem_p = mmap(NULL, memSize_p + ATOMIC_MEM_OFFSET+ getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED,
                        fd_l, 0);
     if (*ppPdoMem_p == MAP_FAILED)
     {
