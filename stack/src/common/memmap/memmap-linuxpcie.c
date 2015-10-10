@@ -94,8 +94,8 @@ typedef struct
 //------------------------------------------------------------------------------
 // local vars
 //------------------------------------------------------------------------------
-static INT fd_l;
-tMemmapInstance memmapInstance_l;
+static OPLK_FILE_HANDLE fd_l;
+static tMemmapInstance  memmapInstance_l;
 
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -136,7 +136,7 @@ The function shuts down the memory mapping service.
 //------------------------------------------------------------------------------
 tMemMapReturn memmap_shutdown(void)
 {
-    fd_l = -1;
+    fd_l = (OPLK_FILE_HANDLE)0;
     return kMemMapOk;
 }
 

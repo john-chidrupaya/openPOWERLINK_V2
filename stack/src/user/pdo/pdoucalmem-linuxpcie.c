@@ -2,11 +2,11 @@
 ********************************************************************************
 \file   pdoucalmem-linuxpcie.c
 
-\brief  PDO user CAL shared-memory module for openPOWERLINK PCIe driver
+\brief  PDO user CAL shared-memory module for openPOWERLINK Linux PCIe driver
 
 This file contains an implementation for the user PDO CAL module which uses
-the openPOWERLINK PCIe driver by using the ioctl operation to access the PCIe
-memory.
+the openPOWERLINK Linux PCIe driver. The PCIe memory is accessed using ioctl
+operations.
 
 \ingroup module_pdoucal
 *******************************************************************************/
@@ -86,7 +86,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // local vars
 //------------------------------------------------------------------------------
-static int                  fd_l;
+static OPLK_FILE_HANDLE     fd_l;
 static ULONG                pdoMemOffset = 0;
 
 //------------------------------------------------------------------------------
@@ -135,6 +135,7 @@ remapped to the user space.
 //------------------------------------------------------------------------------
 tOplkError pdoucal_closeMem(void)
 {
+    fd_l = (OPLK_FILE_HANDLE)0;
     return kErrorOk;
 }
 
@@ -154,7 +155,7 @@ The function allocates shared memory for the user needed to transfer the PDOs.
 //------------------------------------------------------------------------------
 tOplkError pdoucal_allocateMem(size_t memSize_p, BYTE** ppPdoMem_p)
 {
-    INT                         ret = 0;
+    INT     ret = 0;
 
     *ppPdoMem_p = mmap(NULL, memSize_p + getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED,
                        fd_l, 0);

@@ -51,6 +51,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PLK_DRV_NAME      "plk"
 #define PLK_DEV_FILE      "/dev/plk"
 #define PLK_IOC_MAGIC     '='
+
 //------------------------------------------------------------------------------
 //  Commands for <ioctl>
 //------------------------------------------------------------------------------

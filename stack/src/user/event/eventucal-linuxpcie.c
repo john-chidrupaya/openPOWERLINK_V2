@@ -90,7 +90,7 @@ CAL module.
 */
 typedef struct
 {
-    int                 fd;                     ///< File descriptor for the kernel PCIe driver
+    OPLK_FILE_HANDLE    fd;                     ///< File descriptor for the kernel PCIe driver
     pthread_t           kernelEventThreadId;    ///< K2U event processing thread Id
     pthread_t           userEventThreadId;      ///< UInt event processing thread Id
     pthread_mutex_t     userEventMutex;         ///< Mutex for accessing pending user event counter
@@ -110,8 +110,8 @@ static tEventuCalInstance    instance_l;
 // local function prototypes
 //------------------------------------------------------------------------------
 void                signalUserEvent(void);
-static void*        eventKThread(void* arg_p);
-static void*        eventUThread(void* arg_p);
+static void*        eventKThread(void* pArg_p);
+static void*        eventUThread(void* pArg_p);
 static tOplkError   postEvent(tEvent* pEvent_p);
 
 //============================================================================//
@@ -151,20 +151,14 @@ tOplkError eventucal_init(void)
     instance_l.userEventCount = 0;
 
     if (eventucal_initQueueCircbuf(kEventQueueUInt) != kErrorOk)
-    {
         goto Exit;
-    }
 
     if (eventucal_setSignalingCircbuf(kEventQueueUInt, signalUserEvent) != kErrorOk)
-    {
         goto Exit;
-    }
 
     // Create thread for signalling new user data from kernel
     if (pthread_create(&instance_l.kernelEventThreadId, NULL, eventKThread, NULL) != 0)
-    {
         goto Exit;
-    }
 
     schedParam.__sched_priority = USER_EVENT_THREAD_PRIORITY;
     if (pthread_setschedparam(instance_l.kernelEventThreadId, SCHED_FIFO, &schedParam) != 0)
@@ -179,9 +173,7 @@ tOplkError eventucal_init(void)
 
     // Create thread for signalling new user internal data
     if (pthread_create(&instance_l.userEventThreadId, NULL, eventUThread, NULL) != 0)
-    {
         goto Exit;
-    }
 
     schedParam.__sched_priority = USER_EVENT_THREAD_PRIORITY;
     if (pthread_setschedparam(instance_l.userEventThreadId, SCHED_FIFO, &schedParam) != 0)
@@ -250,6 +242,7 @@ tOplkError eventucal_exit(void)
     }
 
     eventucal_exitQueueCircbuf(kEventQueueUInt);
+    instance_l.fd = (OPLK_FILE_HANDLE)0;
     return kErrorOk;
 }
 
@@ -276,7 +269,7 @@ tOplkError eventucal_postUserEvent(tEvent* pEvent_p)
     ret = eventucal_postEventCircbuf(kEventQueueUInt, pEvent_p);
     if (ret != kErrorOk)
     {
-        DEBUG_LVL_ERROR_TRACE("UInt event could not be posted!!\n");
+        DEBUG_LVL_ERROR_TRACE("User internal event could not be posted!!\n");
     }
 
     return ret;
@@ -361,17 +354,17 @@ static tOplkError postEvent(tEvent* pEvent_p)
 This function implements the K2U event thread. The thread uses the ioctl
 interface to the PCIe driver to wait for an event to be posted from the PCP.
 
-\param  arg_p                Thread argument.
+\param  pArg_p              Thread argument.
 
 */
 //------------------------------------------------------------------------------
-static void* eventKThread(void* arg_p)
+static void* eventKThread(void* pArg_p)
 {
     tEvent*     pEvent;
     int         ret;
     char        eventBuf[sizeof(tEvent) + MAX_EVENT_ARG_SIZE];
 
-    UNUSED_PARAMETER(arg_p);
+    UNUSED_PARAMETER(pArg_p);
 
     pEvent = (tEvent*)eventBuf;
 
@@ -389,8 +382,12 @@ static void* eventKThread(void* arg_p)
 
             ret = eventu_process(pEvent);
         }
+        else
+        {
+            // Ignore errors from kernel
+            DEBUG_LVL_EVENTK_TRACE("Error in retrieving kernel to user event!!\n");
+        }
 
-        // Ignore errors from kernel
     }
 
     instance_l.fStopKernelThread = FALSE;
@@ -405,13 +402,13 @@ static void* eventKThread(void* arg_p)
 This function implements the UInt event thread. The thread waits for an user
 event to be posted to the circular buffer and then processes it, once signalled.
 
-\param  arg_p                Thread argument.
+\param  pArg_p              Thread argument.
 
 */
 //------------------------------------------------------------------------------
-static void* eventUThread(void* arg_p)
+static void* eventUThread(void* pArg_p)
 {
-    UNUSED_PARAMETER(arg_p);
+    UNUSED_PARAMETER(pArg_p);
 
     while (!instance_l.fStopUserThread)
     {
@@ -453,4 +450,4 @@ void signalUserEvent(void)
     pthread_cond_signal(&instance_l.userEventCondition);
 }
 
-///\}
+/// \}
