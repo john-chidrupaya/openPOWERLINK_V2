@@ -136,7 +136,7 @@ The function shuts down the memory mapping service.
 //------------------------------------------------------------------------------
 tMemMapReturn memmap_shutdown(void)
 {
-    fd_l = (INT)NULL;
+    fd_l = -1;
     return kMemMapOk;
 }
 

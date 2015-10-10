@@ -1,6 +1,6 @@
 /**
 ********************************************************************************
-\file   dualprocshm-linuxpci.c
+\file   dualprocshm-linuxpcie.c
 
 \brief  Dual Processor Library Support File - Linux PCIe
 
@@ -41,7 +41,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 
 #include <dualprocshm.h>
-#include <common/target.h>
 #include <pcieDrv.h>
 
 //============================================================================//
@@ -51,7 +50,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
-#define DEFAULT_LOCK_ID             0x00    ///< Default lock Id
 
 //------------------------------------------------------------------------------
 // module global vars
@@ -397,9 +395,9 @@ The function is used to enable or disable the sync interrupt.
 void dualprocshm_enableSyncIrq(BOOL fEnable_p)
 {
     if (fEnable_p)
-        DPSHM_ENABLE_SYNC_INTR();
+        pcieDrv_enableSync(TRUE);
     else
-        DPSHM_DISABLE_SYNC_INTR();
+        pcieDrv_enableSync(FALSE);
 }
 
 //============================================================================//

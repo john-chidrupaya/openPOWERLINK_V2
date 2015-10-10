@@ -145,7 +145,7 @@ SET(MODULE_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/drvintf-dualprocshm.c
     ${CMAKE_CURRENT_SOURCE_DIR}/pcieDrv.c
-    ${CONTRIB_SOURCE_DIR}/dualprocshm/src/dualprocshm-linuxpci.c
+    ${CONTRIB_SOURCE_DIR}/dualprocshm/src/dualprocshm-linuxpcie.c
     ${CONTRIB_SOURCE_DIR}/dualprocshm/src/dualprocshm-intr.c
     ${CONTRIB_SOURCE_DIR}/dualprocshm/src/dualprocshm-noos.c
     ${COMMON_SOURCE_DIR}/circbuf/circbuf-noosdual.c
