@@ -90,15 +90,15 @@ CAL module.
 */
 typedef struct
 {
-    OPLK_FILE_HANDLE    fd;                     ///< File descriptor for the kernel PCIe driver
-    pthread_t           kernelEventThreadId;    ///< K2U event processing thread Id
-    pthread_t           userEventThreadId;      ///< UInt event processing thread Id
-    pthread_mutex_t     userEventMutex;         ///< Mutex for accessing pending user event counter
-    pthread_cond_t      userEventCondition;     ///< Conditional variable for signalling UInt event
-    OPLK_ATOMIC_T       userEventCount;         ///< Pending user event counter
-    BOOL                fStopKernelThread;      ///< Flag to start stop K2U event thread
-    BOOL                fStopUserThread;        ///< Flag to start stop UInt event thread
-    BOOL                fInitialized;           ///< Flag indicate the valid state of this module
+    OPLK_FILE_HANDLE    fd;                     ///< File descriptor for the kernel PCIe driver.
+    pthread_t           kernelEventThreadId;    ///< K2U event processing thread Id.
+    pthread_t           userEventThreadId;      ///< UInt event processing thread Id.
+    pthread_mutex_t     userEventMutex;         ///< Mutex for accessing pending user event counter.
+    pthread_cond_t      userEventCondition;     ///< Conditional variable for signalling UInt event.
+    OPLK_ATOMIC_T       userEventCount;         ///< Pending user event counter.
+    BOOL                fStopKernelThread;      ///< Flag to start stop K2U event thread.
+    BOOL                fStopUserThread;        ///< Flag to start stop UInt event thread.
+    BOOL                fInitialized;           ///< Flag indicate the valid state of this module.
 } tEventuCalInstance;
 
 //------------------------------------------------------------------------------

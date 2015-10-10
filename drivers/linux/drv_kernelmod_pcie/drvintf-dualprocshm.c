@@ -2,14 +2,15 @@
 ********************************************************************************
 \file   drvintf-dualprocshm.c
 
-\brief  Interface module for openPOWERLINK PCIe interface driver to PCP
+\brief  Dualprocshm interface module to kernel stack for openPOWERLINK
+        interface driver
 
 This module handles all the application request forwarded to the openPOWERLINK
-PCIe driver in Linux kernel. It uses dualprocshm and circbuf libraries to manage PDO
-memory, error objects shared memory, event and DLL queues.
+interface driver in Linux kernel. It uses dualprocshm and circbuf libraries to
+manage PDO memory, error objects shared memory, event and DLL queues.
 
-The module also implements mapping of kernel memory into user space to provide
-direct access to user application for specific shared memory regions.
+The module also implements mapping of kernel stack memory into user stack to
+provide direct access to user application for specific shared memory regions.
 
 \ingroup module_driver_linux_kernel_pcie
 *******************************************************************************/
@@ -45,15 +46,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // includes
 //------------------------------------------------------------------------------
 #include <oplk/oplk.h>
-
 #include <errhndkcal.h>
 #include <dualprocshm.h>
 #include <common/circbuffer.h>
-
 #include <drvintf.h>
 #include <kernel/pdokcal.h>
-
 #include <common/timer.h>
+
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
 //============================================================================//
@@ -66,7 +65,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
-// $$ Get the follwing value from configuration header files
+// $$ Get the following value from configuration header files
 #define DUALPROCSHM_BUFF_ID_ERRHDLR     12
 #define DUALPROCSHM_BUFF_ID_PDO         13
 #define BENCHMARK_OFFSET                0x00001000
@@ -83,7 +82,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // const defines
 //------------------------------------------------------------------------------
 #define CMD_TIMEOUT_CNT                 500 // Loop count for command timeout in units of 10ms
-#define DPSHM_ENABLE_TIMEOUT_SEC        10  // wait for dpshm interface enable time out
+#define DPSHM_ENABLE_TIMEOUT_SEC        10  // Wait for dpshm interface enable time out
+
 //------------------------------------------------------------------------------
 // local types
 //------------------------------------------------------------------------------
@@ -101,9 +101,9 @@ typedef struct
     tCircBufInstance*       apDllQueueInst[kDllCalQueueTxVeth + 1]; ///< DLL queue instances.
     tErrHndObjects*         pErrorObjects;                      ///< Pointer to error objects.
     BOOL                    fDriverActive;                      ///< Flag to identify status of driver interface.
-    ULONG                   shmMemLocal;                        ///< Shared memory base address for local processor (OS)
-    ULONG                   shmMemRemote;                       ///< Shared memory base address for remote processor (PCP)
-    size_t                  shmSize;                            ///< Shared memory span
+    ULONG                   shmMemLocal;                        ///< Shared memory base address for local processor (OS).
+    ULONG                   shmMemRemote;                       ///< Shared memory base address for remote processor (PCP).
+    size_t                  shmSize;                            ///< Shared memory span.
 }tDrvIntfInstance;
 //------------------------------------------------------------------------------
 // local vars
@@ -205,9 +205,10 @@ copying it into the common control structure.
 //------------------------------------------------------------------------------
 tOplkError drvintf_executeCmd(tCtrlCmd* pCtrlCmd_p)
 {
-    tOplkError    ret = kErrorOk;
+    tOplkError      ret = kErrorOk;
     UINT16          cmd = pCtrlCmd_p->cmd;
     INT             timeout;
+
     // Clean up stack
     if ((cmd == kCtrlCleanupStack) || (cmd == kCtrlShutdown))
     {
@@ -319,6 +320,7 @@ memory of stack.
 tOplkError drvintf_storeInitParam(tCtrlInitParam* pInitParam_p)
 {
     tDualprocReturn    dualRet;
+
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
 
@@ -337,7 +339,7 @@ tOplkError drvintf_storeInitParam(tCtrlInitParam* pInitParam_p)
 
 //------------------------------------------------------------------------------
 /**
-\brief  Get PCP status
+\brief  Get kernel stack status
 
 Return the current status of kernel stack.
 
@@ -701,8 +703,6 @@ tOplkError drvintf_mapKernelMem(UINT8* pKernelMem_p,
     tDualprocReturn             dualRet;
     tDualprocSharedMemInst      localProcSharedMemInst;
     tDualprocSharedMemInst      remoteProcSharedMemInst;
-    tDualProcInstance           localProcInst;
-    tDualProcInstance           remoteProcInst;
 
     if ((pKernelMem_p == NULL) || (ppUserMem_p == NULL) ||
         (!drvIntfInstance_l.fDriverActive))
@@ -715,9 +715,9 @@ tOplkError drvintf_mapKernelMem(UINT8* pKernelMem_p,
         (drvIntfInstance_l.shmSize == 0))
     {
         // Get the local processor's shared memory instance
-        localProcInst = dualprocshm_getLocalProcInst();
         dualRet = dualprocshm_getSharedMemInfo(drvIntfInstance_l.dualProcDrvInst,
-                                               localProcInst, &localProcSharedMemInst);
+                                               dualprocshm_getLocalProcInst(),
+                                               &localProcSharedMemInst);
 
         if ((dualRet != kDualprocSuccessful) ||
             (localProcSharedMemInst.baseAddr == (UINT64)0))
@@ -728,9 +728,9 @@ tOplkError drvintf_mapKernelMem(UINT8* pKernelMem_p,
         }
 
         // Get the remote processor's shared memory instance
-        remoteProcInst = dualprocshm_getRemoteProcInst();
         dualRet = dualprocshm_getSharedMemInfo(drvIntfInstance_l.dualProcDrvInst,
-                                               remoteProcInst, &remoteProcSharedMemInst);
+                                               dualprocshm_getRemoteProcInst(),
+                                               &remoteProcSharedMemInst);
 
         if ((dualRet != kDualprocSuccessful) ||
             (remoteProcSharedMemInst.baseAddr == (UINT64)0))
@@ -920,9 +920,9 @@ static tOplkError initStackInterface(void)
 /**
 \brief  Initialize event queues
 
-Initializes shared event queues between user and kernel layer of stack. The memory for the
-queues allocated in PCIe memory by PCP, are retrieved using dualprocshm library.
-The circular buffer library is used to manage the queues.
+Initializes shared event queues between user and kernel layer of stack. The
+memory for the queues allocated in PCIe memory by PCP, are retrieved using
+dualprocshm library. The circular buffer library is used to manage the queues.
 
 \return Returns tOplkError error code.
 
@@ -1159,4 +1159,4 @@ Exit:
     return ret;
 }
 
-///\}
+/// \}

@@ -55,6 +55,10 @@ typedef tOplkError (*irqCallback)(void); ///< Function signature of PCIe ISR cal
 // function prototypes
 //------------------------------------------------------------------------------
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 tOplkError  pcieDrv_init(void);
 tOplkError  pcieDrv_shutdown(void);
 ULONG       pcieDrv_getBarLength(ULONG barCount_p);
@@ -62,5 +66,8 @@ ULONG       pcieDrv_getBarAddr(UINT8 barCount_p);
 ULONG       pcieDrv_getBarPhyAddr(UINT8 barCount_p);
 tOplkError  pcieDrv_regSyncHandler(irqCallback cbSync_p);
 tOplkError  pcieDrv_enableSync(BOOL fEnable_p);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _INC_pciedrv_H_ */

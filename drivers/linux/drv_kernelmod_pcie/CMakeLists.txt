@@ -1,6 +1,6 @@
 ################################################################################
 #
-# CMake file for openPOWERLINK user pcie interface (Linux kernel PCie module)
+# CMake file for openPOWERLINK user PCIe interface (Linux kernel PCIe module)
 #
 # Copyright (c) 2013, SYSTEC electronik GmbH
 # Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
@@ -103,7 +103,7 @@ SET(MODULE_NAME "oplk${MODULE_NAME}PcieIntf")
 
 ###############################################################################
 #
-# specifiy standard definitions
+# Specifiy standard definitions
 #
 IF(CMAKE_BUILD_TYPE STREQUAL Debug OR CMAKE_BUILD_TYPE STREQUAL DEBUG)
     ADD_DEFINITIONS(-D_DEBUG -DDEF_DEBUG_LVL=${CFG_DEBUG_LVL})
@@ -119,7 +119,7 @@ ENDFOREACH()
 
 ###############################################################################
 #
-# specifiy standard include directories
+# Specifiy standard include directories
 #
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
@@ -138,7 +138,7 @@ FOREACH(NEXT_INCLUDE_DIR ${DRIVER_INCLUDE_DIRS})
 ENDFOREACH()
 
 #
-# specifiy source files
+# Specifiy source files
 #
 SET(MODULE_SOURCE_FILES
     ${MODULE_SOURCE_FILES}

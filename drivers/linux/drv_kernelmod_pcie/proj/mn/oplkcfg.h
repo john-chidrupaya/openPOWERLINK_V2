@@ -2,15 +2,18 @@
 ********************************************************************************
 \file   oplkcfg.h
 
-\brief  Configuration options for openPOWERLINK MN kernel module
+\brief  Configuration options for openPOWERLINK MN PCIe interface module
 
-This file contains the configuration options for the openPOWERLINK kernel module
+This file contains the configuration options for the openPOWERLINK MN
+PCIe interface module. The configurations defined here must be same as the
+equivalent configurations in user and kernel layers of the stack.
 
 *******************************************************************************/
 
 /*------------------------------------------------------------------------------
 Copyright (c) 2012, SYSTEC electronik GmbH
 Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
+Copyright (c) 2015, Kalycito Infotech Private Limited
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -44,13 +47,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //==============================================================================
 
 #ifndef BENCHMARK_MODULES
-#define BENCHMARK_MODULES                           0 //0xEE800042L
+#define BENCHMARK_MODULES                           0
 #endif
 
 // Default debug level:
 // Only debug traces of these modules will be compiled which flags are set in define DEF_DEBUG_LVL.
 #ifndef DEF_DEBUG_LVL
-#define DEF_DEBUG_LVL                               (0xC00000000L)
+#define DEF_DEBUG_LVL                               (0xEC000000L)
 #endif
 
 #undef FTRACE_DEBUG
@@ -64,44 +67,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define CONFIG_DLLCAL_QUEUE                         CIRCBUF_QUEUE
 
-
-//==============================================================================
-// Ethernet driver (Edrv) specific defines
-//==============================================================================
-
-// switch this define to TRUE if Edrv supports fast tx frames
-#define CONFIG_EDRV_FAST_TXFRAMES                   FALSE
-
-// switch this define to TRUE if Edrv supports early receive interrupts
-#define CONFIG_EDRV_EARLY_RX_INT                    FALSE
-
-// switch this define to TRUE if Edrv supports auto delay responses
-#define CONFIG_EDRV_AUTO_RESPONSE_DELAY             FALSE
-
-// switch this define to TRUE to include Edrv diagnostic functions
-#define CONFIG_EDRV_USE_DIAGNOSTICS                 FALSE
-
 //==============================================================================
 // Data Link Layer (DLL) specific defines
 //==============================================================================
-
-// switch this define to TRUE if Edrv supports fast tx frames
-// and DLL shall pass PRes as ready to Edrv after SoC
-#define CONFIG_DLL_PRES_READY_AFTER_SOC             FALSE
-
-// switch this define to TRUE if Edrv supports fast tx frames
-// and DLL shall pass PRes as ready to Edrv after SoA
-#define CONFIG_DLL_PRES_READY_AFTER_SOA             FALSE
-
 // CN supports PRes Chaining
 #define CONFIG_DLL_PRES_CHAINING_CN                 FALSE
 
-// time when CN processing the isochronous task (sync callback of application and cycle preparation)
-#define CONFIG_DLL_PROCESS_SYNC                     DLL_PROCESS_SYNC_ON_SOC
-
-// Enable deferred buffer release for Ethernet drivers supporting it
+// Enable deferred buffer release as configured by the kernel stack
 #define CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_SYNC    FALSE
-#define CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC   FALSE
+#define CONFIG_DLL_DEFERRED_RXFRAME_RELEASE_ASYNC   TRUE
 
 //==============================================================================
 // Timer module specific defines

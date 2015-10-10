@@ -9,6 +9,7 @@ for the openPOWERLINK kernel stack.
 
 \ingroup module_driver_linux_kernel_pcie
 *******************************************************************************/
+
 /*------------------------------------------------------------------------------
 Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
 Copyright (c) 2015, Kalycito Private Limited
@@ -68,7 +69,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("chidrupaya.sr@kalycito.com");
-MODULE_DESCRIPTION("openPOWERLINK pcie driver");
+MODULE_DESCRIPTION("openPOWERLINK PCIe driver");
 
 // VM_RESERVED is removed in kernels > 3.7
 #ifndef VM_RESERVED
@@ -123,7 +124,7 @@ typedef struct
 //------------------------------------------------------------------------------
 // local vars
 //------------------------------------------------------------------------------
-tDrvInstance    instance_l;                                 // Instance of this driver
+static tDrvInstance    instance_l;          // Instance of this driver
 
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -132,31 +133,35 @@ tDrvInstance    instance_l;                                 // Instance of this 
 static INT __init   plkIntfInit(void);
 static void __exit  plkIntfExit(void);
 
-static INT          plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p);
-static INT          plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p);
-static ssize_t      plkIntfRead(struct file* pInstance_p, char* pDstBuff_p, size_t BuffSize_p, loff_t* pFileOffs_p);
-static ssize_t      plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p, size_t BuffSize_p, loff_t* pFileOffs_p);
+static INT          plkIntfOpen(struct inode* pDeviceFile_p,
+                                struct file* pInstance_p);
+static INT          plkIntfRelease(struct inode* pDeviceFile_p,
+                                   struct file* pInstance_p);
+static ssize_t      plkIntfRead(struct file* pInstance_p, char* pDstBuff_p,
+                                size_t buffSize_p, loff_t* pFileOffs_p);
+static ssize_t      plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p,
+                                 size_t buffSize_p, loff_t* pFileOffs_p);
 #ifdef HAVE_UNLOCKED_IOCTL
-static long         plkIntfIoctl(struct file* filp, unsigned INT cmd, ULONG arg);
+static long         plkIntfIoctl(struct file* pFile_p, unsigned INT cmd, ULONG arg_p);
 #else
-static INT          plkIntfIoctl(struct inode* dev, struct file* filp, unsigned INT cmd, ULONG arg);
+static INT          plkIntfIoctl(struct inode* pDev_p, struct file* pFile_p,
+                                 unsigned INT cmd_p, ULONG arg_p);
 #endif
 
-static INT          plkIntfMmap(struct file* filp, struct vm_area_struct* vma);
-static void         plkIntfVmaOpen(struct vm_area_struct* vma);
-static void         plkIntfVmaClose(struct vm_area_struct* vma);
+static INT          plkIntfMmap(struct file* pFile_p, struct vm_area_struct* pVma_p);
+static void         plkIntfVmaOpen(struct vm_area_struct* pVma_p);
+static void         plkIntfVmaClose(struct vm_area_struct* pVma_p);
 
 static INT          executeCmd(ULONG arg_p);
 static INT          readInitParam(ULONG arg_p);
 static INT          storeInitParam(ULONG arg_p);
 static INT          getStatus(ULONG arg_p);
-static INT          getHeartbeat(ULONG arg);
-static INT          sendAsyncFrame(ULONG arg);
-static INT          writeErrorObject(ULONG arg);
-static INT          readErrorObject(ULONG arg);
-
+static INT          getHeartbeat(ULONG arg_p);
+static INT          sendAsyncFrame(ULONG arg_p);
+static INT          writeErrorObject(ULONG arg_p);
+static INT          readErrorObject(ULONG arg_p);
 static INT          getEventForUser(ULONG arg_p);
-static INT          postEventFromUser(ULONG arg);
+static INT          postEventFromUser(ULONG arg_p);
 
 //------------------------------------------------------------------------------
 //  Kernel module specific data structures
@@ -272,6 +277,14 @@ static void __exit plkIntfExit(void)
 
 The function implements openPOWERLINK kernel pcie interface module open function.
 
+\param  pDeviceFile_p   Pointer to device file data structure.
+\param  pInstance_p     Pointer to the device file object.
+
+\return The function returns an integer value.
+\retval 0           Successful.
+\retval -ENOTTY         One instance of the driver is already active.
+\retval -EIO            Unable to initialize the driver.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
@@ -284,6 +297,9 @@ static INT plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
         atomic_dec(&openCount_g);
         return -ENOTTY;
     }
+
+    UNUSED_PARAMETER(pDeviceFile_p);
+    UNUSED_PARAMETER(pInstance_p);
 
     instance_l.bufPageOffset = 0;
     instance_l.pPdoMem = NULL;
@@ -314,12 +330,21 @@ static INT plkIntfOpen(struct inode* pDeviceFile_p, struct file* pInstance_p)
 
 The function implements openPOWERLINK kernel module close function.
 
+\param  pDeviceFile_p   Pointer to device file data structure.
+\param  pInstance_p     Pointer to the device file object.
+
+\return The function returns an integer value.
+\retval 0               Successful.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static INT  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p)
 {
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRelease...\n");
+
+    UNUSED_PARAMETER(pDeviceFile_p);
+    UNUSED_PARAMETER(pInstance_p);
 
     instance_l.bufPageOffset = 0;
     instance_l.pPdoMem = NULL;
@@ -338,13 +363,25 @@ static INT  plkIntfRelease(struct inode* pDeviceFile_p, struct file* pInstance_p
 
 The function implements openPOWERLINK kernel pcie interface module read function.
 
+\param  pInstance_p     Pointer to the device file object.
+\param  pDstBuff_p      Pointer to the destination buffer, to copy the read data.
+\param  buffSize_p      Size of the destination buffer.
+\param  pFileOffs_p     Pointer to the long offset in the file.
+
+\return The function returns the actual size of the read data.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static ssize_t plkIntfRead(struct file* pInstance_p, char* pDstBuff_p,
-                             size_t BuffSize_p, loff_t* pFileOffs_p)
+                             size_t buffSize_p, loff_t* pFileOffs_p)
 {
-    INT    ret;
+    INT    ret = 0;
+
+    UNUSED_PARAMETER(pInstance_p);
+    UNUSED_PARAMETER(pDstBuff_p);
+    UNUSED_PARAMETER(buffSize_p);
+    UNUSED_PARAMETER(pFileOffs_p);
 
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfRead...\n");
     DEBUG_LVL_ALWAYS_TRACE("PLK:   Sorry, this operation isn't supported.\n");
@@ -359,13 +396,26 @@ static ssize_t plkIntfRead(struct file* pInstance_p, char* pDstBuff_p,
 
 The function implements openPOWERLINK kernel pcie interface module write function.
 
+\param  pInstance_p     Pointer to the device file object.
+\param  pDstBuff_p      Pointer to the source buffer, to copy the data to
+                        be written.
+\param  buffSize_p      Size of the data to be written.
+\param  pFileOffs_p     Pointer to the long offset in the file.
+
+\return The function returns the actual size of the written data.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 static ssize_t plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p,
-                              size_t BuffSize_p, loff_t* pFileOffs_p)
+                              size_t buffSize_p, loff_t* pFileOffs_p)
 {
-    INT    ret;
+    INT    ret = 0;
+
+    UNUSED_PARAMETER(pInstance_p);
+    UNUSED_PARAMETER(pDstBuff_p);
+    UNUSED_PARAMETER(buffSize_p);
+    UNUSED_PARAMETER(pFileOffs_p);
 
     DEBUG_LVL_ALWAYS_TRACE("PLK: + plkIntfWrite...\n");
     DEBUG_LVL_ALWAYS_TRACE("PLK:   Sorry, this operation isn't supported.\n");
@@ -380,60 +430,74 @@ static ssize_t plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p,
 
 The function implements openPOWERLINK kernel pcie interface module ioctl function.
 
+\param  pDev_p      Pointer to device file data structure.
+\param  pFile_p     Pointer to the device file object.
+\param  cmd_p       Type of the ioctl operation.
+\param  arg_p       Argument address for the ioctl operation.
+
+\return The function returns an integer value.
+\retval 0           The ioctl operation was successful.
+\retval < 0         The ioctl operation generateed error.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
 #ifdef HAVE_UNLOCKED_IOCTL
-static long plkIntfIoctl(struct file* filp, UINT cmd,
-                         ULONG arg)
+static long plkIntfIoctl(struct file* pFile_p, UINT cmd_p,
+                         ULONG arg_p)
 #else
-static INT  plkIntfIoctl(struct inode* dev, struct file* filp,
-                           UINT cmd, ULONG arg)
+static INT  plkIntfIoctl(struct inode* pDev_p, struct file* pFile_p,
+                           UINT cmd_p, ULONG arg_p)
 #endif
 {
     INT             ret = -EINVAL;
     tOplkError      oplRet;
 
-    switch (cmd)
+    UNUSED_PARAMETER(pFile_p);
+#ifndef HAVE_UNLOCKED_IOCTL
+    UNUSED_PARAMETER(pDev_p);
+#endif
+
+    switch (cmd_p)
     {
         case PLK_CMD_CTRL_EXECUTE_CMD:
-            ret = executeCmd(arg);
+            ret = executeCmd(arg_p);
             break;
 
         case PLK_CMD_CTRL_STORE_INITPARAM:
-            ret = storeInitParam(arg);
+            ret = storeInitParam(arg_p);
             break;
 
         case PLK_CMD_CTRL_READ_INITPARAM:
-            ret = readInitParam(arg);
+            ret = readInitParam(arg_p);
             break;
 
         case PLK_CMD_CTRL_GET_STATUS:
-            ret = getStatus(arg);
+            ret = getStatus(arg_p);
             break;
 
         case PLK_CMD_CTRL_GET_HEARTBEAT:
-            ret = getHeartbeat(arg);
+            ret = getHeartbeat(arg_p);
             break;
 
         case PLK_CMD_POST_EVENT:
-            ret = postEventFromUser(arg);
+            ret = postEventFromUser(arg_p);
             break;
 
         case PLK_CMD_GET_EVENT:
-            ret = getEventForUser(arg);
+            ret = getEventForUser(arg_p);
             break;
 
         case PLK_CMD_DLLCAL_ASYNCSEND:
-            ret = sendAsyncFrame(arg);
+            ret = sendAsyncFrame(arg_p);
             break;
 
         case PLK_CMD_ERRHND_WRITE:
-            ret = writeErrorObject(arg);
+            ret = writeErrorObject(arg_p);
             break;
 
         case PLK_CMD_ERRHND_READ:
-            ret = readErrorObject(arg);
+            ret = readErrorObject(arg_p);
             break;
 
         case PLK_CMD_TIMESYNC_SYNC:
@@ -452,7 +516,7 @@ static INT  plkIntfIoctl(struct inode* dev, struct file* filp,
             break;
 
         case PLK_CMD_PDO_MAP_OFFSET:
-            if (copy_to_user((void __user*)arg, &instance_l.bufPageOffset, sizeof(ULONG)))
+            if (copy_to_user((void __user*)arg_p, &instance_l.bufPageOffset, sizeof(ULONG)))
             {
                 DEBUG_LVL_ERROR_TRACE("PDO mmapped offset fetch Error!!\n");
                 ret = -EFAULT;
@@ -463,7 +527,7 @@ static INT  plkIntfIoctl(struct inode* dev, struct file* filp,
             break;
 
         default:
-            DEBUG_LVL_ERROR_TRACE("PLK: - Invalid cmd (cmd=%d type=%d)\n", _IOC_NR(cmd), _IOC_TYPE(cmd));
+            DEBUG_LVL_ERROR_TRACE("PLK: - Invalid cmd (cmd=%d type=%d)\n", _IOC_NR(cmd_p), _IOC_TYPE(cmd_p));
             ret = -ENOTTY;
             break;
     }
@@ -477,10 +541,17 @@ static INT  plkIntfIoctl(struct inode* dev, struct file* filp,
 
 The function implements openPOWERLINK kernel pcie interface module mmap function.
 
+\param  pFile_p     Pointer to the device file object.
+\param  pVma_p      Pointer to the virtual memory object of user.
+
+\return The function returns an integer value.
+\retval 0           The ioctl operation was successful.
+\retval < 0         The ioctl operation generateed error.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
+static INT plkIntfMmap(struct file* pFile_p, struct vm_area_struct* pVma_p)
 {
     UINT8*          pPciMem = NULL;
     size_t          memSize = 0;
@@ -488,12 +559,15 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
     ULONG           pageAddr = 0;
 
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
-                           __func__, vma->vm_start, vma->vm_end, vma->vm_pgoff);
+                           __func__, pVma_p->vm_start,
+                           pVma_p->vm_end, pVma_p->vm_pgoff);
 
-    vma->vm_flags |= VM_RESERVED | VM_IO;
-    vma->vm_ops = &powerlinkVmOps;
+    UNUSED_PARAMETER(pFile_p);
 
-    if (vma->vm_pgoff == 0)
+    pVma_p->vm_flags |= VM_RESERVED | VM_IO;
+    pVma_p->vm_ops = &powerlinkVmOps;
+
+    if (pVma_p->vm_pgoff == 0)
     {
         ret = drvintf_getPdoMem(&pPciMem, &memSize);
 
@@ -505,13 +579,13 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 
         instance_l.pPdoMem = pPciMem;
         instance_l.pdoMemSize = memSize;
-        instance_l.pdoVmaStartAddr = vma->vm_start;
+        instance_l.pdoVmaStartAddr = pVma_p->vm_start;
         // Get the bus address of the PDO memory
         pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPciMem - pcieDrv_getBarAddr(0));
     }
     else
     {
-        pPciMem = (UINT8*)(vma->vm_pgoff << PAGE_SHIFT);
+        pPciMem = (UINT8*)(pVma_p->vm_pgoff << PAGE_SHIFT);
         ret = drvintf_mapKernelMem((UINT8*)pPciMem,
                                    (UINT8**)&pageAddr,
                                    (size_t)memSize);
@@ -521,19 +595,19 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
         pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pageAddr - pcieDrv_getBarAddr(0));
     }
 
-    vma->vm_pgoff = pageAddr >> PAGE_SHIFT;
+    pVma_p->vm_pgoff = pageAddr >> PAGE_SHIFT;
     // Save the offset of the PDO memory address from the start of page boundary
-    instance_l.bufPageOffset = (ULONG)(pageAddr - (vma->vm_pgoff << PAGE_SHIFT));
+    instance_l.bufPageOffset = (ULONG)(pageAddr - (pVma_p->vm_pgoff << PAGE_SHIFT));
 
-    if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-                           vma->vm_end - vma->vm_start + instance_l.bufPageOffset - PAGE_SIZE,
-                           vma->vm_page_prot))
+    if (io_remap_pfn_range(pVma_p, pVma_p->vm_start, pVma_p->vm_pgoff,
+                           pVma_p->vm_end - pVma_p->vm_start + instance_l.bufPageOffset - PAGE_SIZE,
+                           pVma_p->vm_page_prot))
     {
         DEBUG_LVL_ERROR_TRACE("%s() remap_pfn_range failed\n", __func__);
         return -EAGAIN;
     }
 
-    plkIntfVmaOpen(vma);
+    plkIntfVmaOpen(pVma_p);
     return 0;
 }
 
@@ -543,33 +617,40 @@ static INT plkIntfMmap(struct file* filp, struct vm_area_struct* vma)
 
 The function implements openPOWERLINK kernel module VMA open function.
 
+\param  pVma_p      Pointer to the virtual memory object of user.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-static void plkIntfVmaOpen(struct vm_area_struct* vma)
+static void plkIntfVmaOpen(struct vm_area_struct* pVma_p)
 {
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
-                           __func__, vma->vm_start, vma->vm_end, vma->vm_pgoff);
+                           __func__, pVma_p->vm_start,
+                           pVma_p->vm_end, pVma_p->vm_pgoff);
+    UNUSED_PARAMETER(pVma_p);
 }
 
 //------------------------------------------------------------------------------
-/**TRACE
+/**
 \brief  openPOWERLINK pcie driver VMA close function
 
 The function implements openPOWERLINK kernel module VMA close function.
 
+\param  pVma_p      Pointer to the virtual memory object of user.
+
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-static void plkIntfVmaClose(struct vm_area_struct* vma)
+static void plkIntfVmaClose(struct vm_area_struct* pVma_p)
 {
     tOplkError      ret = kErrorOk;
 
     DEBUG_LVL_ALWAYS_TRACE("%s() vma: vm_start:%lX vm_end:%lX vm_pgoff:%lX\n",
-                           __func__, vma->vm_start, vma->vm_end, vma->vm_pgoff);
+                           __func__, pVma_p->vm_start,
+                           pVma_p->vm_end, pVma_p->vm_pgoff);
 
     // Check if it is the PDO memory being freed
-    if (instance_l.pdoVmaStartAddr == vma->vm_start)
+    if (instance_l.pdoVmaStartAddr == pVma_p->vm_start)
     {
         ret = drvintf_freePdoMem(&instance_l.pPdoMem, instance_l.pdoMemSize);
         if (ret != kErrorOk)
@@ -596,7 +677,7 @@ static void plkIntfVmaClose(struct vm_area_struct* vma)
 
 This function waits for events to the user.
 
-\param  arg                Ioctl argument. Contains the received event.
+\param  arg_p              Ioctl argument. Contains the received event.
 
 \return The function returns Linux error code.
 */
@@ -658,19 +739,19 @@ INT getEventForUser(ULONG arg_p)
 
 This function posts an event from the user layer to the kernel queue.
 
-\param  arg                Ioctl argument. Contains the event to post.
+\param  arg_p              Ioctl argument. Contains the event to post.
 
 \return The function returns Linux error code.
 */
 //------------------------------------------------------------------------------
-INT postEventFromUser(ULONG arg)
+INT postEventFromUser(ULONG arg_p)
 {
     tOplkError      ret = kErrorOk;
     tEvent          event;
     UINT8*          pArg = NULL;
     INT             order = 0;
 
-    if (copy_from_user(&event, (const void __user*)arg, sizeof(tEvent)))
+    if (copy_from_user(&event, (const void __user*)arg_p, sizeof(tEvent)))
         return -EFAULT;
 
     if (event.eventArgSize != 0)
@@ -834,14 +915,14 @@ shared memory interface.
 \param arg_p    Pointer to the PCP heartbeat argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static INT getHeartbeat(ULONG arg)
+static INT getHeartbeat(ULONG arg_p)
 {
     UINT16    heartbeat;
 
     if (drvintf_getHeartbeat(&heartbeat) != kErrorOk)
         return -EFAULT;
 
-    put_user(heartbeat, (unsigned short __user*)arg);
+    put_user(heartbeat, (unsigned short __user*)arg_p);
     return 0;
 }
 
@@ -854,7 +935,7 @@ The function implements the ioctl used for sending asynchronous frames.
 \param arg_p    Pointer to the async send argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static INT sendAsyncFrame(ULONG arg)
+static INT sendAsyncFrame(ULONG arg_p)
 {
     UINT8*                  pBuf;
     tIoctlDllCalAsync       asyncFrameInfo;
@@ -864,7 +945,7 @@ static INT sendAsyncFrame(ULONG arg)
     order = get_order(C_DLL_MAX_ASYNC_MTU);
     pBuf = (UINT8*)__get_free_pages(GFP_KERNEL, order);
 
-    if (copy_from_user(&asyncFrameInfo, (const void __user*)arg, sizeof(tIoctlDllCalAsync)))
+    if (copy_from_user(&asyncFrameInfo, (const void __user*)arg_p, sizeof(tIoctlDllCalAsync)))
     {
         free_pages((ULONG)pBuf, order);
         return -EFAULT;
@@ -894,14 +975,14 @@ The function implements the ioctl for writing an error object.
 \param arg_p    Pointer to the error object argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static INT writeErrorObject(ULONG arg)
+static INT writeErrorObject(ULONG arg_p)
 {
-    tErrHndIoctl        writeObject;
+    tErrHndIoctl        errorObject;
 
-    if (copy_from_user(&writeObject, (const void __user*)arg, sizeof(tErrHndIoctl)))
+    if (copy_from_user(&errorObject, (const void __user*)arg_p, sizeof(tErrHndIoctl)))
         return -EFAULT;
 
-    if (drvintf_writeErrorObject(&writeObject) != kErrorOk)
+    if (drvintf_writeErrorObject(&errorObject) != kErrorOk)
         return -EFAULT;
 
     return 0;
@@ -916,20 +997,20 @@ The function implements the ioctl for reading error objects.
 \param arg_p    Pointer to the error object argument passed by the ioctl interface.
 */
 //------------------------------------------------------------------------------
-static INT readErrorObject(ULONG arg)
+static INT readErrorObject(ULONG arg_p)
 {
-    tErrHndIoctl        readObject;
+    tErrHndIoctl        errorObject;
 
-    if (copy_from_user(&readObject, (const void __user*)arg, sizeof(tErrHndIoctl)))
+    if (copy_from_user(&errorObject, (const void __user*)arg_p, sizeof(tErrHndIoctl)))
         return -EFAULT;
 
-    if (drvintf_readErrorObject(&readObject) != kErrorOk)
+    if (drvintf_readErrorObject(&errorObject) != kErrorOk)
         return -EFAULT;
 
-    if (copy_to_user((void __user*)arg, &readObject, sizeof(tErrHndIoctl)))
+    if (copy_to_user((void __user*)arg_p, &errorObject, sizeof(tErrHndIoctl)))
         return -EFAULT;
 
     return 0;
 }
 
-///\}
+/// \}

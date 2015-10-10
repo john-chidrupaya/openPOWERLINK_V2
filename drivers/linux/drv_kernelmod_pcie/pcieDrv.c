@@ -79,7 +79,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #error "Linux Kernel versions older 2.6.19 are not supported by this driver!"
 #endif
 
-#define OPLK_MAX_BAR_COUNT      6
+#define OPLK_MAX_BAR_COUNT      6   // Maximum BARs polled in the PCIe
+
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
@@ -95,7 +96,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
-#define DRV_NAME                "plk"                   // driver name to be used by Linux
 
 //------------------------------------------------------------------------------
 // local types
@@ -109,9 +109,9 @@ The structure holds the information of the PCIe BAR mapped by this driver.
 */
 typedef struct
 {
-    ULONG       busAddr;                                ///< Physical address of the BAR.
-    ULONG       virtualAddr;                            ///< Virtual address of the BAR in kernel memory.
-    ULONG       length;                                 ///< Length of the BAR.
+    ULONG       busAddr;            ///< Physical address of the BAR.
+    ULONG       virtualAddr;        ///< Virtual address of the BAR in kernel memory.
+    ULONG       length;             ///< Length of the BAR.
 } tBarInfo;
 
 /**
@@ -158,6 +158,7 @@ static tPcieDrvInstance         pcieDrvInstance_l;
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
 //============================================================================//
+
 //------------------------------------------------------------------------------
 /**
 \brief  openPOWERLINK PCIe driver initialization
@@ -171,17 +172,15 @@ This function initializes the openPOWERLINK PCIe driver.
 //------------------------------------------------------------------------------
 tOplkError pcieDrv_init(void)
 {
-    tOplkError      ret;
+    tOplkError      ret = kErrorOk;
     INT             result;
-
-    ret = kErrorOk;
 
     // Clear instance structure
     OPLK_MEMSET(&pcieDrvInstance_l, 0, sizeof(pcieDrvInstance_l));
 
     // Clear driver structure
     OPLK_MEMSET(&oplkPcieDriver_l, 0, sizeof(oplkPcieDriver_l));
-    oplkPcieDriver_l.name         = DRV_NAME;
+    oplkPcieDriver_l.name         = PLK_DRV_NAME;
     oplkPcieDriver_l.id_table     = aDriverPciTbl_l;
     oplkPcieDriver_l.probe        = initOnePciDev;
     oplkPcieDriver_l.remove       = removeOnePciDev;
@@ -361,7 +360,7 @@ static irqreturn_t pcieDrvIrqHandler(INT irqNum_p, void* ppDevInstData_p)
     UNUSED_PARAMETER(ppDevInstData_p);
 
     // Currently only sync interrupt is produced by the PCIe, check if the user
-    // wants he irq to be forwarded
+    // wants the irq to be forwarded
     if ((pcieDrvInstance_l.cbSync != NULL) &&
         (pcieDrvInstance_l.fSyncEnabled == TRUE))
     {
@@ -415,7 +414,7 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
     }
 
     DEBUG_LVL_DRVINTF_TRACE("%s request PCIe regions\n", __FUNCTION__);
-    result = pci_request_regions(pPciDev_p, DRV_NAME);
+    result = pci_request_regions(pPciDev_p, PLK_DRV_NAME);
     if (result != 0)
     {
         goto ExitFail;
@@ -480,7 +479,7 @@ static INT initOnePciDev(struct pci_dev* pPciDev_p,
     result = request_irq(pPciDev_p->irq,
                          pcieDrvIrqHandler,
                          IRQF_SHARED,
-                         DRV_NAME, /* pPciDev_p->dev.name */
+                         PLK_DRV_NAME, /* pPciDev_p->dev.name */
                          pPciDev_p);
     if (result != 0)
     {
@@ -550,4 +549,4 @@ Exit:
     return;
 }
 
-///\}
+/// \}
