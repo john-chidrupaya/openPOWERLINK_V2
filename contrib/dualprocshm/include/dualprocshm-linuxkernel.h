@@ -8,6 +8,7 @@ This header file provides specific macros for dual processor shared memory
 interface in Linux kernel.
 
 *******************************************************************************/
+
 /*------------------------------------------------------------------------------
 Copyright (c) 2015 Kalycito Infotech Private Limited
 All rights reserved.
@@ -89,9 +90,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define DPSHM_DISABLE_SYNC_INTR()               // Not used on Linux host
 #define DPSHM_CLEAR_SYNC_IRQ()                  // No operation on Linux host
 
-
-#define DPSHM_CONNECT_SYNC_IRQ()               // No operations on Linux host
-#define DPSHM_DISCONNECT_SYNC_IRQ()            // No operations on Linux host
+#define DPSHM_CONNECT_SYNC_IRQ()                // No operations on Linux host
+#define DPSHM_DISCONNECT_SYNC_IRQ()             // No operations on Linux host
 
 //------------------------------------------------------------------------------
 // typedef

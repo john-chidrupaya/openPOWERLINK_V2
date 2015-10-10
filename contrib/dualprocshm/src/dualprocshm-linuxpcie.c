@@ -9,6 +9,7 @@ dual processor shared memory interface via PCIe on Linux.
 
 \ingroup module_dualprocshm
 *******************************************************************************/
+
 /*------------------------------------------------------------------------------
 Copyright (c) 2015 Kalycito Infotech Private Limited
 All rights reserved.
@@ -109,7 +110,7 @@ UINT8* dualprocshm_getCommonMemAddr(UINT16* pSize_p)
 Target specific routine to release the base address of
 common memory.
 
-\param  pSize_p      Size of the common memory
+\param  pSize_p      Size of the common memory.
 
 \ingroup module_dualprocshm
  */
