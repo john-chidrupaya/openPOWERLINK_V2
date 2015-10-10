@@ -397,7 +397,7 @@ static ssize_t plkIntfRead(struct file* pInstance_p, char* pDstBuff_p,
 The function implements openPOWERLINK kernel pcie interface module write function.
 
 \param  pInstance_p     Pointer to the device file object.
-\param  pDstBuff_p      Pointer to the source buffer, to copy the data to
+\param  pSrcBuff_p      Pointer to the source buffer, to copy the data to
                         be written.
 \param  buffSize_p      Size of the data to be written.
 \param  pFileOffs_p     Pointer to the long offset in the file.
@@ -413,7 +413,7 @@ static ssize_t plkIntfWrite(struct file* pInstance_p, const char* pSrcBuff_p,
     INT    ret = 0;
 
     UNUSED_PARAMETER(pInstance_p);
-    UNUSED_PARAMETER(pDstBuff_p);
+    UNUSED_PARAMETER(pSrcBuff_p);
     UNUSED_PARAMETER(buffSize_p);
     UNUSED_PARAMETER(pFileOffs_p);
 
