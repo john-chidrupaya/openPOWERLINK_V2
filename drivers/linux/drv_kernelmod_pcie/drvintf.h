@@ -41,14 +41,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // includes
 //------------------------------------------------------------------------------
-//FIXME Check if any of the following is needed.
 #include <common/driver.h>
 #include <common/ctrl.h>
 #include <common/target.h>
-#include <kernel/ctrlk.h>
-#include <kernel/ctrlkcal.h>
-#include <kernel/dllkcal.h>
-#include <kernel/pdokcal.h>
 #include <kernel/timesynckcal.h>
 #include <common/ctrlcal-mem.h>
 
