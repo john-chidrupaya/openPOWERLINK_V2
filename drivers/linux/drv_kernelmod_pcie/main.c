@@ -569,6 +569,7 @@ static INT plkIntfMmap(struct file* pFile_p, struct vm_area_struct* pVma_p)
 
     if (pVma_p->vm_pgoff == 0)
     {
+        // Get kernel space address for the pdo memory
         ret = drvintf_getPdoMem(&pPciMem, &memSize);
 
         if ((pPciMem == NULL) || (ret != kErrorOk))
@@ -580,18 +581,20 @@ static INT plkIntfMmap(struct file* pFile_p, struct vm_area_struct* pVma_p)
         instance_l.pPdoMem = pPciMem;
         instance_l.pdoMemSize = memSize;
         instance_l.pdoVmaStartAddr = pVma_p->vm_start;
-        // Get the bus address of the PDO memory
+        // Get the bus address of the pdo memory
         pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pPciMem - pcieDrv_getBarAddr(0));
     }
     else
     {
         pPciMem = (UINT8*)(pVma_p->vm_pgoff << PAGE_SHIFT);
+        // Get kernel space address for the passed memory
         ret = drvintf_mapKernelMem((UINT8*)pPciMem,
                                    (UINT8**)&pageAddr,
                                    (size_t)memSize);
         if (ret != kErrorOk)
             return -ENOMEM;
 
+        // Get the bus address of the passed memory
         pageAddr = pcieDrv_getBarPhyAddr(0) + ((ULONG)pageAddr - pcieDrv_getBarAddr(0));
     }
 
@@ -691,7 +694,8 @@ INT getEventForUser(ULONG arg_p)
 
     for (i = 0; i < loopCount; i++)
     {
-        ret = wait_event_interruptible_timeout(instance_l.userWaitQueue, 0, QUEUE_WAIT_TIMEOUT);
+        ret = wait_event_interruptible_timeout(instance_l.userWaitQueue, 0,
+                                               QUEUE_WAIT_TIMEOUT);
 
         // ignore timeout (ret = 0) condition as we are using it to sleep
 
@@ -701,7 +705,7 @@ INT getEventForUser(ULONG arg_p)
             break;
         }
 
-        if (drvintf_getEvent(instance_l.aK2URxBuffer, &readSize) != kErrorOk)
+        if (drvintf_getEvent((tEvent*)instance_l.aK2URxBuffer, &readSize) != kErrorOk)
         {
             ret = -EFAULT;
             break;
@@ -709,7 +713,8 @@ INT getEventForUser(ULONG arg_p)
 
         if (readSize > 0)
         {
-            DEBUG_LVL_DRVINTF_TRACE("%s() copy kernel event to user: %d Bytes\n", __func__, readSize);
+            DEBUG_LVL_DRVINTF_TRACE("%s() copy kernel event to user: %d Bytes\n",
+                                    __func__, readSize);
             if (copy_to_user((void __user*)arg_p, instance_l.aK2URxBuffer, readSize))
             {
                 DEBUG_LVL_ERROR_TRACE("Event fetch Error!!\n");
@@ -958,7 +963,8 @@ static INT sendAsyncFrame(ULONG arg_p)
     }
 
     asyncFrameInfo.pData = pBuf;
-    if (drvintf_sendAsyncFrame((unsigned char*)&asyncFrameInfo) != kErrorOk)
+    if (drvintf_sendAsyncFrame(asyncFrameInfo.queue, asyncFrameInfo.size,
+                               asyncFrameInfo.pData) != kErrorOk)
         ret = -EFAULT;
 
     free_pages((ULONG)pBuf, order);
@@ -982,7 +988,7 @@ static INT writeErrorObject(ULONG arg_p)
     if (copy_from_user(&errorObject, (const void __user*)arg_p, sizeof(tErrHndIoctl)))
         return -EFAULT;
 
-    if (drvintf_writeErrorObject(&errorObject) != kErrorOk)
+    if (drvintf_writeErrorObject(errorObject.offset, errorObject.errVal) != kErrorOk)
         return -EFAULT;
 
     return 0;
@@ -1004,7 +1010,7 @@ static INT readErrorObject(ULONG arg_p)
     if (copy_from_user(&errorObject, (const void __user*)arg_p, sizeof(tErrHndIoctl)))
         return -EFAULT;
 
-    if (drvintf_readErrorObject(&errorObject) != kErrorOk)
+    if (drvintf_readErrorObject(errorObject.offset, &errorObject.errVal) != kErrorOk)
         return -EFAULT;
 
     if (copy_to_user((void __user*)arg_p, &errorObject, sizeof(tErrHndIoctl)))

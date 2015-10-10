@@ -401,35 +401,34 @@ tOplkError drvintf_getHeartbeat(UINT16* pHeartbeat_p)
 /**
 \brief  Write asynchronous frame
 
-This routines extracts the asynchronous frame from the IOCTL buffer and writes
-it into the specified DLL queue for processing by PCP.
+This routines writes asynchronous frame buffer into the specified DLL queue
+ for processing by PCP.
 
-\param  pArg_p       Pointer to IOCTL buffer.
+\param  queue_p         Dll queue id, to which the frame would be copied.
+\param  size_p          Size of the async data.
+\param  pData_p         Pointer to the async buffer.
+
+\return Returns tOplkError error code.
 
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-tOplkError drvintf_sendAsyncFrame(unsigned char* pArg_p)
+tOplkError drvintf_sendAsyncFrame(tDllCalQueue queue_p,
+                                  size_t size_p,
+                                  void* pData_p)
 {
-    tIoctlDllCalAsync*      asyncFrameInfo;
-    tFrameInfo              frameInfo;
     tOplkError              ret = kErrorOk;
 
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
 
-    asyncFrameInfo = (tIoctlDllCalAsync*)pArg_p;
-    frameInfo.frameSize = asyncFrameInfo->size;
-    frameInfo.frame.pBuffer = (tPlkFrame*)asyncFrameInfo->pData;
-
-    ret = insertAsyncDataBlock(drvIntfInstance_l.apDllQueueInst[asyncFrameInfo->queue],
-                               (UINT8*)frameInfo.frame.pBuffer,
-                               &(frameInfo.frameSize));
+    ret = insertAsyncDataBlock(drvIntfInstance_l.apDllQueueInst[queue_p],
+                               (UINT8*)pData_p,
+                               &(size_p));
 
     if (ret != kErrorOk)
     {
-        DEBUG_LVL_ERROR_TRACE("Error sending async frame queue %d\n",
-                              asyncFrameInfo->queue);
+        DEBUG_LVL_ERROR_TRACE("Error sending async frame queue %d\n", queue_p);
     }
 
     return ret;
@@ -442,19 +441,22 @@ tOplkError drvintf_sendAsyncFrame(unsigned char* pArg_p)
 This routines updates the error objects in shared memory with the value passed
 from user layer.
 
-\param  pWriteObject_p       Pointer to writeobject to update.
+\param  offset_p        Offset of the error object.
+\param  errVal_p        Error value to be written.
+
+\return Returns tOplkError error code.
 
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-tOplkError drvintf_writeErrorObject(tErrHndIoctl* pWriteObject_p)
+tOplkError drvintf_writeErrorObject(UINT32 offset_p, UINT32 errVal_p)
 {
     tErrHndObjects*   errorObjects = drvIntfInstance_l.pErrorObjects;
 
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
 
-    *((UINT32*)((UINT8*)errorObjects + pWriteObject_p->offset)) = pWriteObject_p->errVal;
+    *((UINT32*)((UINT8*)errorObjects + offset_p)) = errVal_p;
 
     return kErrorOk;
 }
@@ -466,19 +468,22 @@ tOplkError drvintf_writeErrorObject(tErrHndIoctl* pWriteObject_p)
 This routines fetches the error objects in shared memory to be passed to user
 layer.
 
-\param  pWriteObject_p       Pointer to pReadObject_p to fetch.
+\param  offset_p        Offset of the error object.
+\param  pErrVal_p       Pointer to copy the read error value.
+
+\return Returns tOplkError error code.
 
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-tOplkError drvintf_readErrorObject(tErrHndIoctl* pReadObject_p)
+tOplkError drvintf_readErrorObject(UINT32 offset_p, UINT32* pErrVal_p)
 {
     tErrHndObjects*   errorObjects = drvIntfInstance_l.pErrorObjects;
 
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
 
-    pReadObject_p->errVal = *((UINT32*)((char*)errorObjects + pReadObject_p->offset));
+    *pErrVal_p = *((UINT32*)((char*)errorObjects + offset_p));
     return kErrorOk;
 }
 
@@ -495,7 +500,7 @@ Copies the event from user layer into user to kernel(U2K) event queue.
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-tOplkError drvintf_postEvent(void* pEvent_p)
+tOplkError drvintf_postEvent(tEvent* pEvent_p)
 {
     tOplkError          ret = kErrorOk;
     tCircBufError       circBufErr = kCircBufOk;
@@ -504,15 +509,16 @@ tOplkError drvintf_postEvent(void* pEvent_p)
     if ((pEvent_p == NULL) || (!drvIntfInstance_l.fDriverActive))
         return kErrorNoResource;
 
-    if (((tEvent*)pEvent_p)->eventArgSize == 0)
+    if (pEvent_p->eventArgSize == 0)
     {
         circBufErr = circbuf_writeData(pCircBufInstance, pEvent_p, sizeof(tEvent));
     }
     else
     {
-        circBufErr = circbuf_writeMultipleData(pCircBufInstance, pEvent_p, sizeof(tEvent),
-                                               ((tEvent*)pEvent_p)->eventArg.pEventArg,
-                                               ((tEvent*)pEvent_p)->eventArgSize);
+        circBufErr = circbuf_writeMultipleData(pCircBufInstance, (void*)pEvent_p,
+                                               sizeof(tEvent),
+                                               pEvent_p->eventArg.pEventArg,
+                                               pEvent_p->eventArgSize);
     }
 
     if (circBufErr != kCircBufOk)
@@ -538,7 +544,7 @@ Retrieves an event from kernel to user event(K2U) queue for the user layer.
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-tOplkError drvintf_getEvent(void* pEvent_p, size_t* pSize_p)
+tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
 {
     tCircBufError       circBufErr = kCircBufOk;
     tCircBufInstance*   pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueK2U];
@@ -549,7 +555,7 @@ tOplkError drvintf_getEvent(void* pEvent_p, size_t* pSize_p)
 
     if (circbuf_getDataCount(pCircBufInstance) > 0)
     {
-        circBufErr = circbuf_readData(pCircBufInstance, pEvent_p,
+        circBufErr = circbuf_readData(pCircBufInstance, (void*)pEvent_p,
                                       sizeof(tEvent) + MAX_EVENT_ARG_SIZE,
                                       pSize_p);
     }
@@ -679,7 +685,7 @@ Frees the benchmark memory previously allocated.
 tOplkError drvintf_freeBenchmarkMem(UINT8** ppBenchmarkMem_p)
 {
     UNUSED_PARAMETER(ppBenchmarkMem_p);
-    return kErrorInvalidOperation;;
+    return kErrorInvalidOperation;
 }
 
 //------------------------------------------------------------------------------
