@@ -46,6 +46,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <kernel/veth.h>
 #include <drvintf.h>
 
+#if defined(CONFIG_INCLUDE_VETH)
 #include <net/arp.h>
 #include <net/protocol.h>
 #include <net/pkt_sched.h>
@@ -392,3 +393,4 @@ Exit:
 }
 
 /// \}
+#endif
