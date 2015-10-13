@@ -63,14 +63,10 @@ This type defines a function pointer to the DLL asynchronous frame received
 callback function.
 
 \param  pFrameInfo_p        Frame info of the received frame.
-\param  pReleaseRxBuffer_p  Pointer to buffer release flag. The function must
-                            set this flag to determine if the RxBuffer could be
-                            released immediately.
 
 \return The function returns a tOplkError error code
 */
-typedef tOplkError (*tDrvIntfCbVeth)(tFrameInfo* pFrameInfo_p,
-                                     tEdrvReleaseRxBuffer* pReleaseRxBuffer_p);
+typedef tOplkError (*tDrvIntfCbVeth)(tFrameInfo* pFrameInfo_p);
 #endif
 
 //------------------------------------------------------------------------------

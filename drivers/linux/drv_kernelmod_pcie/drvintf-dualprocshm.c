@@ -52,7 +52,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <drvintf.h>
 #include <kernel/pdokcal.h>
 #include <common/timer.h>
+#if defined(CONFIG_INCLUDE_VETH)
 #include <kernel/veth.h>
+#include <common/ami.h>
+#endif
 
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
@@ -290,6 +293,7 @@ Read the initialization parameters from the kernel stack.
 tOplkError drvintf_readInitParam(tCtrlInitParam* pInitParam_p)
 {
     tDualprocReturn    dualRet;
+    tOplkError         ret = kErrorOk;
 
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
@@ -309,11 +313,10 @@ tOplkError drvintf_readInitParam(tCtrlInitParam* pInitParam_p)
     // Initialize virtual Ethernet interface
     if (drvIntfInstance_l.fVEthActive == FALSE)
     {
-        ret = veth_init((tCtrlInitParam*)pInitParam_p->aMacAddress);
+        ret = veth_init((UINT8*)(tCtrlInitParam*)pInitParam_p->aMacAddress);
         if (ret != kErrorOk)
         {
             DEBUG_LVL_ERROR_TRACE("VEth Initialization Failed %x\n", ret);
-            pCtrlCmd_p->retVal = ret;
             return ret;
         }
 
@@ -436,25 +439,25 @@ tOplkError drvintf_sendVethFrame(tFrameInfo* pFrameInfo_p)
 {
     tOplkError              ret = kErrorOk;
     tEvent                  event;
+    tDllAsyncReqPriority    priority = kDllAsyncReqPrioGeneric;
 
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
 
-    ret = drvintf_sendAsyncFrame((UINT8*)&asyncFrameInfo);
-    ret = drvintf_sendAsyncFrame(asyncFrameInfo.queue, asyncFrameInfo.size,
-                                 asyncFrameInfo.pData);
+    ret = drvintf_sendAsyncFrame(kDllCalQueueTxVeth, pFrameInfo_p->frameSize,
+                                 pFrameInfo_p->frame.pBuffer);
     if (ret != kErrorOk)
     {
         DEBUG_LVL_ERROR_TRACE("Error sending VEth frame queue %d\n",
-                              asyncFrameInfo.queue);
+                              kDllCalQueueTxVeth);
     }
 
     // post event to DLL
     event.eventSink = kEventSinkDllk;
     event.eventType = kEventTypeDllkFillTx;
     OPLK_MEMSET(&event.netTime, 0x00, sizeof(event.netTime));
-    event.eventArg.pEventArg = &priority_p;
-    event.eventArgSize = sizeof(priority_p);
+    event.eventArg.pEventArg = &priority;
+    event.eventArgSize = sizeof(priority);
     ret = drvintf_postEvent(&event);
 
     return ret;
@@ -634,7 +637,6 @@ tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
 #if defined(CONFIG_INCLUDE_VETH)
     tFrameInfo*             pFrameInfo;
     UINT16                  etherType;
-    tEdrvReleaseRxBuffer*   pReleaseRxBuffer;.
 #endif
 
     if ((pEvent_p == NULL) || (pSize_p == NULL) ||
@@ -673,8 +675,10 @@ tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
         etherType = ami_getUint16Be(&pFrameInfo->frame.pBuffer->etherType);
         if (etherType != C_DLL_ETHERTYPE_EPL)
         {
-            ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo, pReleaseRxBuffer);
+            ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo);
         }
+
+        // Freeing will be done by the user layer
     }
 #endif
 
