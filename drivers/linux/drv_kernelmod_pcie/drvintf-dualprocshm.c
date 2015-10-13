@@ -52,7 +52,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <drvintf.h>
 #include <kernel/pdokcal.h>
 #include <common/timer.h>
-
 #include <kernel/veth.h>
 
 //============================================================================//
@@ -105,7 +104,7 @@ typedef struct
     BOOL                    fDriverActive;                      ///< Flag to identify status of driver interface.
 #if defined(CONFIG_INCLUDE_VETH)
     BOOL                    fVEthActive;                        ///< Flag to indicate whether the VEth interface is intialized.
-    tDrvIntfCbVeth          pfnCbVeth;                          ///< Callback function to the VEth interface
+    tDrvIntfCbVeth          pfnCbVeth;                          ///< Callback function to the VEth interface.
 #endif
     ULONG                   shmMemLocal;                        ///< Shared memory base address for local processor (OS).
     ULONG                   shmMemRemote;                       ///< Shared memory base address for remote processor (PCP).
@@ -422,12 +421,13 @@ tOplkError drvintf_getHeartbeat(UINT16* pHeartbeat_p)
 #if defined(CONFIG_INCLUDE_VETH)
 ///------------------------------------------------------------------------------
 /**
-\brief  Write asynchronous frame
+\brief  Write virtual Ethernet frame
 
-This routines extracts the asynchronous frame from the IOCTL buffer and writes
-it into the specified DLL queue for processing by PCP.
+This routines extracts the non POWERLINK Ethernet frame data from the passed
+frame and uses the async data write function to post it into the DLL VEth queue
+for processing by PCP.
 
-\param  pArg_p       Pointer to IOCTL buffer.
+\param  pFrameInfo_p    Pointer to the VEth frame buffer.
 
 \ingroup module_driver_linux_kernel_pcie
 */
@@ -435,17 +435,14 @@ it into the specified DLL queue for processing by PCP.
 tOplkError drvintf_sendVethFrame(tFrameInfo* pFrameInfo_p)
 {
     tOplkError              ret = kErrorOk;
-    tIoctlDllCalAsync       asyncFrameInfo;
     tEvent                  event;
 
     if (!drvIntfInstance_l.fDriverActive)
         return kErrorNoResource;
 
-    asyncFrameInfo.size = pFrameInfo_p->frameSize;
-    asyncFrameInfo.pData = pFrameInfo_p->frame.pBuffer;
-    asyncFrameInfo.queue = kDllCalQueueTxVeth;
-
     ret = drvintf_sendAsyncFrame((UINT8*)&asyncFrameInfo);
+    ret = drvintf_sendAsyncFrame(asyncFrameInfo.queue, asyncFrameInfo.size,
+                                 asyncFrameInfo.pData);
     if (ret != kErrorOk)
     {
         DEBUG_LVL_ERROR_TRACE("Error sending VEth frame queue %d\n",
@@ -633,10 +630,12 @@ tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
 {
     tCircBufError           circBufErr = kCircBufOk;
     tCircBufInstance*       pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueK2U];
+    tOplkError              ret = kErrorOk;
+#if defined(CONFIG_INCLUDE_VETH)
     tFrameInfo*             pFrameInfo;
     UINT16                  etherType;
-    tEdrvReleaseRxBuffer*   pReleaseRxBuffer;
-    tOplkError              ret = kErrorOk;
+    tEdrvReleaseRxBuffer*   pReleaseRxBuffer;.
+#endif
 
     if ((pEvent_p == NULL) || (pSize_p == NULL) ||
         (!drvIntfInstance_l.fDriverActive))

@@ -44,8 +44,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 #include <common/oplkinc.h>
 #include <kernel/veth.h>
-#include <kernel/dllk.h>
-#include <kernel/dllkcal.h>
 #include <drvintf.h>
 
 #include <net/arp.h>
@@ -113,8 +111,7 @@ static int veth_close(struct net_device* pNetDevice_p);
 static int veth_xmit(struct sk_buff* pSkb_p, struct net_device* pNetDevice_p);
 static struct net_device_stats* veth_getStats(struct net_device* pNetDevice_p);
 static void veth_timeout(struct net_device* pNetDevice_p);
-static tOplkError veth_receiveFrame(tFrameInfo* pFrameInfo_p,
-                                    tEdrvReleaseRxBuffer* pReleaseRxBuffer_p);
+static tOplkError veth_receiveFrame(tFrameInfo* pFrameInfo_p);
 
 //------------------------------------------------------------------------------
 // local vars
@@ -349,15 +346,11 @@ static void veth_timeout(struct net_device* pNetDevice_p)
 The function receives a frame from the virtual Ethernet interface.
 
 \param  pFrameInfo_p        Pointer to frame information of received frame.
-\param  pReleaseRxBuffer_p  Pointer to buffer release flag. The function must
-                            set this flag to determine if the RxBuffer could be
-                            released immediately.
 
 \return The function returns a tOplkError error code.
 */
 //------------------------------------------------------------------------------
-static tOplkError veth_receiveFrame(tFrameInfo* pFrameInfo_p,
-                                    tEdrvReleaseRxBuffer* pReleaseRxBuffer_p)
+static tOplkError veth_receiveFrame(tFrameInfo* pFrameInfo_p)
 {
     tOplkError               ret = kErrorOk;
     struct net_device*       pNetDevice = pVEthNetDevice_g;
@@ -395,7 +388,6 @@ static tOplkError veth_receiveFrame(tFrameInfo* pFrameInfo_p,
     pStats->rx_bytes += pFrameInfo_p->frameSize;
 
 Exit:
-    *pReleaseRxBuffer_p = kEdrvReleaseRxBufferImmediately;
     return ret;
 }
 
