@@ -621,7 +621,7 @@ tOplkError drvintf_postEvent(tEvent* pEvent_p)
 
 Retrieves an event from kernel to user event(K2U) queue for the user layer.
 
-\param  pEvent_p    Pointer to user event memory.
+\param  pK2uEvent_p Pointer to user event memory.
 \param  pSize_p     Pointer to store the size of the event buffer.
 
 \return Returns tOplkError error code and the size of the read data.
@@ -629,24 +629,25 @@ Retrieves an event from kernel to user event(K2U) queue for the user layer.
 \ingroup module_driver_linux_kernel_pcie
 */
 //------------------------------------------------------------------------------
-tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
+tOplkError drvintf_getEvent(tEvent* pK2uEvent_p, size_t* pSize_p)
 {
     tCircBufError           circBufErr = kCircBufOk;
     tCircBufInstance*       pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueK2U];
     tOplkError              ret = kErrorOk;
-#if defined(CONFIG_INCLUDE_VETH)
+#if 1 //defined(CONFIG_INCLUDE_VETH)
     tFrameInfo*             pFrameInfo;
     UINT16                  etherType;
     UINT8*                  pBuffer;
+    tEvent                  u2kEvent;
 #endif
 
-    if ((pEvent_p == NULL) || (pSize_p == NULL) ||
+    if ((pK2uEvent_p == NULL) || (pSize_p == NULL) ||
         (!drvIntfInstance_l.fDriverActive))
         return kErrorNoResource;
 
     if (circbuf_getDataCount(pCircBufInstance) > 0)
     {
-        circBufErr = circbuf_readData(pCircBufInstance, (void*)pEvent_p,
+        circBufErr = circbuf_readData(pCircBufInstance, (void*)pK2uEvent_p,
                                       sizeof(tEvent) + MAX_EVENT_ARG_SIZE,
                                       pSize_p);
         if ((circBufErr != kCircBufOk) && (circBufErr != kCircBufNoReadableData))
@@ -656,38 +657,44 @@ tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
             return kErrorInvalidInstanceParam;
         }
 
-        if (pEvent_p->eventType != 0x28)
-            printk("%X\n", pEvent_p->eventType);
-#if defined(CONFIG_INCLUDE_VETH)
+#if 1 //defined(CONFIG_INCLUDE_VETH)
         // Check if this is a VEth event
-        if ((pEvent_p->eventType == kEventTypeAsndRxInfo) &&
+        if ((pK2uEvent_p->eventType == kEventTypeAsndRxInfo) &&
             (drvIntfInstance_l.pfnCbVeth != NULL)) // $$ Handle kEventTypeAsndRx
         {
-            pEvent_p->eventArg.pEventArg = (char*)pEvent_p + sizeof(tEvent);
-            pFrameInfo = (tFrameInfo*)pEvent_p->eventArg.pEventArg;
-            pBuffer = pFrameInfo->frame.pBuffer;
+            pK2uEvent_p->eventArg.pEventArg = (char*)pK2uEvent_p + sizeof(tEvent);
+            pFrameInfo = (tFrameInfo*)pK2uEvent_p->eventArg.pEventArg;
+            pBuffer = (UINT8*)pFrameInfo->frame.pBuffer;
             ret = drvintf_mapKernelMem((UINT8*)pBuffer,
                                        (UINT8**)&pFrameInfo->frame.pBuffer,
                                        (size_t)pFrameInfo->frameSize);
             if (ret != kErrorOk)
             {
-                printk("er:0x%X, %X - %X\n", ret, pBuffer, &pFrameInfo->frame.pBuffer);
                 return ret;
             }
 
             etherType = ami_getUint16Be(&pFrameInfo->frame.pBuffer->etherType);
-            printk("0x%X\n", etherType);
             if (etherType != C_DLL_ETHERTYPE_EPL)
             {
                 ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo);
                 printk("cb\n");
-                //*pSize_p = 0;
-            }
+                *pSize_p = 0;
+                // Restore frame info for releasing Rx frame
+                pFrameInfo->frame.pBuffer = (tPlkFrame*)pBuffer;
 
-            // Freeing will be done by the user layer
+                // call free function for Asnd frame
+                u2kEvent.eventSink = kEventSinkDllkCal;
+                u2kEvent.eventType = kEventTypeReleaseRxFrame;
+                u2kEvent.eventArgSize = sizeof(tFrameInfo);
+                u2kEvent.eventArg.pEventArg = pFrameInfo;
+
+                drvintf_postEvent(&u2kEvent);
+            }
         }
-        else if (pEvent_p->eventType == kEventTypeAsndRx)
-            printk("/");
+        else if (pK2uEvent_p->eventType == kEventTypeAsndRx)
+        {
+
+        }
 #endif
     }
     else
