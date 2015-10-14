@@ -637,6 +637,7 @@ tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
 #if defined(CONFIG_INCLUDE_VETH)
     tFrameInfo*             pFrameInfo;
     UINT16                  etherType;
+    UINT8*                  pBuffer;
 #endif
 
     if ((pEvent_p == NULL) || (pSize_p == NULL) ||
@@ -648,39 +649,51 @@ tOplkError drvintf_getEvent(tEvent* pEvent_p, size_t* pSize_p)
         circBufErr = circbuf_readData(pCircBufInstance, (void*)pEvent_p,
                                       sizeof(tEvent) + MAX_EVENT_ARG_SIZE,
                                       pSize_p);
+        if ((circBufErr != kCircBufOk) && (circBufErr != kCircBufNoReadableData))
+        {
+            *pSize_p = 0;
+            DEBUG_LVL_ERROR_TRACE("Error in reading circular buffer event data!!\n");
+            return kErrorInvalidInstanceParam;
+        }
+
+        if (pEvent_p->eventType != 0x28)
+            printk("%X\n", pEvent_p->eventType);
+#if defined(CONFIG_INCLUDE_VETH)
+        // Check if this is a VEth event
+        if ((pEvent_p->eventType == kEventTypeAsndRxInfo) &&
+            (drvIntfInstance_l.pfnCbVeth != NULL)) // $$ Handle kEventTypeAsndRx
+        {
+            pEvent_p->eventArg.pEventArg = (char*)pEvent_p + sizeof(tEvent);
+            pFrameInfo = (tFrameInfo*)pEvent_p->eventArg.pEventArg;
+            pBuffer = pFrameInfo->frame.pBuffer;
+            ret = drvintf_mapKernelMem((UINT8*)pBuffer,
+                                       (UINT8**)&pFrameInfo->frame.pBuffer,
+                                       (size_t)pFrameInfo->frameSize);
+            if (ret != kErrorOk)
+            {
+                printk("er:0x%X, %X - %X\n", ret, pBuffer, &pFrameInfo->frame.pBuffer);
+                return ret;
+            }
+
+            etherType = ami_getUint16Be(&pFrameInfo->frame.pBuffer->etherType);
+            printk("0x%X\n", etherType);
+            if (etherType != C_DLL_ETHERTYPE_EPL)
+            {
+                ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo);
+                printk("cb\n");
+                //*pSize_p = 0;
+            }
+
+            // Freeing will be done by the user layer
+        }
+        else if (pEvent_p->eventType == kEventTypeAsndRx)
+            printk("/");
+#endif
     }
     else
     {
         *pSize_p = 0;
     }
-
-    if ((circBufErr != kCircBufOk) && (circBufErr != kCircBufNoReadableData))
-    {
-        *pSize_p = 0;
-        DEBUG_LVL_ERROR_TRACE("Error in reading circular buffer event data!!\n");
-        return kErrorInvalidInstanceParam;
-    }
-
-#if defined(CONFIG_INCLUDE_VETH)
-    // Check if this is a VEth event
-    if ((pEvent_p->eventType == kEventTypeAsndRxInfo) && 
-        (drvIntfInstance_l.pfnCbVeth != NULL)) // $$ Handle kEventTypeAsndRx
-    {
-        ret = drvintf_mapKernelMem((UINT8*)pEvent_p->eventArg.pEventArg,
-                                   (UINT8**)&pFrameInfo,
-                                   (size_t)pEvent_p->eventArgSize);
-        if (ret != kErrorOk)
-            return ret;
-
-        etherType = ami_getUint16Be(&pFrameInfo->frame.pBuffer->etherType);
-        if (etherType != C_DLL_ETHERTYPE_EPL)
-        {
-            ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo);
-        }
-
-        // Freeing will be done by the user layer
-    }
-#endif
 
     return ret;
 }
