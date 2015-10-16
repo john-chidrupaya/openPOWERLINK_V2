@@ -324,7 +324,7 @@ tOplkError drvintf_readInitParam(tCtrlInitParam* pInitParam_p)
     }
 #endif
 
-    return kErrorOk;
+    return ret;
 }
 
 //------------------------------------------------------------------------------
@@ -427,8 +427,8 @@ tOplkError drvintf_getHeartbeat(UINT16* pHeartbeat_p)
 \brief  Write virtual Ethernet frame
 
 This routines extracts the non POWERLINK Ethernet frame data from the passed
-frame and uses the async data write function to post it into the DLL VEth queue
-for processing by PCP.
+frame structure and uses the async data write function to post it into the DLL
+VEth queue for processing by PCP.
 
 \param  pFrameInfo_p    Pointer to the VEth frame buffer.
 
@@ -450,6 +450,7 @@ tOplkError drvintf_sendVethFrame(tFrameInfo* pFrameInfo_p)
     {
         DEBUG_LVL_ERROR_TRACE("Error sending VEth frame queue %d\n",
                               kDllCalQueueTxVeth);
+        return ret;
     }
 
     // post event to DLL
@@ -465,12 +466,13 @@ tOplkError drvintf_sendVethFrame(tFrameInfo* pFrameInfo_p)
 
 ///------------------------------------------------------------------------------
 /**
-\brief  Write asynchronous frame
+\brief  Register VEth Rx handler
 
-This routines extracts the asynchronous frame from the IOCTL buffer and writes
-it into the specified DLL queue for processing by PCP.
+This routines saves the callback function to be called when a non POWERLINK
+frame us received by the driver. If NULL is passed to this function, no callback
+is not called.
 
-\param  pArg_p       Pointer to IOCTL buffer.
+\param  pfnDrvIntfCbVeth_p  Pointer to callback function.
 
 \ingroup module_driver_linux_kernel_pcie
 */
@@ -634,7 +636,7 @@ tOplkError drvintf_getEvent(tEvent* pK2uEvent_p, size_t* pSize_p)
     tCircBufError           circBufErr = kCircBufOk;
     tCircBufInstance*       pCircBufInstance = drvIntfInstance_l.apEventQueueInst[kEventQueueK2U];
     tOplkError              ret = kErrorOk;
-#if 1 //defined(CONFIG_INCLUDE_VETH)
+#if defined(CONFIG_INCLUDE_VETH)
     tFrameInfo*             pFrameInfo;
     UINT16                  etherType;
     UINT8*                  pBuffer;
@@ -657,7 +659,7 @@ tOplkError drvintf_getEvent(tEvent* pK2uEvent_p, size_t* pSize_p)
             return kErrorInvalidInstanceParam;
         }
 
-#if 1 //defined(CONFIG_INCLUDE_VETH)
+#if defined(CONFIG_INCLUDE_VETH)
         // Check if this is a VEth event
         if ((pK2uEvent_p->eventType == kEventTypeAsndRxInfo) &&
             (drvIntfInstance_l.pfnCbVeth != NULL)) // $$ Handle kEventTypeAsndRx
@@ -677,12 +679,11 @@ tOplkError drvintf_getEvent(tEvent* pK2uEvent_p, size_t* pSize_p)
             if (etherType != C_DLL_ETHERTYPE_EPL)
             {
                 ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo);
-                printk("cb\n");
-                *pSize_p = 0;
+                *pSize_p = 0;   // Indicate that this event is not to be posted to the user layer
                 // Restore frame info for releasing Rx frame
                 pFrameInfo->frame.pBuffer = (tPlkFrame*)pBuffer;
 
-                // call free function for Asnd frame
+                // Call free function for vEth frame
                 u2kEvent.eventSink = kEventSinkDllkCal;
                 u2kEvent.eventType = kEventTypeReleaseRxFrame;
                 u2kEvent.eventArgSize = sizeof(tFrameInfo);

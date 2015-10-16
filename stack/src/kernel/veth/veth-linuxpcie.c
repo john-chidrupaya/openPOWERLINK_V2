@@ -150,11 +150,11 @@ tOplkError veth_init(const UINT8 aSrcMac_p[6])
 {
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0))
-    // allocate net device structure with priv pointing to stats structure
+    // Allocate net device structure with priv pointing to stats structure
     pVEthNetDevice_g = alloc_netdev(sizeof(struct net_device_stats), PLK_VETH_NAME,
                                     ether_setup);
 #else
-    // allocate net device structure with priv pointing to stats structure
+    // Allocate net device structure with priv pointing to stats structure
     pVEthNetDevice_g = alloc_netdev(sizeof(struct net_device_stats), PLK_VETH_NAME,
                                     NET_NAME_UNKNOWN, ether_setup);
 #endif
@@ -167,10 +167,10 @@ tOplkError veth_init(const UINT8 aSrcMac_p[6])
     pVEthNetDevice_g->watchdog_timeo    = VETH_TX_TIMEOUT;
     pVEthNetDevice_g->destructor        = free_netdev;
 
-    // copy own MAC address to net device structure
+    // Copy own MAC address to net device structure
     OPLK_MEMCPY(pVEthNetDevice_g->dev_addr, aSrcMac_p, 6);
 
-    //register VEth to the network subsystem
+    // Register VEth to the network subsystem
     if (register_netdev(pVEthNetDevice_g))
         DEBUG_LVL_VETH_TRACE("veth_init: Could not register VEth...\n");
     else
@@ -194,10 +194,10 @@ tOplkError veth_exit(void)
 {
     if (pVEthNetDevice_g != NULL)
     {
-        //unregister VEth from the network subsystem
+        // Unregister VEth from the network subsystem
         unregister_netdev(pVEthNetDevice_g);
-        // destructor was set to free_netdev,
-        // so we do not need to call free_netdev here
+        // Destructor was set to free_netdev,
+        // So we do not need to call free_netdev here
         pVEthNetDevice_g = NULL;
     }
 
@@ -225,11 +225,11 @@ static int veth_open(struct net_device* pNetDevice_p)
 {
     tOplkError  ret = kErrorOk;
 
-    //open the device
-    //start the interface queue for the network subsystem
+    // Open the device
+    // Start the interface queue for the network subsystem
     netif_start_queue(pNetDevice_p);
 
-    // register callback function in DLL
+    // Register callback function in interface driver
     ret = drvintf_regVethHandler(veth_receiveFrame);
 
     DEBUG_LVL_VETH_TRACE("veth_open: drvintf_regVethHandler returned 0x%02X\n", ret);
@@ -252,7 +252,7 @@ static int veth_close(struct net_device* pNetDevice_p)
     DEBUG_LVL_VETH_TRACE("veth_close\n");
 
     drvintf_regVethHandler(NULL);
-    netif_stop_queue(pNetDevice_p);     //stop the interface queue for the network subsystem
+    netif_stop_queue(pNetDevice_p);     // Stop the interface queue for the network subsystem
     return 0;
 }
 
@@ -273,16 +273,16 @@ static int veth_xmit(struct sk_buff* pSkb_p, struct net_device* pNetDevice_p)
     tOplkError      ret = kErrorOk;
     tFrameInfo      frameInfo;
 
-    //transmit function
+    // Transmit function
     struct net_device_stats* pStats = netdev_priv(pNetDevice_p);
 
-    //save timestemp
+    // Save timestemp
     pNetDevice_p->trans_start = jiffies;
 
     frameInfo.frame.pBuffer = (tPlkFrame*)pSkb_p->data;
     frameInfo.frameSize = pSkb_p->len;
 
-    //call send fkt on DLL
+    // Call send function on interface driver
     ret = drvintf_sendVethFrame(&frameInfo);
     if (ret != kErrorOk)
     {
@@ -292,10 +292,10 @@ static int veth_xmit(struct sk_buff* pSkb_p, struct net_device* pNetDevice_p)
     }
     else
     {
-        DEBUG_LVL_VETH_TRACE("veth_xmit: frame passed to DLL\n");
+        DEBUG_LVL_VETH_TRACE("veth_xmit: frame passed to interface driver\n");
         dev_kfree_skb(pSkb_p);
 
-        //set stats for the device
+        // Set stats for the device
         pStats->tx_packets++;
         pStats->tx_bytes += frameInfo.frameSize;
     }
@@ -333,7 +333,6 @@ The function provides the TX timeout entry point of the driver.
 static void veth_timeout(struct net_device* pNetDevice_p)
 {
     DEBUG_LVL_VETH_TRACE("veth_timeout(\n");
-    // $$$ d.k.: move to extra function, which is called by DLL when new space is available in TxFifo
     if (netif_queue_stopped(pNetDevice_p))
     {
         netif_wake_queue(pNetDevice_p);
@@ -369,12 +368,13 @@ static tOplkError veth_receiveFrame(tFrameInfo* pFrameInfo_p)
 
     skb_reserve(pSkb, 2);
 
-    OPLK_MEMCPY((void*)skb_put(pSkb, pFrameInfo_p->frameSize), pFrameInfo_p->frame.pBuffer, pFrameInfo_p->frameSize);
+    OPLK_MEMCPY((void*)skb_put(pSkb, pFrameInfo_p->frameSize),
+                 pFrameInfo_p->frame.pBuffer, pFrameInfo_p->frameSize);
 
     pSkb->protocol = eth_type_trans(pSkb, pNetDevice);
     pSkb->ip_summed = CHECKSUM_UNNECESSARY;
 
-    netif_rx(pSkb);         // call netif_rx with skb
+    netif_rx(pSkb);         // Call netif_rx with skb
 
     DEBUG_LVL_VETH_TRACE("veth_receiveFrame: SrcMAC: %02X:%02X:%02x:%02X:%02X:%02x\n",
                          pFrameInfo_p->frame.pBuffer->aSrcMac[0],
@@ -384,7 +384,7 @@ static tOplkError veth_receiveFrame(tFrameInfo* pFrameInfo_p)
                          pFrameInfo_p->frame.pBuffer->aSrcMac[4],
                          pFrameInfo_p->frame.pBuffer->aSrcMac[5]);
 
-    // update receive statistics
+    // Update receive statistics
     pStats->rx_packets++;
     pStats->rx_bytes += pFrameInfo_p->frameSize;
 

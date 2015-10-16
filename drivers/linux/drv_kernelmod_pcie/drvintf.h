@@ -57,14 +57,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 #if defined(CONFIG_INCLUDE_VETH)
 /**
-\brief Type for DLL asynchronous frame receive callback function pointer
+\brief Type for VEth frame receive callback function pointer
 
-This type defines a function pointer to the DLL asynchronous frame received
+This type defines a function pointer to the VEth frame received
 callback function.
 
 \param  pFrameInfo_p        Frame info of the received frame.
 
-\return The function returns a tOplkError error code
+\return The function returns a tOplkError error code.
 */
 typedef tOplkError (*tDrvIntfCbVeth)(tFrameInfo* pFrameInfo_p);
 #endif
