@@ -638,6 +638,7 @@ tOplkError drvintf_getEvent(tEvent* pK2uEvent_p, size_t* pSize_p)
     tOplkError              ret = kErrorOk;
 #if defined(CONFIG_INCLUDE_VETH)
     tFrameInfo*             pFrameInfo;
+    tFrameInfo              frameInfo;
     UINT16                  etherType;
     UINT8*                  pBuffer;
     tEvent                  u2kEvent;
@@ -660,41 +661,72 @@ tOplkError drvintf_getEvent(tEvent* pK2uEvent_p, size_t* pSize_p)
         }
 
 #if defined(CONFIG_INCLUDE_VETH)
-        // Check if this is a VEth event
-        if ((pK2uEvent_p->eventType == kEventTypeAsndRxInfo) &&
-            (drvIntfInstance_l.pfnCbVeth != NULL)) // $$ Handle kEventTypeAsndRx
+        if (drvIntfInstance_l.pfnCbVeth != NULL)
         {
-            pK2uEvent_p->eventArg.pEventArg = (char*)pK2uEvent_p + sizeof(tEvent);
-            pFrameInfo = (tFrameInfo*)pK2uEvent_p->eventArg.pEventArg;
-            pBuffer = (UINT8*)pFrameInfo->frame.pBuffer;
-            ret = drvintf_mapKernelMem((UINT8*)pBuffer,
-                                       (UINT8**)&pFrameInfo->frame.pBuffer,
-                                       (size_t)pFrameInfo->frameSize);
-            if (ret != kErrorOk)
+            // Check if this is a VEth event
+            switch (pK2uEvent_p->eventType)
             {
-                return ret;
+                case kEventTypeAsndRxInfo:
+                    // Get the event argument from the copied data buffer
+                    pK2uEvent_p->eventArg.pEventArg = (char*)pK2uEvent_p + sizeof(tEvent);
+                    pFrameInfo = (tFrameInfo*)pK2uEvent_p->eventArg.pEventArg;
+                    pBuffer = (UINT8*)pFrameInfo->frame.pBuffer;
+
+                    // Get the bus address for the data buffer
+                    ret = drvintf_mapKernelMem((UINT8*)pBuffer,
+                                               (UINT8**)&pFrameInfo->frame.pBuffer,
+                                               (size_t)pFrameInfo->frameSize);
+                    if (ret != kErrorOk)
+                    {
+                        return ret;
+                    }
+
+                    // Check if the frame is of non POWERLINK type
+                    etherType = ami_getUint16Be(&pFrameInfo->frame.pBuffer->etherType);
+                    if (etherType != C_DLL_ETHERTYPE_EPL)
+                    {
+                        ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo);
+
+                        // Indicate that this event is not to be posted to the user layer
+                        *pSize_p = 0;
+
+                        // Restore frame info for releasing Rx frame
+                        pFrameInfo->frame.pBuffer = (tPlkFrame*)pBuffer;
+
+                        // Post the event to free the veth frame buffer
+                        u2kEvent.eventSink = kEventSinkDllkCal;
+                        u2kEvent.eventType = kEventTypeReleaseRxFrame;
+                        u2kEvent.eventArgSize = sizeof(tFrameInfo);
+                        u2kEvent.eventArg.pEventArg = pFrameInfo;
+
+                        drvintf_postEvent(&u2kEvent);
+                    }
+
+                    break;
+                case kEventTypeAsndRx:
+                    // Get the event argument from the copied data buffer
+                    pK2uEvent_p->eventArg.pEventArg = (char*)pK2uEvent_p + sizeof(tEvent);
+                    // Argument pointer is frame
+                    frameInfo.frame.pBuffer = (tPlkFrame*)pK2uEvent_p->eventArg.pEventArg;
+                    frameInfo.frameSize = pK2uEvent_p->eventArgSize;
+                    pFrameInfo = &frameInfo;
+
+                    // Check if the frame is of non POWERLINK type
+                    etherType = ami_getUint16Be(&pFrameInfo->frame.pBuffer->etherType);
+                    if (etherType != C_DLL_ETHERTYPE_EPL)
+                    {
+                        ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo);
+
+                        // Indicate that this event is not to be posted to the user layer
+                        *pSize_p = 0;
+                    }
+
+                    break;
+
+                default:
+                    // Nothing to be done
+                    break;
             }
-
-            etherType = ami_getUint16Be(&pFrameInfo->frame.pBuffer->etherType);
-            if (etherType != C_DLL_ETHERTYPE_EPL)
-            {
-                ret = drvIntfInstance_l.pfnCbVeth(pFrameInfo);
-                *pSize_p = 0;   // Indicate that this event is not to be posted to the user layer
-                // Restore frame info for releasing Rx frame
-                pFrameInfo->frame.pBuffer = (tPlkFrame*)pBuffer;
-
-                // Call free function for vEth frame
-                u2kEvent.eventSink = kEventSinkDllkCal;
-                u2kEvent.eventType = kEventTypeReleaseRxFrame;
-                u2kEvent.eventArgSize = sizeof(tFrameInfo);
-                u2kEvent.eventArg.pEventArg = pFrameInfo;
-
-                drvintf_postEvent(&u2kEvent);
-            }
-        }
-        else if (pK2uEvent_p->eventType == kEventTypeAsndRx)
-        {
-
         }
 #endif
     }
