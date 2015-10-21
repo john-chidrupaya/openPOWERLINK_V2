@@ -114,7 +114,7 @@ static tEventuCalInstance    instance_l;
 //------------------------------------------------------------------------------
 // local function prototypes
 //------------------------------------------------------------------------------
-static void         signalUserEvent(void);
+static void         signalUIntEvent(void);
 static void*        k2uEventFetchThread(void* pArg_p);
 static void*        eventProcessThread(void* pArg_p);
 static tOplkError   postEvent(tEvent* pEvent_p);
@@ -481,13 +481,13 @@ static void* eventProcessThread(void* pArg_p)
 
 //------------------------------------------------------------------------------
 /**
-\brief  Signal a user event
+\brief  Signal a user internal event
 
 This function signals that a user event was posted. It will be registered in
 the circular buffer library as signal callback function.
 */
 //------------------------------------------------------------------------------
-static void signalUserEvent(void)
+static void signalUIntEvent(void)
 {
     pthread_mutex_lock(&instance_l.processEventMutex);
     instance_l.pendingEventCount++;
