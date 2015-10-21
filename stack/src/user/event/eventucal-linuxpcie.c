@@ -223,6 +223,7 @@ tOplkError eventucal_exit(void)
     if (instance_l.kernelEventThreadId != 0)
     {
         instance_l.fStopKernelThread = TRUE;
+        pthread_cond_signal(&instance_l.k2uEventCondition);
         while (instance_l.fStopKernelThread == TRUE)
         {
             target_msleep(10);
@@ -410,7 +411,6 @@ static void* k2uEventFetchThread(void* pArg_p)
             // Ignore errors from kernel
             DEBUG_LVL_EVENTK_TRACE("Error in retrieving kernel to user event!!\n");
         }
-
     }
 
     instance_l.fStopKernelThread = FALSE;
@@ -440,14 +440,16 @@ static void* eventProcessThread(void* pArg_p)
     while (!instance_l.fStopProcessThread)
     {
         pthread_mutex_lock(&instance_l.processEventMutex);
-        processedEventCount = 0;
-        instance_l.pendingEventCount = 0;  // Reset the pending event count
-        while ((instance_l.pendingEventCount <= 0) &&
-               (!instance_l.fStopProcessThread))
-            pthread_cond_wait(&instance_l.processEventCondition, &instance_l.processEventMutex);
+        if (instance_l.pendingEventCount == processedEventCount)
+        {
+            processedEventCount = 0;
+            instance_l.pendingEventCount = 0;  // Reset the pending event count
+            while ((instance_l.pendingEventCount <= 0) &&
+                   (!instance_l.fStopProcessThread))
+                pthread_cond_wait(&instance_l.processEventCondition, &instance_l.processEventMutex);
+        }
 
         pthread_mutex_unlock(&instance_l.processEventMutex);
-
         // Process all pending events including the oned posted during processing
         while((instance_l.pendingEventCount != processedEventCount) &&
               (!instance_l.fStopProcessThread))
