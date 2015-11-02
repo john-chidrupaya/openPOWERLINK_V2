@@ -514,7 +514,7 @@ tOplkError drvintf_sendAsyncFrame(tDllCalQueue queue_p,
 
     ret = insertAsyncDataBlock(drvIntfInstance_l.apDllQueueInst[queue_p],
                                (UINT8*)pData_p,
-                               (UINT*)&(size_p));
+                               (UINT*)(&size_p));
 
     if (ret != kErrorOk)
     {
@@ -939,7 +939,7 @@ tOplkError drvintf_mapKernelMem(UINT8* pKernelMem_p,
     }
     else
     {
-        *ppUserMem_p = (UINT8*)(((UINT32)pKernelMem_p - (ULONG)drvIntfInstance_l.shmMemRemote) +
+        *ppUserMem_p = (UINT8*)(((ULONG)pKernelMem_p - (ULONG)drvIntfInstance_l.shmMemRemote) +
                                 (ULONG)drvIntfInstance_l.shmMemLocal);
         DEBUG_LVL_DRVINTF_TRACE("LA: 0x%lX, RA: 0x%lX, KA: 0x%lX, UA: 0x%lX\n",
                                 drvIntfInstance_l.shmMemLocal,
@@ -964,7 +964,7 @@ Unmap and free the kernel to user memory mapped before.
 void drvintf_unmapKernelMem(UINT8** ppUserMem_p)
 {
     if (ppUserMem_p == NULL)
-        return kErrorInvalidInstanceParam;
+        return;
 
     *ppUserMem_p = NULL;
 }

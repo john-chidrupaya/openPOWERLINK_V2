@@ -118,8 +118,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ATOMIC_MEM_OFFSET           0x80000 // $$ Get the atomic memory base address from config header
 #define OPLK_ATOMIC_INIT(base)
 #define OPLK_ATOMIC_EXCHANGE(address, newval, oldval) \
-                        OPLK_IO_WR8((address + ATOMIC_MEM_OFFSET), newval); \
-                        oldval = OPLK_IO_RD8((address + ATOMIC_MEM_OFFSET))
+                        OPLK_IO_WR8((ULONG)address + ATOMIC_MEM_OFFSET, newval); \
+                        oldval = OPLK_IO_RD8((ULONG)address + ATOMIC_MEM_OFFSET)
 #else
 #define OPLK_ATOMIC_EXCHANGE(address, newval, oldval) \
     oldval = __sync_lock_test_and_set(address, newval);
