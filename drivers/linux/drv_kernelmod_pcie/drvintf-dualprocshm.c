@@ -216,7 +216,7 @@ copying it into the common control structure.
 //------------------------------------------------------------------------------
 tOplkError drvintf_executeCmd(tCtrlCmd* pCtrlCmd_p)
 {
-    tOplkError    ret = kErrorOk;
+    tOplkError      ret = kErrorOk;
     UINT16          cmd = pCtrlCmd_p->cmd;
     INT             timeout;
 
@@ -709,7 +709,7 @@ tOplkError drvintf_getEvent(tEvent* pK2UEvent_p, size_t* pSize_p)
                     }
 
                     // Unmap the memory mapped previosly
-                    drvintf_unmapKernelMem(pUserMemBuffer);
+                    drvintf_unmapKernelMem(&pUserMemBuffer);
 
                     break;
 
@@ -1375,4 +1375,4 @@ Exit:
     return ret;
 }
 
-///\}
+/// \}
