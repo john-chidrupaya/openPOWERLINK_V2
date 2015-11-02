@@ -511,13 +511,13 @@ tDualprocReturn dualprocshm_readData(tDualprocDrvInstance pInstance_p, UINT8 id_
 {
     tDualProcDrv*   pDrvInst = (tDualProcDrv*)pInstance_p;
     UINT8*          pBase;
-    UINT32          highAddr;
+    size_t          highAddr;
 
     if (pInstance_p == NULL ||  id_p > MAX_DYNAMIC_BUFF_COUNT || pData_p == NULL)
         return kDualprocInvalidParameter;
 
     pBase = pDrvInst->pDynResTbl[id_p].pBase;
-    highAddr = (UINT32)(pBase + pDrvInst->pDynResTbl[id_p].pMemInst->span);
+    highAddr = (size_t)(pBase + pDrvInst->pDynResTbl[id_p].pMemInst->span);
 
     if ((offset_p + size_p) > highAddr)
         return kDualprocNoResource;
@@ -552,13 +552,13 @@ tDualprocReturn dualprocshm_writeData(tDualprocDrvInstance pInstance_p, UINT8 id
 {
     tDualProcDrv*   pDrvInst = (tDualProcDrv*)pInstance_p;
     UINT8*          pBase;
-    UINT32          highAddr;
+    size_t          highAddr;
 
     if (pInstance_p == NULL ||  id_p > MAX_DYNAMIC_BUFF_COUNT || pData_p == NULL)
         return kDualprocInvalidParameter;
 
     pBase = pDrvInst->pDynResTbl[id_p].pBase;
-    highAddr = (UINT32)(pBase + pDrvInst->pDynResTbl[id_p].pMemInst->span);
+    highAddr = (size_t)(pBase + pDrvInst->pDynResTbl[id_p].pMemInst->span);
 
     if ((offset_p + size_p) > highAddr)
         return kDualprocNoResource;
