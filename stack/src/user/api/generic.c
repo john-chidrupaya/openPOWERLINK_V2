@@ -1027,7 +1027,7 @@ tOplkError oplk_postUserEvent(void* pUserArg_p)
     event.netTime.nsec = 0;
     event.netTime.sec = 0;
     event.eventType = kEventTypeApiUserDef;
-    event.eventArg.pEventArg = &pUserArg_p;
+    event.eventArg.pEventArg = &pUserArg_p; //XXX Crazy
     event.eventArgSize = sizeof(pUserArg_p);
 
     ret = eventu_postEvent(&event);

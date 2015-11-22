@@ -190,6 +190,19 @@ tOplkError processEvents(tOplkApiEventType eventType_p,
             ret = processCfmResultEvent(eventType_p, pEventArg_p, pUserArg_p);
             break;
 
+#ifdef OPLK_API_TEST
+        case kOplkApiEventReceivedNonPlk:
+            printf("\n===================\nEvent kOplkApiEventReceivedNonPlk: Frame size: 0x%X, pBuffer; 0x%lX\n===================\n", // Check if this frame address has to be remapped
+                    pEventArg_p->receivedEth.frameSize, (ULONG)pEventArg_p->receivedEth.pFrame);
+        break;
+
+        case kEventTypeApiUserDef:
+            printf("\n===================\nEvent kEventTypeApiUserDef: pUserArg: 0x%lX, *pUserArg; 0x%X\n===================\n", // Check if this frame address has to be remapped
+                    (ULONG)pEventArg_p->pUserArg, *(UINT8*)pEventArg_p->pUserArg);
+            (*(UINT8*)pEventArg_p->pUserArg)++;
+        break;
+#endif
+
         default:
             break;
     }
@@ -344,6 +357,16 @@ static tOplkError processNodeEvent(tOplkApiEventType eventType_p,
                                    void* pUserArg_p)
 {
     tOplkApiEventNode*   pNode = &pEventArg_p->nodeEvent;
+#ifdef OPLK_API_TEST
+    tOplkError                  apiTestRet = kErrorOk;
+    UINT                        nodeId = 1;
+    tIdentResponse              tempIdentResponse;
+    tIdentResponse*             pIdentResponse = &tempIdentResponse; // to avoid crash in case of a failure
+    static tNmtNodeCommand      nodeCommand;
+
+    printf("OPLK API test enabled\n");
+    memset(&tempIdentResponse, 0 , sizeof(tempIdentResponse));
+#endif
 
     UNUSED_PARAMETER(eventType_p);
     UNUSED_PARAMETER(pUserArg_p);
@@ -361,6 +384,28 @@ static tOplkError processNodeEvent(tOplkApiEventType eventType_p,
 
         case kNmtNodeEventNmtState:
             printf("Node %d entered state %s\n", pNode->nodeId, debugstr_getNmtStateStr(pNode->nmtState));
+#ifdef OPLK_API_TEST
+    printf("\n==================\nNode %d event: %s\n", pNode->nodeId, debugstr_getNmtStateStr(pNode->nmtState));
+    nodeId = 1;
+    pIdentResponse = &tempIdentResponse; // to avoid crash in case of a failure
+    apiTestRet = oplk_getIdentResponse(nodeId, &pIdentResponse);
+    if (pIdentResponse != NULL)
+        printf("oplk_getIdentResponse: ret: 0x%X, nmtstatus: 0x%X, identRespFlags:0x%X, plkVersion:0x%X, devType:0x%X, vendorId:0x%X, ipAddr:0x%X\n", apiTestRet,
+                pIdentResponse->nmtStatus, pIdentResponse->identResponseFlags, pIdentResponse->powerlinkProfileVersion,
+                pIdentResponse->deviceTypeLe, pIdentResponse->vendorIdLe, pIdentResponse->ipAddressLe);
+    else
+        printf("oplk_getIdentResponse: ret: 0x%X, pIdentResponse: %lX\n", apiTestRet, (ULONG)pIdentResponse);
+
+    nodeId = 1;
+    nodeCommand = kNmtNodeCommandStart; // Also to be tested for different commands at different states
+    apiTestRet = oplk_triggerMnStateChange(nodeId, nodeCommand);
+    printf("oplk_triggerMnStateChange: ret: 0x%X, cmd: 0x%X\n", apiTestRet, nodeCommand);
+
+    apiTestRet = oplk_postUserEvent(&userArg_g);
+    printf("oplk_postUserEvent: ret: 0x%X, &userArg_g: 0x%lX, userArg_g: 0x%X\n", apiTestRet, (ULONG)&userArg_g, userArg_g);
+
+    printf("\n================================\n");
+#endif // #ifdef OPLK_API_TEST
             break;
 
         case kNmtNodeEventError:

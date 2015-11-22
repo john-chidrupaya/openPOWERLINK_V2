@@ -81,6 +81,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 const BYTE aMacAddr_g[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static BOOL fGsOff_l;
+#ifdef OPLK_API_TEST
+UINT8                       userArg_g = 1;
+#endif
 
 //------------------------------------------------------------------------------
 // global function prototypes
@@ -213,6 +216,20 @@ static tOplkError initPowerlink(UINT32 cycleLen_p, char* pszCdcFileName_p,
     tOplkError                  ret = kErrorOk;
     static tOplkApiInitParam    initParam;
     static char                 devName[128];
+#ifdef OPLK_API_TEST
+    tOplkError                  apiTestRet = kErrorOk;
+    UINT8                       aTestMacAddr[6] = {0};
+    UINT                        nodeId = 1;
+    tIdentResponse              tempIdentResponse;
+    tIdentResponse*             pIdentResponse = &tempIdentResponse; // to avoid crash in case of a failure
+    tOplkApiStackInfo           stackInfo;
+    BOOL                        fEnable = TRUE;
+    tNmtNodeCommand             nodeCommand;
+
+    printf("OPLK API test enabled\n");
+    memset(&tempIdentResponse, 0 , sizeof(tempIdentResponse));
+#endif
+
 
     printf("Initializing openPOWERLINK stack...\n");
     eventlog_printMessage(kEventlogLevelInfo, kEventlogCategoryControl,
@@ -281,6 +298,46 @@ static tOplkError initPowerlink(UINT32 cycleLen_p, char* pszCdcFileName_p,
     initParam.pfnCbSync  = NULL;
 #endif
 
+#ifdef OPLK_API_TEST
+    printf("Before oplk_initialize():\n==================================\n");
+    apiTestRet = oplk_getEthMacAddr((UINT8*)aTestMacAddr);
+    printf("oplk_getEthMacAddr: ret: 0x%X, val: 0x%X:0x%X:0x%X:0x%X:0x%X:0x%X\n", apiTestRet,
+            aTestMacAddr[0], aTestMacAddr[1], aTestMacAddr[2],
+            aTestMacAddr[3], aTestMacAddr[4], aTestMacAddr[5]);
+
+    nodeId = 1;
+    pIdentResponse = &tempIdentResponse; // to avoid crash in case of a failure
+    apiTestRet = oplk_getIdentResponse(nodeId, &pIdentResponse);
+    if (pIdentResponse != NULL)
+        printf("oplk_getIdentResponse: ret: 0x%X, nmtstatus: 0x%X, identRespFlags:0x%X, plkVersion:0x%X, devType:0x%X, vendorId:0x%X, ipAddr:0x%X\n", apiTestRet,
+                pIdentResponse->nmtStatus, pIdentResponse->identResponseFlags, pIdentResponse->powerlinkProfileVersion,
+                pIdentResponse->deviceTypeLe, pIdentResponse->vendorIdLe, pIdentResponse->ipAddressLe);
+    else
+        printf("oplk_getIdentResponse: ret: 0x%X, pIdentResponse: %lX\n", apiTestRet, (ULONG)pIdentResponse);
+
+    apiTestRet = oplk_getStackInfo(&stackInfo);
+    printf("oplk_getStackInfo: ret: 0x%X, userVersion: 0x%X, userFeature:0x%X, kernelVersion:0x%X, kernelFeature:0x%X\n", apiTestRet,
+            stackInfo.userVersion, stackInfo.userFeature, stackInfo.kernelVersion, stackInfo.kernelFeature);
+
+    printf("oplk_getStackConfiguration: val: 0x%X\n", oplk_getStackConfiguration());
+    printf("oplk_getVersionString: val: %s\n", oplk_getVersionString());
+    printf("oplk_getVersion: val: 0x%X\n", oplk_getVersion());
+
+    fEnable = TRUE;
+    apiTestRet = oplk_setNonPlkForward(fEnable);
+    printf("oplk_setNonPlkForward: ret: 0x%X\n", apiTestRet);
+
+    nodeId = 1;
+    nodeCommand = kNmtNodeCommandBoot; // Also to be tested for different commands at different states
+    apiTestRet = oplk_triggerMnStateChange(nodeId, nodeCommand);
+    printf("oplk_triggerMnStateChange: ret: 0x%X\n", apiTestRet);
+
+    apiTestRet = oplk_postUserEvent(&userArg_g);
+    printf("oplk_postUserEvent: ret: 0x%X, &userArg_g: 0x%lX, userArg_g: 0x%X\n", apiTestRet, (ULONG)&userArg_g, userArg_g);
+
+    printf("\n================================\n");
+#endif // #ifdef OPLK_API_TEST
+
     // initialize POWERLINK stack
     ret = oplk_initialize();
     if (ret != kErrorOk)
@@ -296,6 +353,46 @@ static tOplkError initPowerlink(UINT32 cycleLen_p, char* pszCdcFileName_p,
         fprintf(stderr, "oplk_create() failed with \"%s\" (0x%04x)\n", debugstr_getRetValStr(ret), ret);
         return ret;
     }
+
+#ifdef OPLK_API_TEST
+    printf("After oplk_create():\n==================================\n");
+    apiTestRet = oplk_getEthMacAddr((UINT8*)aTestMacAddr);
+    printf("oplk_getEthMacAddr: ret: 0x%X, val: 0x%X:0x%X:0x%X:0x%X:0x%X:0x%X\n", apiTestRet,
+            aTestMacAddr[0], aTestMacAddr[1], aTestMacAddr[2],
+            aTestMacAddr[3], aTestMacAddr[4], aTestMacAddr[5]);
+
+    nodeId = 1;
+    pIdentResponse = &tempIdentResponse; // to avoid crash in case of a failure
+    apiTestRet = oplk_getIdentResponse(nodeId, &pIdentResponse);
+    if (pIdentResponse != NULL)
+        printf("oplk_getIdentResponse: ret: 0x%X, nmtstatus: 0x%X, identRespFlags:0x%X, plkVersion:0x%X, devType:0x%X, vendorId:0x%X, ipAddr:0x%X\n", apiTestRet,
+                pIdentResponse->nmtStatus, pIdentResponse->identResponseFlags, pIdentResponse->powerlinkProfileVersion,
+                pIdentResponse->deviceTypeLe, pIdentResponse->vendorIdLe, pIdentResponse->ipAddressLe);
+    else
+        printf("oplk_getIdentResponse: ret: 0x%X, pIdentResponse: %lX\n", apiTestRet, (ULONG)pIdentResponse);
+
+    apiTestRet = oplk_getStackInfo(&stackInfo);
+    printf("oplk_getStackInfo: ret: 0x%X, userVersion: 0x%X, userFeature:0x%X, kernelVersion:0x%X, kernelFeature:0x%X\n", apiTestRet,
+            stackInfo.userVersion, stackInfo.userFeature, stackInfo.kernelVersion, stackInfo.kernelFeature);
+
+    printf("oplk_getStackConfiguration: val: 0x%X\n", oplk_getStackConfiguration());
+    printf("oplk_getVersionString: val: %s\n", oplk_getVersionString());
+    printf("oplk_getVersion: val: 0x%X\n", oplk_getVersion());
+
+    fEnable = TRUE;
+    apiTestRet = oplk_setNonPlkForward(fEnable);
+    printf("oplk_setNonPlkForward: ret: 0x%X\n", apiTestRet);
+
+    nodeId = 1;
+    nodeCommand = kNmtNodeCommandBoot; // Also to be tested for different commands at different states
+    apiTestRet = oplk_triggerMnStateChange(nodeId, nodeCommand);
+    printf("oplk_triggerMnStateChange: ret: 0x%X\n", apiTestRet);
+
+    apiTestRet = oplk_postUserEvent(&userArg_g);
+    printf("oplk_postUserEvent: ret: 0x%X, &userArg_g: 0x%lX, userArg_g: 0x%X\n", apiTestRet, (ULONG)&userArg_g, userArg_g);
+
+    printf("\n================================\n");
+#endif // #ifdef OPLK_API_TEST
 
     ret = oplk_setCdcFilename(pszCdcFileName_p);
     if (ret != kErrorOk)
@@ -349,6 +446,8 @@ static void loopMain(void)
 
     while (!fExit)
     {
+#ifdef OPLK_API_TEST
+#endif
         if (console_kbhit())
         {
             cKey = (char)console_getch();
