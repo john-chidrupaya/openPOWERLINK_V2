@@ -134,6 +134,16 @@ tOplkError eventucal_initQueueCircbuf(tEventQueue eventQueue_p)
             }
             break;
 
+        case kEventQueueUIntHighPrio:
+            circError = circbuf_alloc(CIRCBUF_USER_INTERNAL_QUEUE_HIGH_PRIO, CONFIG_EVENT_SIZE_CIRCBUF_USER_INTERNAL,
+                                      &instance_l[eventQueue_p]);
+            if (circError != kCircBufOk)
+            {
+                DEBUG_LVL_ERROR_TRACE("PLK : Could not allocate CIRCBUF_USER_INTERNAL_QUEUE circbuffer\n");
+                return kErrorNoResource;
+            }
+            break;
+
         case kEventQueueU2K:
             circError = circbuf_connect(CIRCBUF_USER_TO_KERNEL_QUEUE, &instance_l[eventQueue_p]);
             if (circError != kCircBufOk)

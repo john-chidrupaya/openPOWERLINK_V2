@@ -207,7 +207,8 @@ typedef enum
     kEventQueueKInt                 = 0x01,     ///< Kernel-internal queue
     kEventQueueU2K                  = 0x02,     ///< User-to-kernel queue
     kEventQueueUInt                 = 0x03,     ///< User-internal queue
-    kEventQueueNum                  = 0x04      ///< Maximum number of queues
+    kEventQueueUIntHighPrio         = 0x04,     ///< User-internal queue for high priority events
+    kEventQueueNum                  = 0x05      ///< Maximum number of queues
 } eEventQueue;
 
 /**
