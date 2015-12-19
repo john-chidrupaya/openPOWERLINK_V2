@@ -162,6 +162,8 @@ static INT          writeErrorObject(ULONG arg_p);
 static INT          readErrorObject(ULONG arg_p);
 static INT          getEventForUser(ULONG arg_p);
 static INT          postEventFromUser(ULONG arg_p);
+static INT          writeFileBuffer(ULONG arg_p);
+static INT          getFileBufferSize(ULONG arg_p);
 
 //------------------------------------------------------------------------------
 //  Kernel module specific data structures
@@ -1103,6 +1105,7 @@ static INT writeFileBuffer(ULONG arg_p)
 }
 
 //------------------------------------------------------------------------------
+/**
 \brief Get maximum supported file chunk size ioctl
 
 The function implements the ioctl for returning the maximum file chunk size
