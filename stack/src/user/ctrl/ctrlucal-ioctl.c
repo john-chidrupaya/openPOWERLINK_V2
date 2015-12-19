@@ -349,11 +349,22 @@ This function writes the given file chunk to the file transfer buffer
 //------------------------------------------------------------------------------
 tOplkError ctrlucal_writeFileBuffer(tOplkApiFileChunkDesc* pDesc_p, UINT8* pBuffer_p)
 {
-    UNUSED_PARAMETER(pDesc_p);
-    UNUSED_PARAMETER(pBuffer_p);
+    INT                 ret = 0;
+    tIoctlFileChunk     ioctlFileChunk;
 
-    // This CAL is not supporting that feature -> return no resource available.
-    return kErrorNoResource;
+    if (pBuffer_p == NULL)
+        return kErrorInvalidInstanceParam;
+
+    OPLK_MEMCPY(&ioctlFileChunk.desc, pDesc_p, sizeof(tOplkApiFileChunkDesc));
+    ioctlFileChunk.pData = pBuffer_p;
+
+    if ((ret = ioctl(fd_l, PLK_CMD_CTRL_WRITE_FILE_BUFFER, &ioctlFileChunk)) != 0)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s() ioctl error %d\n", __func__, ret);
+        return kErrorGeneralError;
+    }
+
+    return kErrorOk;
 }
 
 //------------------------------------------------------------------------------
@@ -370,8 +381,16 @@ CAL implementation.
 //------------------------------------------------------------------------------
 size_t ctrlucal_getFileBufferSize(void)
 {
-    // This CAL is not supporting that feature -> return zero size.
-    return 0;
+    INT                 ret = 0;
+    ULONG               fileBufferSize = 0;
+
+    if ((ret = ioctl(fd_l, PLK_CMD_CTRL_GET_FILE_BUFFER_SIZE, &fileBufferSize)) != 0)
+    {
+        DEBUG_LVL_ERROR_TRACE("%s() ioctl error %d\n", __func__, ret);
+        return kErrorGeneralError;
+    }
+
+    return (size_t)fileBufferSize;
 }
 
 //------------------------------------------------------------------------------
