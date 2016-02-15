@@ -92,7 +92,9 @@ static tSdoComFunctions* pSdoComInstance = NULL;
 
 The function initializes the SDO stack.
 
-\param stackType_p             variable that defines which SDO stack to use.
+\param stackType_p      Variable that defines which SDO stack to use.
+\param pfnObdWrite_p    Callback function for OD write access
+\param pfnObdRead_p     Callback function for OD read access
 
 \return The function returns a tOplkError error code.
 

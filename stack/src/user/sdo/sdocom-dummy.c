@@ -139,6 +139,9 @@ tSdoComFunctions* sdocomdummy_getInterface(void)
 
 This function does nothing, except returning kErrorOk.
 
+\param  pfnObdWrite_p   Callback function for OD write access
+\param  pfnObdRead_p    Callback function for OD read access
+
 \return The function returns a tOplkError error code.
 */
 //------------------------------------------------------------------------------
