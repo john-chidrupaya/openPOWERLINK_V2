@@ -81,6 +81,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // local vars
 //------------------------------------------------------------------------------
 static tEventCb pfnEventCb_l = NULL;
+static BOOL    isCnOp = FALSE;
 
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -96,6 +97,10 @@ static tOplkError processErrorWarningEvent(tOplkApiEventType eventType_p,
 static tOplkError processPdoChangeEvent(tOplkApiEventType eventType_p,
                                         tOplkApiEventArg* pEventArg_p,
                                         void* pUserArg_p);
+
+static tOplkError processSdoAccess(tOplkApiEventType eventType_p,
+                                   tOplkApiEventArg* pEventArg_p,
+                                   void* pUserArg_p);
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -156,6 +161,8 @@ tOplkError processEvents(tOplkApiEventType eventType_p,
             ret = processPdoChangeEvent(eventType_p, pEventArg_p, pUserArg_p);
             break;
 
+        case kOplkApiEventUserObdAccess:    // Fallback OD access
+            ret = processSdoAccess(eventType_p, pEventArg_p, pUserArg_p);
         default:
             break;
     }
@@ -200,6 +207,17 @@ static tOplkError processStateChangeEvent(tOplkApiEventType eventType_p,
            pNmtStateChange->newNmtState,
            pNmtStateChange->nmtEvent,
            debugstr_getNmtEventStr(pNmtStateChange->nmtEvent));
+
+    if (pNmtStateChange->nmtEvent == kNmtEventStartNode)
+    {
+        isCnOp = TRUE;
+        oplk_enableUserObdAccess(TRUE);
+    }
+    else //(pNmtStateChange->nmtEvent == kNmtEventResetNode)
+    {
+        isCnOp = FALSE;
+        oplk_enableUserObdAccess(FALSE);
+    }
 
     return kErrorOk;
 }
@@ -317,6 +335,63 @@ static tOplkError processPdoChangeEvent(tOplkApiEventType eventType_p,
     }
 
     return kErrorOk;
+}
+
+//------------------------------------------------------------------------------
+/**
+\brief  Process SDO Access events
+
+The function processes SDO access events for objects not present in OD.
+
+\param  eventType_p         Type of event
+\param  pEventArg_p         Pointer to union which describes the event in detail
+\param  pUserArg_p          User specific argument
+
+\return The function returns a tOplkError error code.
+*/
+//------------------------------------------------------------------------------
+static tOplkError processSdoAccess(tOplkApiEventType eventType_p,
+                                   tOplkApiEventArg* pEventArg_p,
+                                   void* pUserArg_p)
+{
+    tObdAlConHdl*   userObdConHdl = (tObdAlConHdl*)pEventArg_p;
+    tOplkError      ret = kErrorOk;
+
+    UNUSED_PARAMETER(eventType_p);
+    UNUSED_PARAMETER(pUserArg_p);
+
+    switch (userObdConHdl->index)
+    {
+        case 0x1F50:
+            if (userObdConHdl->accessTyp == kObdAlAccessTypeWrite)
+            {
+                switch (userObdConHdl->subIndex)
+                {
+                    case 0x01:
+                        for (int i = 0; i < userObdConHdl->dataSize; i++)
+                        {
+                            printf("0x%X ", *(userObdConHdl->pSrcData + i)
+                        }
+
+                        userObdConHdl->plkError = kErrorOk;
+                        break;
+                    default:
+                        userObdConHdl->plkError = kErrorObdSubindexNotExist;
+                        goto Exit;
+                }
+            }
+            else
+            {
+                userObdConHdl->plkError = kErrorObdSubindexNotExist;
+            }
+
+        break;
+
+        default:
+            break;
+    }
+
+    return ret;
 }
 
 ///\}

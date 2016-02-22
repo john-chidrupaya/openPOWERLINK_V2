@@ -105,6 +105,22 @@ area from 0x1B00 - 0x1FFF.
         OBD_RAM_INDEX_RAM_ARRAY(0x1F27, NMT_MAX_NODE_ID, NULL, kObdTypeUInt32, kObdAccSRW, tObdUnsigned32, CFM_ExpConfTimeList_AU32, 0)
 #endif
 
+#if defined(CONFIG_INCLUDE_FW_UPDATE)
+        // firmware update related objects
+        // Object 1F51h: PDL_ProgCtrl_AU8
+        OBD_BEGIN_INDEX_RAM(0x1F51, 0x02, ctrlu_cbObdAccess)
+            OBD_SUBINDEX_RAM_VAR(0x1F51, 0x00, kObdTypUInt8, kObdAccConst, tObdUnsigned8, NumberOfEntries, 0x01)
+            OBD_SUBINDEX_RAM_VAR(0x1F51, 0x01, kObdTypUInt8, kObdAccRW, tObdUnsigned8, ProgCtrl, 0x00)
+        OBD_END_INDEX(0x1F51)
+
+        // Object 1F52h: PDL_LocVerApplSw_REC
+        OBD_BEGIN_INDEX_RAM(0x1F52, 0x03, ctrlu_cbObdAccess)
+            OBD_SUBINDEX_RAM_VAR(0x1F52, 0x00, kObdTypUInt8, kObdAccConst, tObdUnsigned8, NumberOfEntries, 0x02)
+            OBD_SUBINDEX_RAM_VAR(0x1F52, 0x01, kObdTypeUInt32, kObdAccRW, tObdUnsigned32, ApplSwDate_U32, 0x00)
+            OBD_SUBINDEX_RAM_VAR(0x1F52, 0x02, kObdTypeUInt32, kObdAccRW, tObdUnsigned32, ApplSwTime_U32, 0x00)
+        OBD_END_INDEX(0x1F52)
+#endif // CONFIG_USER_IMAGE_IN_FLASH
+
 #if defined(CONFIG_INCLUDE_NMT_MN)
         // Object 1F80h: NMT_StartUp_U32
         OBD_BEGIN_INDEX_RAM(0x1F80, 0x01, NULL)

@@ -883,6 +883,33 @@ tOplkError ctrlu_cbObdAccess(tObdCbParam MEM* pParam_p)
             break;
 #endif
 
+#if defined(CONFIG_INCLUDE_FW_UPDATE)
+        case 0x1F52:    // PDL_LocVerApplSw_REC
+        {
+            if ((pParam_p->obdEvent == kObdEvPreRead))
+            {
+                if (pParam_p->subIndex == 0x01)
+                {
+                    Ret = obd_writeEntry(0x1F52, 1,
+                                         &ctrlInstance_l.initParam.applicationSwDate,
+                                         4);
+                }
+                else if (pParam_p->subIndex == 0x02)
+                {
+                    Ret = obd_writeEntry(0x1F52, 2,
+                                         &ctrlInstance_l.initParam.applicationSwTime,
+                                         4);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            break;
+        }
+#endif
+
 #if (CONFIG_OBD_USE_STORE_RESTORE != FALSE)
         case 0x1010:    // NMT_StoreParam_REC
             // Call back for Store action
