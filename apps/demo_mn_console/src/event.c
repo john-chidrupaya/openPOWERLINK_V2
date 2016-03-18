@@ -80,10 +80,8 @@ static BOOL*    pfGsOff_l;
 //------------------------------------------------------------------------------
 // local vars
 //------------------------------------------------------------------------------
-tSdoComConHdl*  pSdoComConHdl;
-FILE*           srecFwFile;
-long            lSize;
-char*           buffer;
+tSdoComConHdl   pSdoComConHdl;
+unsigned char nodeState = 0;
 
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -195,13 +193,29 @@ tOplkError processEvents(tOplkApiEventType eventType_p,
             ret = processCfmResultEvent(eventType_p, pEventArg_p, pUserArg_p);
             break;
 
-        case kOplkApiEventSdo:
+        case kOplkApiEventSdo:/*
             pSdoComFinished = (tSdoComFinished*)pEventArg_p;
             if ((pSdoComFinished->nodeId == 1) && (pSdoComFinished->targetIndex == 0x1F50))
             {
-                printf("Fw download completed!!\n");
-                free(buffer);
-            }
+                printf("Fw download completed!! @ 0x%X\n", pSdoComFinished->sdoComConState);
+	            if (pSdoComFinished->sdoComConState != 0)
+	            {
+			printf("Starting SDO transfer\n");
+	                if ((ret = oplk_writeObject(&pSdoComConHdl, 0x1, 0x1f50, 0x1, srecFwFile, lSize, kSdoTypeAsnd, NULL) ) != kErrorApiTaskDeferred)
+	                {
+				printf("Failed SDO transfer with 0x%X\n", ret);
+				return kErrorShutdown;
+			}
+            	}
+		else
+		{
+			nodeState = 1;
+			printf("Resetting node\n");
+			oplk_triggerMnStateChange(1, kNmtNodeCommandConfReset);
+			 if (buffer != NULL)
+                		free(buffer);
+		}
+            }*/
 
             break;
 
@@ -266,27 +280,6 @@ static tOplkError processStateChangeEvent(tOplkApiEventType eventType_p,
             break;
 
         case kNmtGsResetConfiguration:
-        {
-
-            srecFwFile = fopen ( "mnobd.cdc" , "rb" );
-            if( !srecFwFile ) perror("mnobd.cdc"),exit(1);
-
-            fseek(srecFwFile , 0L , SEEK_END);
-            lSize = ftell( srecFwFile );
-            rewind( srecFwFile );
-
-            /* allocate memory for entire content */
-            buffer = calloc( 1, lSize+1 );
-            if( !buffer ) fclose(srecFwFile),fputs("memory alloc fails",stderr),exit(1);
-
-            /* copy the file into the buffer */
-            if( 1!=fread( buffer , lSize, 1 , srecFwFile )
-              fclose(srecFwFile),free(buffer),fputs("entire read fails",stderr),exit(1);
-
-            /* do your work here, buffer is a string contains the whole text */
-
-            fclose(srecFwFile);
-        }
             break;
 
         case kNmtGsInitialising:
@@ -380,6 +373,7 @@ static tOplkError processNodeEvent(tOplkApiEventType eventType_p,
                                    void* pUserArg_p)
 {
     tOplkApiEventNode*   pNode = &pEventArg_p->nodeEvent;
+	tOplkError	ret = kErrorOk;
 
     UNUSED_PARAMETER(eventType_p);
     UNUSED_PARAMETER(pUserArg_p);
@@ -396,20 +390,12 @@ static tOplkError processNodeEvent(tOplkApiEventType eventType_p,
             break;
 
         case kNmtNodeEventNmtState:
-            printf("Node %d entered state %s\n", pNode->nodeId, debugstr_getNmtStateStr(pNode->nmtState));
-            if ((pNode->nodeId == 1) && (pNode->nmtState == kNmtCsOperational))
-            {
-                if (oplk_writeObject(pSdoComConHdl, 0x1, 0x1f50, 0x1, srecFwFile, lSize, kSdoTypeAsnd, NULL) != kErrorApiTaskDeferred)
-                    return kErrorShutdown;
-            }
-
             break;
 
         case kNmtNodeEventError:
             break;
 
         case kNmtNodeEventFound:
-            printf("Stack found node %d\n", pNode->nodeId);
             break;
 
         case kNmtNodeEventAmniReceived:

@@ -2257,6 +2257,8 @@ static tOplkError clientSdoInitTransferByIndex(tSdoComTransParamByIndex* pSdoCom
 
     pSdoComCon->pData = (UINT8*)pSdoComTransParam_p->pData;     // save pointer to data
     pSdoComCon->transferSize = pSdoComTransParam_p->dataSize;   // maximal bytes to transfer
+    if (pSdoComTransParam_p->index == 0x1f50)
+    	printf("data size to transfer %d\n", pSdoComTransParam_p->dataSize);
     pSdoComCon->transferredBytes = 0;                           // bytes already transfered
 
     pSdoComCon->lastAbortCode = 0;
@@ -2860,6 +2862,8 @@ static tOplkError clientSend(tSdoComCon* pSdoComCon_p)
 
                         payloadSize = SDO_CMD_SEGM_TX_MAX_SIZE - (SDO_CMDL_HDR_VAR_SIZE + SDO_CMDL_HDR_WRITEBYINDEX_SIZE);
                         OPLK_MEMCPY(pPayload, pSdoComCon_p->pData, payloadSize);
+                        //if (pSdoComCon_p->targetIndex == 0x1f50)
+                        	//printf("t %d size %d\n",pSdoComCon_p->transferSize, payloadSize);
                         updateHdlTransfSize(pSdoComCon_p, payloadSize, FALSE);
                     }
                     else
@@ -2872,7 +2876,8 @@ static tOplkError clientSend(tSdoComCon* pSdoComCon_p)
                         ami_setUint8Le(pPayload, (UINT8)pSdoComCon_p->targetSubIndex);
                         pPayload += 2;      // + 2 -> one byte for sub index and one byte reserved
                         sizeOfCmdFrame = SDO_CMDL_HDR_FIXED_SIZE + (pSdoComCon_p->transferSize + SDO_CMDL_HDR_WRITEBYINDEX_SIZE);
-
+                       // if (pSdoComCon_p->targetIndex == 0x1f50)
+                        	//printf("t %d size %d\n",pSdoComCon_p->transferSize, payloadSize);
                         OPLK_MEMCPY(pPayload, pSdoComCon_p->pData,  pSdoComCon_p->transferSize);
                         updateHdlTransfSize(pSdoComCon_p, pSdoComCon_p->transferSize, TRUE);
                     }
@@ -2898,7 +2903,8 @@ static tOplkError clientSend(tSdoComCon* pSdoComCon_p)
                             fillCmdFrameDataSegm(pCommandFrame, pSdoComCon_p->pData, sizeOfCmdData);
                             overwriteCmdFrameHdrFlags(pCommandFrame, SDO_CMDL_FLAG_SEGMENTED);
                             setCmdFrameHdrSegmSize(pCommandFrame, sizeOfCmdData);
-
+                            //if (pSdoComCon_p->targetIndex == 0x1f50)
+                            	//printf("t %d size %d\n",pSdoComCon_p->transferSize, sizeOfCmdData);
                             updateHdlTransfSize(pSdoComCon_p, sizeOfCmdData, FALSE);
                             sizeOfCmdFrame = SDO_CMDL_HDR_FIXED_SIZE + sizeOfCmdData;
                         }
@@ -2908,7 +2914,8 @@ static tOplkError clientSend(tSdoComCon* pSdoComCon_p)
                             fillCmdFrameDataSegm(pCommandFrame, pSdoComCon_p->pData, sizeOfCmdData);
                             overwriteCmdFrameHdrFlags(pCommandFrame, SDO_CMDL_FLAG_SEGMCOMPL);
                             setCmdFrameHdrSegmSize(pCommandFrame, sizeOfCmdData);
-
+                            //if (pSdoComCon_p->targetIndex == 0x1f50)
+                            	//printf("t %d size %d\n",pSdoComCon_p->transferSize, sizeOfCmdData);
                             updateHdlTransfSize(pSdoComCon_p, sizeOfCmdData, TRUE);
                             sizeOfCmdFrame = SDO_CMDL_HDR_FIXED_SIZE + sizeOfCmdData;
                         }
@@ -2937,6 +2944,9 @@ static tOplkError clientSend(tSdoComCon* pSdoComCon_p)
         case kSdoTypeAsnd:
         case kSdoTypeUdp:
             ret = sdoseq_sendData(pSdoComCon_p->sdoSeqConHdl, sizeOfCmdFrame, pFrame);
+            if (ret != kErrorOk)
+            		printf("return %x\n", ret);
+            // Why error is not handled here?
             break;
 
         default:

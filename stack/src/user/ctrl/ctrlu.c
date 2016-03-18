@@ -1678,6 +1678,7 @@ static tOplkError updateSdoConfig(void)
     if (ret != kErrorOk)
         return ret;
 
+    printf("Sequence Timeout %d\n", sdoSequTimeout);
     ret = sdoseq_setTimeout(sdoSequTimeout);
     return ret;
 }
@@ -1894,6 +1895,7 @@ static tOplkError cbNodeEvent(UINT nodeId_p, tNmtNodeEvent nodeEvent_p, tNmtStat
     eventArg.nodeEvent.fMandatory = fMandatory_p;
 
     ret = ctrlu_callUserEventCallback(kOplkApiEventNode, &eventArg);
+
     if (((nodeEvent_p == kNmtNodeEventCheckConf) || (nodeEvent_p == kNmtNodeEventUpdateConf)) &&
         (ret != kErrorOk))
         return ret;

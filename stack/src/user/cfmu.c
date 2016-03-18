@@ -108,6 +108,7 @@ typedef enum
     kCfmStateWaitStore,                                     ///< The CFM has issued a store command and is awaiting the acknowledge
     kCfmStateUpToDate,                                      ///< The CN is up-to-date (no configuration download is required)
     kCfmStateInternalAbort,                                 ///< The CFM has aborted due to an internal failure
+    kCfmStateFwDownload,
 } eCfmState;
 
 /**
@@ -156,6 +157,10 @@ typedef struct
 // local vars
 //------------------------------------------------------------------------------
 static tCfmInstance             cfmInstance_g;
+static UINT8                    nodeFwState[240] = {0}; // The 0th entry is not used, for simplicity
+static FILE*                    srecFwFile = NULL;
+static long                     lSize = 0;
+static char*                    buffer = NULL;
 
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -691,6 +696,52 @@ static tOplkError finishConfig(tCfmNodeInfo* pNodeInfo_p,
                                tNmtNodeCommand nmtNodeCommand_p)
 {
     tOplkError      ret = kErrorOk;
+    UINT32			index = 0;
+    if ((nmtNodeCommand_p == kNmtNodeCommandConfReset) &&  /* Wait for fw update */
+        (pNodeInfo_p->cfmState != kCfmStateFwDownload) &&
+        (nodeFwState[pNodeInfo_p->eventCnProgress.nodeId] != 1))
+    {
+        if (nodeFwState[pNodeInfo_p->eventCnProgress.nodeId] == 0)
+        {
+            printf("Opening File!\n");
+
+            srecFwFile = fopen("demo_cn_embedded.srec" , "rb" );
+            if(srecFwFile)
+            {
+                fseek(srecFwFile , 0L , SEEK_END);
+                lSize = ftell( srecFwFile );
+                rewind( srecFwFile );
+
+            /* allocate memory for entire content */
+    //            buffer = calloc( 1, lSize+1 );
+                buffer = malloc(lSize + 2000);
+                if( !buffer ) fclose(srecFwFile),fputs("memory alloc fails",stderr),exit(1);
+
+            /* copy the file into the buffer */
+    //            if( 1!=fread( buffer , lSize, 1 , srecFwFile ))
+    //              fclose(srecFwFile),free(buffer),fputs("entire read fails",stderr),exit(1);
+
+                if( lSize !=fread( (buffer + 1272) , 1, lSize, srecFwFile ))
+                    fclose(srecFwFile),free(buffer),fputs("entire read fails",stderr),exit(1);
+
+            /* do your work here, buffer is a string contains the whole text */
+                printf("Closing file with size %d!\n", lSize);
+
+                //for (index = 0; index < lSize; index++)
+                printf("%c %c %c %c %c\n", *(buffer + 1272), *(buffer + 1273), *(buffer + 1274), *(buffer + 1275), *(buffer + 1276));
+                fclose(srecFwFile);
+
+                pNodeInfo_p->eventCnProgress.objectIndex = 0x1f50;
+                pNodeInfo_p->eventCnProgress.objectSubIndex = 0x01;
+                sdoWriteObject(pNodeInfo_p, buffer, lSize + 1272);
+                nodeFwState[pNodeInfo_p->eventCnProgress.nodeId] = 1; // Ongoing fw download
+                pNodeInfo_p->cfmState = kCfmStateFwDownload;
+
+                return ret;
+            }
+            //else  perror("demo_cn_embedded.srec")
+        }
+    }
 
     if (pNodeInfo_p->sdoComConHdl != UINT_MAX)
     {
@@ -802,6 +853,62 @@ static tOplkError cbSdoCon(tSdoComFinished* pSdoComFinished_p)
 
         case kCfmStateInternalAbort:
             // configuration was aborted
+            break;
+
+        case kCfmStateFwDownload:
+            // Download firmware here
+        	printf("################cfmStateDownload\n");
+            if ((nodeFwState[pNodeInfo->eventCnProgress.nodeId] == 0) ||
+                (pNodeInfo->eventCnProgress.sdoAbortCode != 0))
+            {
+                if (nodeFwState[pNodeInfo->eventCnProgress.nodeId] == 0)
+                {
+                }
+                  /*  printf("Opening File!\n");
+
+                    srecFwFile = fopen ( "demo_cn_embedded.srec" , "rb" );
+                    if( !srecFwFile ) perror("demo_cn_embedded.srec"),exit(1);
+
+                    fseek(srecFwFile , 0L , SEEK_END);
+                    lSize = ftell( srecFwFile );
+                    rewind( srecFwFile );
+
+                /* allocate memory for entire content */
+    //            buffer = calloc( 1, lSize+1 );
+                	 /*
+                    buffer = malloc(lSize);
+                    if( !buffer ) fclose(srecFwFile),fputs("memory alloc fails",stderr),exit(1);
+
+                /* copy the file into the buffer */
+    //            if( 1!=fread( buffer , lSize, 1 , srecFwFile ))
+    //              fclose(srecFwFile),free(buffer),fputs("entire read fails",stderr),exit(1);
+                	 /*
+                    if( lSize !=fread( buffer , 1, lSize, srecFwFile ))
+                        fclose(srecFwFile),free(buffer),fputs("entire read fails",stderr),exit(1);
+
+                /* do your work here, buffer is a string contains the whole text */
+                	 /*
+                    printf("Closing file with size %d!\n", lSize);
+
+                    fclose(srecFwFile);
+                }
+
+                pNodeInfo->eventCnProgress.objectIndex = 0x1f50;
+                pNodeInfo->eventCnProgress.objectSubIndex = 0x01;
+                if (sdoWriteObject(pNodeInfo, buffer, lSize) != kErrorOk)
+                    nodeFwState[pNodeInfo->eventCnProgress.nodeId] = 0;
+                else
+                    nodeFwState[pNodeInfo->eventCnProgress.nodeId] = 1; // Ongoing fw download
+                */
+            }
+            else
+            {
+                if (buffer != NULL)
+                    free(buffer);
+
+                ret = finishConfig(pNodeInfo, kNmtNodeCommandConfReset);
+            }
+
             break;
     }
 
@@ -1060,6 +1167,8 @@ static tOplkError sdoWriteObject(tCfmNodeInfo* pNodeInfo_p, void* pLeSrcData_p, 
             return ret;
     }
 
+    if (pNodeInfo_p->eventCnProgress.objectIndex == 0x1f50)
+        printf("Writing Data for 1f50\n");
     transParamByIndex.pData = pLeSrcData_p;
     transParamByIndex.sdoAccessType = kSdoAccessTypeWrite;
     transParamByIndex.sdoComConHdl = pNodeInfo_p->sdoComConHdl;

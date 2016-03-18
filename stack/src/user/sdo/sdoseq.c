@@ -59,6 +59,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
+// FIXME: This is a hack for MOBA
 #define SDO_HISTORY_SIZE            5
 
 #ifndef CONFIG_SDO_MAX_CONNECTION_SEQ
@@ -126,10 +127,10 @@ This structure defines the SDO sequence layer connection history buffer.
 */
 typedef struct
 {
-    UINT8   freeEntries;    ///< Number of free history entries
-    UINT8   writeIndex;     ///< Index of the next free buffer entry
-    UINT8   ackIndex;       ///< Index of the next message which should become acknowledged
-    UINT8   readIndex;      ///< Index between ackIndex and writeIndex to the next message for retransmission
+    UINT16   freeEntries;    ///< Number of free history entries
+    UINT16   writeIndex;     ///< Index of the next free buffer entry
+    UINT16   ackIndex;       ///< Index of the next message which should become acknowledged
+    UINT16   readIndex;      ///< Index between ackIndex and writeIndex to the next message for retransmission
     UINT8   aHistoryFrame[SDO_HISTORY_SIZE][SDO_SEQ_TX_HISTORY_FRAME_SIZE];    ///< Array of the history frames
     UINT    aFrameSize[SDO_HISTORY_SIZE];           ///< Array of sizes of the history frames
     BOOL    afFrameFirstTxFailed[SDO_HISTORY_SIZE]; ///< Array of flags tagging frame as unsent
@@ -1380,6 +1381,7 @@ static tOplkError processStateWaitAck(tSdoSeqCon* pSdoSeqCon_p, tSdoSeqConHdl sd
 
         if ((sendSeqNumCon & SDO_CON_MASK) == 1)
         {   // reinit from other node -> return to idle
+        	//printf("1\n");
             pSdoSeqCon_p->sdoSeqState = kSdoSeqStateIdle;
             timeru_deleteTimer(&pSdoSeqCon_p->timerHandle);
             sdoSeqInstance_l.pfnSdoComConCb(sdoSeqConHdl_p, kAsySdoConStateTransferAbort);
@@ -1392,6 +1394,7 @@ static tOplkError processStateWaitAck(tSdoSeqCon* pSdoSeqCon_p, tSdoSeqConHdl sd
         {
             // close from other node
             case 0:
+            	//printf("2\n");
                 // return to idle
                 pSdoSeqCon_p->sdoSeqState = kSdoSeqStateIdle;
                 timeru_deleteTimer(&pSdoSeqCon_p->timerHandle);
@@ -1403,7 +1406,7 @@ static tOplkError processStateWaitAck(tSdoSeqCon* pSdoSeqCon_p, tSdoSeqConHdl sd
                 if (checkHistoryAcked(pSdoSeqCon_p, recvSeqNumCon & SEQ_NUM_MASK))
                 {   // we came here only due to a full history buffer
                     // and one element is now acknowledged
-
+                	//printf("3\n");
                     ret = setTimer(pSdoSeqCon_p, sdoSeqInstance_l.sdoSeqTimeout);
                     // reset timeout counter
                     pSdoSeqCon_p->retryCount = 0;
@@ -1625,12 +1628,14 @@ static tOplkError processState(UINT handle_p, UINT dataSize_p, tPlkFrame* pData_
 
         // connection established
         case kSdoSeqStateConnected:
+        	//printf("Connected %x\n", event_p);
             ret = processStateConnected(pSdoSeqCon, sdoSeqConHdl, event_p, pRecvFrame_p,
                                         dataSize_p, pData_p);
             break;
 
         // wait for Acknowledge (history buffer full)
         case kSdoSeqStateWaitAck:
+        	//printf("Ack state %x\n", event_p);
             ret = processStateWaitAck(pSdoSeqCon, sdoSeqConHdl, event_p, pRecvFrame_p,
                                       dataSize_p);
             break;
@@ -1692,6 +1697,7 @@ static tOplkError sendFrame(tSdoSeqCon* pSdoSeqCon_p, UINT dataSize_p,
     ami_setUint8Le(&pFrame->data.asnd.payload.sdoSequenceFrame.sendSeqNumCon, pSdoSeqCon_p->recvSeqNum);
     dataSize_p += SDO_SEQ_HEADER_SIZE;
 
+    //printf("r %x s %x\n", pSdoSeqCon_p->sendSeqNum, pSdoSeqCon_p->recvSeqNum);
     if (fFrameInHistory_p != FALSE)
     {
         // save frame to history
@@ -1703,6 +1709,7 @@ static tOplkError sendFrame(tSdoSeqCon* pSdoSeqCon_p, UINT dataSize_p,
         freeEntries = getFreeHistoryEntries(pSdoSeqCon_p);
         if (freeEntries <= 1)
         {   // change state
+        	//printf("Ack needed\n");
             retReplace = kErrorSdoSeqRequestAckNeeded;
         }
 
@@ -1713,9 +1720,11 @@ static tOplkError sendFrame(tSdoSeqCon* pSdoSeqCon_p, UINT dataSize_p,
         {
             if ((ret == kErrorRetry))
             { // resend unsent frame
+            	//printf("send to lower\n");
                 ret = sendToLowerLayer(pSdoSeqCon_p, frameSizeResend, pFrameResend);
                 if (ret == kErrorDllAsyncTxBufferFull)
                 {
+                	printf("Async Buffer full\n");
                     ret = kErrorOk; // ignore unsent frames
                     break;          // stop sending old frames
                 }
@@ -2001,7 +2010,7 @@ static tOplkError deleteAckedFrameFromHistory(tSdoSeqCon* pSdoSeqCon_p, UINT8 re
 {
     tOplkError              ret = kErrorOk;
     tSdoSeqConHistory*      pHistory;
-    UINT8                   ackIndex;
+    UINT16                   ackIndex;
     UINT8                   currentSeqNum;
 
     // get pointer to history buffer
